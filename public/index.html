@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deltec Estimating</title>
+<title>OnSite Estimating</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;font-size:14px;line-height:1.5}
@@ -42,12 +42,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sr-item .code{font-weight:600;font-size:12px;margin-right:8px}
 .sr-item .desc{font-size:12px;color:var(--muted)}
 .sr-item .cat{float:right;font-size:11px;color:#aaa;background:var(--bg3);padding:1px 6px;border-radius:4px}
+
+/* --- Sheet tabs bar --- */
+.sheet-bar{display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap}
 .sheet-tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sheet-tab{font-size:12px;padding:4px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;background:#fff;color:var(--muted);user-select:none}
 .sheet-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
 .add-sheet-btn{font-size:12px;padding:4px 10px;border:1px dashed var(--border);border-radius:20px;cursor:pointer;color:var(--muted);background:transparent}
 .add-sheet-btn:hover{color:var(--text);border-color:var(--text)}
-.takeoff-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
+
+/* 3-dot sheet menu */
+.sheet-menu-wrap{position:relative;margin-left:auto}
+.sheet-menu-btn{background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:3px 7px;font-size:16px;color:var(--muted);line-height:1;display:flex;align-items:center}
+.sheet-menu-btn:hover{background:var(--bg2);color:var(--text)}
+.sheet-menu-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:400;min-width:170px;overflow:hidden}
+.sheet-menu-dropdown .mi{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.sheet-menu-dropdown .mi:hover{background:var(--bg2)}
+.sheet-menu-dropdown .mi.danger{color:var(--danger)}
+.sheet-menu-dropdown .mi.danger:hover{background:var(--danger-bg)}
+.sheet-menu-dropdown .sep{height:1px;background:var(--border);margin:4px 0}
+
+.takeoff-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:#fff;overflow-y:visible}
+.takeoff-wrap table{min-width:900px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--border);font-weight:500;font-size:11px;color:var(--muted);white-space:nowrap;position:sticky;top:0}
 td{padding:3px 6px;border-bottom:1px solid #f0efeb;vertical-align:middle}
@@ -68,7 +84,7 @@ tr:hover .del-btn{opacity:1}
 .inline-input:focus{outline:none;border-color:var(--border);background:var(--amber-bg)}
 .inline-input.has-item{background:transparent;border-color:transparent}
 .inline-input.has-item:focus{background:var(--amber-bg);border-color:var(--border)}
-.inline-results{position:absolute;top:calc(100% + 2px);left:0;min-width:280px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);z-index:300;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.inline-results{position:fixed;background:#fff;border:1px solid var(--border);border-radius:var(--radius);z-index:9999;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.15);min-width:300px}
 .ir-item{padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border)}
 .ir-item:last-child{border-bottom:none}
 .ir-item:hover{background:var(--bg2)}
@@ -108,34 +124,85 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center}
 .modal{background:#fff;border-radius:12px;padding:24px;width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.15)}
 .modal h3{font-size:15px;font-weight:600;margin-bottom:16px}
-.modal input{width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px}
-.modal input:focus{outline:none;border-color:#888}
+.modal input,.modal select,.modal textarea{width:100%;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;background:#fff;color:var(--text)}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:#888}
+.modal textarea{resize:vertical;min-height:60px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:block}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 .row-num{font-size:11px;color:#bbb;min-width:22px;text-align:right}
 
+/* --- Row 3-dot context menu --- */
+.row-menu-wrap{position:relative;display:inline-block}
+.row-menu-btn{background:none;border:none;cursor:pointer;font-size:14px;color:#bbb;padding:0 3px;opacity:0;transition:opacity .1s;line-height:1}
+tr:hover .row-menu-btn{opacity:1}
+@media(hover:none){.row-menu-btn{opacity:.6}}
+.row-menu-btn:hover{color:var(--text)}
+.row-menu-dropdown{position:absolute;top:calc(100% + 2px);right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:400;min-width:190px;overflow:hidden}
+.row-menu-dropdown .mi{padding:8px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.row-menu-dropdown .mi:hover{background:var(--bg2)}
+.row-menu-dropdown .mi.danger{color:var(--danger)}
+.row-menu-dropdown .mi.danger:hover{background:var(--danger-bg)}
+.row-menu-dropdown .sep{height:1px;background:var(--border);margin:3px 0}
+.custom-badge{font-size:10px;background:#e8f4fd;color:#1a6aaa;padding:1px 5px;border-radius:4px;margin-left:4px}
+
+/* --- Inline edit fields for custom rows --- */
+.editable-cell input{width:100%;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--amber-bg)}
+.editable-cell input:focus{outline:none;border-color:var(--amber)}
+
+/* --- Library pane --- */
+.lib-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.lib-search-wrap{position:relative;flex:1;min-width:180px;max-width:300px}
+.lib-search-wrap input{width:100%;padding-left:28px;height:32px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:#fff}
+.lib-search-wrap input:focus{outline:none;border-color:#888}
+.lib-search-icon{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px}
+.lib-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:#fff;max-height:calc(100vh - 280px);overflow-y:auto}
+.lib-table th{position:sticky;top:0;z-index:10;background:var(--bg2)}
+.lib-table td{vertical-align:middle}
+.lib-edit-input{width:100%;font-size:12px;padding:2px 5px;border:1px solid transparent;border-radius:4px;background:transparent}
+.lib-edit-input:focus{outline:none;border-color:var(--border);background:var(--amber-bg)}
+.lib-source-badge{font-size:10px;padding:1px 6px;border-radius:4px}
+.lib-source-badge.default{background:var(--bg3);color:var(--muted)}
+.lib-source-badge.custom{background:#e8f4fd;color:#1a6aaa}
+.lib-source-badge.assembly{background:#eaf3de;color:var(--green)}
+.lib-del-btn{background:none;border:none;cursor:pointer;font-size:12px;color:#ccc;padding:0 4px;opacity:0}
+tr:hover .lib-del-btn{opacity:1}
+.lib-del-btn:hover{color:var(--danger)}
+
+/* --- Assemblies pane --- */
+.assembly-grid{display:grid;gap:12px}
+.assembly-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.assembly-card-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.assembly-card-name{font-weight:600;font-size:14px;flex:1}
+.assembly-card-meta{font-size:11px;color:var(--muted)}
+.assembly-items{font-size:12px;color:var(--muted);margin-top:6px}
+.assembly-item-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f4f0}
+.assembly-item-row:last-child{border-bottom:none}
+
+/* Print styles */
 @media print {
   body{background:#fff;font-size:12px}
-  .topbar,.tabs,.toolbar,.add-sheet-btn,.del-btn,.toast,.modal-overlay{display:none!important}
-  .pane{display:flex!important;padding:0}
-  #pane-takeoff,#pane-summary{page-break-after:always}
-  #pane-settings{display:none!important}
-  .sheet-tabs{display:flex}
-  .takeoff-wrap{border:none;overflow:visible}
-  .totals-bar{border:1px solid #ccc;margin-top:8px}
+  .topbar,.tabs,.toolbar,.add-sheet-btn,.del-btn,.toast,.modal-overlay,.sheet-menu-wrap,.row-menu-wrap{display:none!important}
+  .pane{display:none!important}
+  #pane-summary{display:flex!important;padding:0}
+  .summary-card{page-break-inside:avoid}
   th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-header{display:block!important}
 }
 .print-header{display:none;margin-bottom:16px}
 .print-header h2{font-size:16px;font-weight:600;margin-bottom:4px}
 .print-header p{font-size:12px;color:#666}
+
+/* Filter active indicator */
+select.filter-active{border-color:var(--amber);background:#fffbf2}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="logo">Deltec <span>Estimating</span></div>
+  <div class="logo">OnSite <span>Estimating</span></div>
   <div class="proj-fields">
     <input id="proj-name" placeholder="Project name" oninput="markDirty()"/>
     <input id="proj-client" placeholder="Client / GC" oninput="markDirty()"/>
@@ -153,6 +220,8 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
 <div class="tabs">
   <div class="tab active" data-tab="takeoff" onclick="switchTab('takeoff')">Takeoff</div>
   <div class="tab" data-tab="summary" onclick="switchTab('summary')">Summary</div>
+  <div class="tab" data-tab="library" onclick="switchTab('library')">Library</div>
+  <div class="tab" data-tab="assemblies" onclick="switchTab('assemblies')">Assemblies</div>
   <div class="tab" data-tab="settings" onclick="switchTab('settings')">Settings</div>
 </div>
 
@@ -160,8 +229,21 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
 <div class="pane active" id="pane-takeoff">
   <div class="print-header" id="print-header"></div>
   <div class="toolbar">
-    <div class="sheet-tabs" id="sheet-tabs"></div>
-    <button class="add-sheet-btn" onclick="addSheet()">+ sheet</button>
+    <div class="sheet-bar">
+      <div class="sheet-tabs" id="sheet-tabs"></div>
+      <button class="add-sheet-btn" onclick="addSheet()">+ sheet</button>
+    </div>
+    <div class="sheet-menu-wrap" id="sheet-menu-wrap">
+      <button class="sheet-menu-btn" onclick="toggleSheetMenu()" title="Sheet options">&#8942;</button>
+      <div class="sheet-menu-dropdown" id="sheet-menu-dropdown" style="display:none">
+        <div class="mi" onclick="renameSheetMenu()">&#9998; Rename sheet</div>
+        <div class="sep"></div>
+        <div class="mi" onclick="exportSheetPDF()">&#128196; Export sheet PDF</div>
+        <div class="sep"></div>
+        <div class="mi" onclick="clearSheet()">&#10006; Clear sheet</div>
+        <div class="mi danger" onclick="deleteSheet()">&#128465; Delete sheet</div>
+      </div>
+    </div>
   </div>
   <div class="toolbar">
     <div class="search-wrap">
@@ -169,11 +251,12 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
       <input type="text" id="lib-search" placeholder="Search library to add item…" oninput="onLibSearch(this.value)" autocomplete="off"/>
       <div class="search-results" id="search-results" style="display:none"></div>
     </div>
-    <select id="cat-filter" onchange="renderTakeoff()">
+    <select id="cat-filter" onchange="onCatFilterChange()">
       <option value="">All categories</option>
     </select>
+    <select id="sub-filter" onchange="onSubFilterChange()" style="display:none">
+    </select>
     <button class="btn" onclick="addBlankRow()">+ blank row</button>
-    <button class="btn danger sm" onclick="clearSheet()">Clear</button>
   </div>
   <div class="takeoff-wrap">
     <table>
@@ -189,7 +272,7 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
           <th style="width:68px;text-align:right">Lab hrs</th>
           <th style="width:88px;text-align:right">Lab $</th>
           <th style="min-width:130px">Notes</th>
-          <th style="width:24px"></th>
+          <th style="width:52px"></th>
         </tr>
       </thead>
       <tbody id="takeoff-body"></tbody>
@@ -218,10 +301,63 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
   </div>
   <div style="max-width:400px">
     <div class="summary-card">
-      <table>
-        <tbody id="grand-total-body"></tbody>
-      </table>
+      <table><tbody id="grand-total-body"></tbody></table>
     </div>
+  </div>
+</div>
+
+<!-- LIBRARY PANE -->
+<div class="pane" id="pane-library">
+  <div class="lib-toolbar">
+    <div class="lib-search-wrap">
+      <span class="lib-search-icon">&#8981;</span>
+      <input type="text" id="lib-pane-search" placeholder="Search library…" oninput="renderLibraryPane()"/>
+    </div>
+    <select id="lib-cat-filter" onchange="renderLibraryPane()">
+      <option value="">All categories</option>
+    </select>
+    <select id="lib-sort" onchange="renderLibraryPane()">
+      <option value="code">Sort: Code</option>
+      <option value="description">Sort: Name</option>
+      <option value="category">Sort: Category</option>
+      <option value="mat_unit">Sort: Mat $</option>
+      <option value="added">Sort: Date added</option>
+    </select>
+    <select id="lib-source-filter" onchange="renderLibraryPane()">
+      <option value="">All items</option>
+      <option value="default">Default only</option>
+      <option value="custom">Custom only</option>
+    </select>
+    <button class="btn primary" onclick="openAddLibItemModal()">+ Add item</button>
+  </div>
+  <div class="lib-table-wrap">
+    <table class="lib-table">
+      <thead>
+        <tr>
+          <th style="width:130px">Code</th>
+          <th style="min-width:200px">Description</th>
+          <th style="width:60px">Unit</th>
+          <th style="width:90px;text-align:right">Mat $/unit</th>
+          <th style="width:80px;text-align:right">Lab hrs</th>
+          <th style="width:110px">Category</th>
+          <th style="width:70px">Source</th>
+          <th style="min-width:150px">Notes</th>
+          <th style="width:30px"></th>
+        </tr>
+      </thead>
+      <tbody id="lib-pane-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ASSEMBLIES PANE -->
+<div class="pane" id="pane-assemblies">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openNewAssemblyModal()">+ New Assembly</button>
+    <span style="font-size:12px;color:var(--muted)">Group items into reusable assemblies for repetitive tasks</span>
+  </div>
+  <div class="assembly-grid" id="assembly-grid">
+    <div class="empty-msg">No assemblies yet. Create one from the button above, or right-click any takeoff row to start one.</div>
   </div>
 </div>
 
@@ -268,12 +404,209 @@ tr.grand-row td{font-weight:600;font-size:14px;border-top:2px solid var(--border
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ROW EDIT MODAL -->
+<div class="modal-overlay" id="row-edit-modal" style="display:none" onclick="if(event.target===this)closeRowEditModal()">
+  <div class="modal" style="width:420px">
+    <h3>Edit Row</h3>
+    <label class="modal-label">Code</label>
+    <input type="text" id="re-code" placeholder="Item code"/>
+    <label class="modal-label">Description</label>
+    <input type="text" id="re-desc" placeholder="Description"/>
+    <div class="modal-row">
+      <div>
+        <label class="modal-label">Unit</label>
+        <select id="re-unit">
+          <option value="ea">ea</option><option value="ft">ft</option><option value="m">m</option>
+          <option value="ls">ls</option><option value="hr">hr</option><option value="lot">lot</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-label">Category</label>
+        <input type="text" id="re-cat" placeholder="Category" list="cat-datalist"/>
+        <datalist id="cat-datalist"></datalist>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div>
+        <label class="modal-label">Mat $/unit</label>
+        <input type="number" id="re-mat" placeholder="0.00" step="0.01"/>
+      </div>
+      <div>
+        <label class="modal-label">Lab hrs/unit</label>
+        <input type="number" id="re-lab" placeholder="0.000" step="0.001"/>
+      </div>
+    </div>
+    <label class="modal-label">Notes</label>
+    <textarea id="re-notes" placeholder="Notes…"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeRowEditModal()">Cancel</button>
+      <button class="btn success" id="re-save-lib-btn" onclick="saveRowEditAndAddToLib()" style="display:none">Save &amp; Add to Library</button>
+      <button class="btn primary" onclick="confirmRowEdit()">Save Row</button>
+    </div>
+  </div>
+</div>
 
+<!-- ADD LIBRARY ITEM MODAL -->
+<div class="modal-overlay" id="lib-add-modal" style="display:none" onclick="if(event.target===this)closeLibAddModal()">
+  <div class="modal" style="width:420px">
+    <h3 id="lib-add-title">Add Library Item</h3>
+    <label class="modal-label">Code</label>
+    <input type="text" id="la-code" placeholder="e.g. CUSTOM-001"/>
+    <label class="modal-label">Description</label>
+    <input type="text" id="la-desc" placeholder="Description"/>
+    <div class="modal-row">
+      <div>
+        <label class="modal-label">Unit</label>
+        <select id="la-unit">
+          <option value="ea">ea</option><option value="ft">ft</option><option value="m">m</option>
+          <option value="ls">ls</option><option value="hr">hr</option><option value="lot">lot</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-label">Category</label>
+        <input type="text" id="la-cat" placeholder="Category" list="cat-datalist"/>
+      </div>
+    </div>
+    <div class="modal-row">
+      <div>
+        <label class="modal-label">Mat $/unit</label>
+        <input type="number" id="la-mat" placeholder="0.00" step="0.01"/>
+      </div>
+      <div>
+        <label class="modal-label">Lab hrs/unit</label>
+        <input type="number" id="la-lab" placeholder="0.000" step="0.001"/>
+      </div>
+    </div>
+    <label class="modal-label">Notes</label>
+    <textarea id="la-notes" placeholder="Notes…"></textarea>
+    <div class="modal-actions" style="flex-wrap:wrap;gap:6px">
+      <button class="btn" onclick="closeLibAddModal()">Cancel</button>
+      <button class="btn success" onclick="addLibItemToAssembly()" title="Add this item to an assembly">&#9965; Add to Assembly</button>
+      <button class="btn primary" onclick="confirmLibAdd()">Save to Library</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSEMBLY PICKER MODAL (from library) -->
+<div class="modal-overlay" id="asm-picker-modal" style="display:none" onclick="if(event.target===this)closeAsmPicker()">
+  <div class="modal" style="width:360px">
+    <h3>Add to Assembly</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Add <strong id="asm-picker-code"></strong> to an assembly:</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <button class="btn primary" onclick="asmPickerNew()" style="padding:10px;font-size:13px">&#43; Create New Assembly</button>
+      <div id="asm-picker-existing" style="display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Add to existing assembly:</div>
+        <div id="asm-picker-list" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:200px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAsmPicker()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW ASSEMBLY MODAL -->
+<div class="modal-overlay" id="assembly-modal" style="display:none" onclick="if(event.target===this)closeAssemblyModal()">
+  <div class="modal" style="width:500px;max-height:85vh;overflow-y:auto">
+    <h3 id="assembly-modal-title">New Assembly</h3>
+    <label class="modal-label">Assembly Name</label>
+    <input type="text" id="asm-name" placeholder="e.g. Typical Office Outlet Circuit"/>
+    <label class="modal-label">Description / Notes</label>
+    <textarea id="asm-desc" placeholder="What this assembly covers…" style="margin-bottom:12px"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:600;color:var(--muted)">ITEMS</span>
+      <button class="btn sm" onclick="openAssemblyItemSearch()">+ Add item</button>
+    </div>
+    <div id="asm-items-list" style="border:1px solid var(--border);border-radius:var(--radius);min-height:60px;margin-bottom:12px;overflow:hidden">
+      <div class="empty-msg" id="asm-items-empty">No items yet. Add items above.</div>
+    </div>
+    <div id="asm-item-search-wrap" style="display:none;position:relative;margin-bottom:12px">
+      <input type="text" id="asm-item-search" placeholder="Search library to add…" oninput="onAsmItemSearch(this.value)" autocomplete="off" style="width:100%;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
+      <div id="asm-item-results" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAssemblyModal()">Cancel</button>
+      <button class="btn primary" onclick="confirmAssembly()">Save Assembly</button>
+    </div>
+  </div>
+</div>
+
+<!-- GENERIC CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal" style="display:none">
+  <div class="modal" style="width:340px">
+    <p id="confirm-msg" style="font-size:14px;margin-bottom:20px;line-height:1.5"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeConfirm()">Cancel</button>
+      <button class="btn danger" onclick="confirmYes()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK ADD TO SHEET MODAL -->
+<div class="modal-overlay" id="qadd-modal" style="display:none" onclick="if(event.target===this)closeQaddModal()">
+  <div class="modal" style="width:360px">
+    <h3>Add to Sheet</h3>
+    <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px" id="qadd-code"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px" id="qadd-desc"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;display:flex;gap:16px">
+        <span>Unit: <b id="qadd-unit"></b></span>
+        <span>Mat: <b id="qadd-mat"></b></span>
+      </div>
+    </div>
+    <label class="modal-label">Quantity</label>
+    <input type="number" id="qadd-qty" value="1" min="0.01" step="any" style="font-size:20px;text-align:center;padding:10px;margin-bottom:14px"/>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeQaddModal()">Cancel</button>
+      <button class="btn success" onclick="confirmQadd()">&#43; Add to Sheet</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF EXPORT MODAL -->
+<div class="modal-overlay" id="pdf-modal" style="display:none" onclick="if(event.target===this)closePdfModal()">
+  <div class="modal" style="width:380px">
+    <h3>&#128196; Export Summary PDF</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Choose what to include in the exported PDF:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-name" checked> Project name</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-client" checked> Client / GC</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-num" checked> Estimate #</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-date" checked> Date</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-sheets" checked> Sheet breakdown</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-labour" checked> Labour columns</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-tax" checked> Tax lines (GST/PST)</label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer"><input type="checkbox" id="pdf-field-grand" checked> Grand total</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closePdfModal()">Cancel</button>
+      <button class="btn primary" onclick="confirmExportPDF()">&#128196; Export PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 <script>
 const LIBRARY = [{"code":"EMT-3/4-N","description":"3/4\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":0.8975,"labour_unit":0.05,"category":"Conduit-EMT","notes":"NECA 5.00/C normal"},{"code":"EMT-3/4-D","description":"3/4\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":0.8975,"labour_unit":0.062,"category":"Conduit-EMT","notes":"NECA 6.20/C difficult"},{"code":"EMT-3/4-VD","description":"3/4\" EMT Conduit \u2013 Very Difficult install","unit":"ft","mat_unit":0.8975,"labour_unit":0.075,"category":"Conduit-EMT","notes":"NECA 7.50/C very difficult"},{"code":"EMT-1-N","description":"1\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":1.4975,"labour_unit":0.055,"category":"Conduit-EMT","notes":"NECA 5.50/C normal"},{"code":"EMT-1-D","description":"1\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":1.4975,"labour_unit":0.068,"category":"Conduit-EMT","notes":"NECA 6.80/C difficult"},{"code":"EMT-1-VD","description":"1\" EMT Conduit \u2013 Very Difficult install","unit":"ft","mat_unit":1.4975,"labour_unit":0.082,"category":"Conduit-EMT","notes":"NECA 8.20/C very difficult"},{"code":"EMT-1.5-N","description":"1-1/2\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":2.9975,"labour_unit":0.07,"category":"Conduit-EMT","notes":"NECA 7.00/C normal"},{"code":"EMT-1.5-D","description":"1-1/2\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":2.9975,"labour_unit":0.087,"category":"Conduit-EMT","notes":"NECA 8.70/C difficult"},{"code":"EMT-2-N","description":"2\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":3.7875,"labour_unit":0.08,"category":"Conduit-EMT","notes":"NECA 8.00/C normal"},{"code":"EMT-2-D","description":"2\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":3.7875,"labour_unit":0.1,"category":"Conduit-EMT","notes":"NECA 10.00/C difficult"},{"code":"COUP-3/4","description":"3/4\" EMT Set Screw Coupling","unit":"ea","mat_unit":0.3099,"labour_unit":0.05,"category":"Fittings-EMT","notes":"NECA 0.05/E normal"},{"code":"COUP-1","description":"1\" EMT Set Screw Coupling","unit":"ea","mat_unit":0.6515,"labour_unit":0.06,"category":"Fittings-EMT","notes":"NECA 0.06/E normal"},{"code":"COUP-1.5","description":"1-1/2\" EMT Set Screw Coupling","unit":"ea","mat_unit":2.0427,"labour_unit":0.1,"category":"Fittings-EMT","notes":"NECA 0.10/E normal"},{"code":"CONN-3/4","description":"3/4\" EMT Set Screw Connector","unit":"ea","mat_unit":0.3498,"labour_unit":0.1,"category":"Fittings-EMT","notes":"NECA 0.10/E normal"},{"code":"CONN-1","description":"1\" EMT Set Screw Connector","unit":"ea","mat_unit":0.7223,"labour_unit":0.12,"category":"Fittings-EMT","notes":"NECA 0.12/E normal"},{"code":"STRAP-3/4","description":"3/4\" One Hole Strap, EMT","unit":"ea","mat_unit":0.05,"labour_unit":0.015,"category":"Fittings-EMT","notes":""},{"code":"STRAP-1","description":"1\" One Hole Strap, EMT","unit":"ea","mat_unit":0.08,"labour_unit":0.02,"category":"Fittings-EMT","notes":""},{"code":"STRAP-1.5","description":"1-1/2\" One Hole Strap, EMT","unit":"ea","mat_unit":0.14,"labour_unit":0.022,"category":"Fittings-EMT","notes":""},{"code":"BOX-4SQ","description":"4\" Square Metallic Box, KO (ABB 52171K)","unit":"ea","mat_unit":4.8625,"labour_unit":0.35,"category":"Boxes","notes":"NECA KO box ~0.35/E. Gescan BOX52171K"},{"code":"BOX-4OCT","description":"4\" Octagon Box, KO (ABB 54171K)","unit":"ea","mat_unit":4.2775,"labour_unit":0.3,"category":"Boxes","notes":"NECA oct box ~0.30/E. Gescan BOX54171K"},{"code":"BOX-CAM","description":"Camera Backbox","unit":"ea","mat_unit":18.0,"labour_unit":0.5,"category":"Boxes","notes":"Pricing TBD"},{"code":"BOX-SINGLE","description":"1-Gang Device Box (ABB 2104LLE)","unit":"ea","mat_unit":1.737,"labour_unit":0.2,"category":"Boxes","notes":"Gescan BOX2104LLE"},{"code":"WIRE-12","description":"#12 RW90 Copper, 600V (Black) per ft","unit":"ft","mat_unit":0.242,"labour_unit":0.007,"category":"Wire","notes":"NECA ~7.00/M. Gescan $0.7938/M x 0.3048"},{"code":"WIRE-10","description":"#10 RW90 Copper, 600V (Black) per ft","unit":"ft","mat_unit":0.455,"labour_unit":0.0085,"category":"Wire","notes":"NECA ~8.50/M. Gescan $1.4929/M x 0.3048"},{"code":"WIRE-8","description":"#8 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":0.7568,"labour_unit":0.011,"category":"Wire","notes":"NECA ~11.00/M. Gescan $2.4828/M x 0.3048"},{"code":"WIRE-6","description":"#6 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":1.0966,"labour_unit":0.013,"category":"Wire","notes":"NECA ~13.00/M. Gescan $3.5977/M x 0.3048"},{"code":"PULL-STR","description":"Pull String (per foot)","unit":"ft","mat_unit":0.04,"labour_unit":0.0,"category":"Wire","notes":""},{"code":"REC-DUP","description":"Duplex Receptacle 15A (supply & install)","unit":"ea","mat_unit":8.5,"labour_unit":0.5,"category":"Devices","notes":""},{"code":"REC-20A","description":"20A Receptacle (supply & install)","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices","notes":""},{"code":"SW-1P","description":"Single Pole Switch (supply & install)","unit":"ea","mat_unit":8.0,"labour_unit":0.4,"category":"Devices","notes":""},{"code":"SW-3W","description":"3-Way Switch (supply & install)","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices","notes":""},{"code":"PNL-100A","description":"100A Panel (supply & install)","unit":"ea","mat_unit":650.0,"labour_unit":8.0,"category":"Panels","notes":""},{"code":"PNL-200A","description":"200A Panel (supply & install)","unit":"ea","mat_unit":1200.0,"labour_unit":12.0,"category":"Panels","notes":""},{"code":"CAM-IP","description":"IP Camera (supply & install)","unit":"ea","mat_unit":285.0,"labour_unit":2.0,"category":"Security","notes":""},{"code":"CR-PROX","description":"Proximity Card Reader (supply & install)","unit":"ea","mat_unit":180.0,"labour_unit":1.5,"category":"Security","notes":""},{"code":"PIR-SENS","description":"PIR Motion Sensor (supply & install)","unit":"ea","mat_unit":65.0,"labour_unit":0.75,"category":"Security","notes":""},{"code":"MAGLK","description":"Magnetic Door Lock (supply & install)","unit":"ea","mat_unit":320.0,"labour_unit":2.5,"category":"Security","notes":""},{"code":"LIFT-DEL","description":"Lift Rental - Delivery & Pick-Up","unit":"ea","mat_unit":300.0,"labour_unit":0.0,"category":"Equipment","notes":""},{"code":"LIFT-WK","description":"Lift Rental - Weekly Use","unit":"ea","mat_unit":300.0,"labour_unit":0.0,"category":"Equipment","notes":""},{"code":"TECK-300","description":"300/3C TECK90, 1kV per ft (Difficult)","unit":"ft","mat_unit":49.2758,"labour_unit":0.085,"category":"Cable-TECK","notes":"NECA 600V IA 300-3 ~85/M diff. Gescan"},{"code":"TECK-250","description":"250/3C TECK90, 1kV per ft (Difficult)","unit":"ft","mat_unit":40.2922,"labour_unit":0.08,"category":"Cable-TECK","notes":"NECA 600V IA 250-3 ~80/M diff. Gescan"},{"code":"STRUT-6FT","description":"6' T-Rod Strut Hanger Assembly","unit":"ea","mat_unit":18.0,"labour_unit":0.22,"category":"Supports","notes":"Rod+clamp+strut+hardware"},{"code":"MISC-ALLOW","description":"Miscellaneous Allowance","unit":"ls","mat_unit":0.0,"labour_unit":0.0,"category":"Misc","notes":"Enter mat/labour manually"},{"code":"BC-15A-3/4-100","description":"15A Branch Circuit \u2013 3/4\" EMT, 3x#14 THWN (per 100ft)","unit":"ea","mat_unit":157.63,"labour_unit":3.5,"category":"Branch Circuit-EMT","notes":"CEC R8-104: 15Ax80%=12A cont. 3x#14 in 3/4 EMT, 40% fill ok. Incl conduit+wire+straps+couplings"},{"code":"BC-20A-3/4-100","description":"20A Branch Circuit \u2013 3/4\" EMT, 3x#12 THWN (per 100ft)","unit":"ea","mat_unit":186.69,"labour_unit":3.5,"category":"Branch Circuit-EMT","notes":"CEC R8-104: 20Ax80%=16A cont. 3x#12 in 3/4 EMT, 40% fill ok. Incl conduit+wire+straps+couplings"},{"code":"BC-20A-1-100","description":"20A Branch Circuit \u2013 1\" EMT, 3x#12 THWN (per 100ft)","unit":"ea","mat_unit":255.69,"labour_unit":4.0,"category":"Branch Circuit-EMT","notes":"1\" used for longer runs or where bundled. CEC R4-004 derating if >3 current-carrying conductors"},{"code":"BC-30A-1-100","description":"30A Branch Circuit \u2013 1\" EMT, 3x#10 THWN (per 100ft)","unit":"ea","mat_unit":329.2,"labour_unit":4.0,"category":"Branch Circuit-EMT","notes":"CEC R8-104: 30Ax80%=24A cont. 3x#10 in 1\" EMT. Incl conduit+wire+straps+couplings"},{"code":"BC-40A-1-100","description":"40A Branch Circuit \u2013 1\" EMT, 3x#8 THWN (per 100ft)","unit":"ea","mat_unit":433.29,"labour_unit":4.5,"category":"Branch Circuit-EMT","notes":"CEC R8-104: 40Ax80%=32A cont. 3x#8 in 1\" EMT. #8 THWN ampacity 50A@75C"},{"code":"BC-50A-1.5-100","description":"50A Branch Circuit \u2013 1-1/2\" EMT, 3x#6 THWN (per 100ft)","unit":"ea","mat_unit":723.03,"labour_unit":5.0,"category":"Branch Circuit-EMT","notes":"CEC R8-104: 50Ax80%=40A cont. 3x#6 in 1-1/2\" EMT. #6 THWN ampacity 65A@75C"},{"code":"BC-MWBC-20A-100","description":"20A MWBC \u2013 1\" EMT, 2x#12 hot + #12 neutral (per 100ft)","unit":"ea","mat_unit":255.69,"labour_unit":4.5,"category":"Branch Circuit-EMT","notes":"CEC R14-10: Multi-wire branch circuit. Shared neutral. Handle-tied 2P OCPD required at panel"},{"code":"FDR-60A-1.5-100","description":"60A Feeder \u2013 1-1/2\" EMT, 3x#6+#8GND (per 100ft)","unit":"ea","mat_unit":798.71,"labour_unit":6.0,"category":"Feeder-EMT","notes":"CEC R14-104: 60A feeder. 3x#6 THWN + #8 EGC in 1-1/2\" EMT. 80% cont = 48A. Table D3 sizing"},{"code":"FDR-100A-2-100","description":"100A Feeder \u2013 2\" EMT, 3x#3+#6GND (per 100ft)","unit":"ea","mat_unit":1469.02,"labour_unit":7.5,"category":"Feeder-EMT","notes":"CEC R14-104: 100A feeder. 3x#3 THWN + #6 EGC in 2\" EMT. 80% cont = 80A"},{"code":"FDR-125A-2-100","description":"125A Feeder \u2013 2\" EMT, 3x#1+#6GND (per 100ft)","unit":"ea","mat_unit":1888.57,"labour_unit":8.0,"category":"Feeder-EMT","notes":"CEC R14-104: 125A feeder. 3x#1 THWN + #6 EGC in 2\" EMT. 80% cont = 100A"},{"code":"FDR-150A-2.5-100","description":"150A Feeder \u2013 2-1/2\" EMT, 3x#1/0+#4GND (per 100ft)","unit":"ea","mat_unit":2541.71,"labour_unit":9.0,"category":"Feeder-EMT","notes":"CEC R14-104: 150A feeder. 3x#1/0 THWN + #4 EGC in 2-1/2\" EMT. 80% cont = 120A"},{"code":"FDR-200A-3-100","description":"200A Feeder \u2013 3\" EMT, 3x#3/0+#2GND (per 100ft)","unit":"ea","mat_unit":3864.3,"labour_unit":11.0,"category":"Feeder-EMT","notes":"CEC R14-104: 200A feeder. 3x#3/0 THWN + #2 EGC in 3\" EMT. 80% cont = 160A"},{"code":"FDR-225A-3-100","description":"225A Feeder \u2013 3\" EMT, 3x#4/0+#2GND (per 100ft)","unit":"ea","mat_unit":4553.54,"labour_unit":12.0,"category":"Feeder-EMT","notes":"CEC R14-104: 225A feeder. 3x#4/0 THWN + #2 EGC in 3\" EMT. 80% cont = 180A"},{"code":"FDR-400A-4-100","description":"400A Feeder \u2013 4\" EMT, 3x350kcmil+#1/0GND (per 100ft)","unit":"ea","mat_unit":7085.23,"labour_unit":16.0,"category":"Feeder-EMT","notes":"CEC R14-104: 400A feeder. 3x350kcmil THWN + #1/0 EGC in 4\" EMT. 80% cont = 320A"},{"code":"FDR-3P-100A-2-100","description":"100A 3Ph Feeder \u2013 2\" EMT, 4x#3+#6GND (per 100ft)","unit":"ea","mat_unit":1776.95,"labour_unit":8.0,"category":"Feeder-EMT","notes":"CEC: 100A 3-phase feeder. 4x#3 THWN (3ph+N) + #6 EGC in 2\" EMT"},{"code":"FDR-3P-200A-3-100","description":"200A 3Ph Feeder \u2013 3\" EMT, 4x#3/0+#2GND (per 100ft)","unit":"ea","mat_unit":4726.52,"labour_unit":13.0,"category":"Feeder-EMT","notes":"CEC: 200A 3-phase feeder. 4x#3/0 THWN (3ph+N) + #2 EGC in 3\" EMT"},{"code":"EMT-2.5-N","description":"2-1/2\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":6.9975,"labour_unit":0.095,"category":"Conduit-EMT","notes":"NECA 9.50/C normal"},{"code":"EMT-2.5-D","description":"2-1/2\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":6.9975,"labour_unit":0.118,"category":"Conduit-EMT","notes":"NECA 11.80/C difficult"},{"code":"EMT-3-N","description":"3\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":8.1475,"labour_unit":0.11,"category":"Conduit-EMT","notes":"NECA 11.00/C normal"},{"code":"EMT-3-D","description":"3\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":8.1475,"labour_unit":0.137,"category":"Conduit-EMT","notes":"NECA 13.70/C difficult"},{"code":"EMT-4-N","description":"4\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":10.8875,"labour_unit":0.16,"category":"Conduit-EMT","notes":"NECA 16.00/C normal"},{"code":"EMT-4-D","description":"4\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":10.8875,"labour_unit":0.2,"category":"Conduit-EMT","notes":"NECA 20.00/C difficult"},{"code":"COUP-2","description":"2\" EMT Set Screw Coupling","unit":"ea","mat_unit":2.1695,"labour_unit":0.12,"category":"Fittings-EMT","notes":"NECA 0.12/E normal"},{"code":"COUP-2.5","description":"2-1/2\" EMT Set Screw Coupling","unit":"ea","mat_unit":7.1678,"labour_unit":0.14,"category":"Fittings-EMT","notes":"NECA 0.14/E normal"},{"code":"COUP-3","description":"3\" EMT Set Screw Coupling","unit":"ea","mat_unit":7.1678,"labour_unit":0.16,"category":"Fittings-EMT","notes":"NECA 0.16/E normal"},{"code":"COUP-4","description":"4\" EMT Set Screw Coupling","unit":"ea","mat_unit":9.5574,"labour_unit":0.22,"category":"Fittings-EMT","notes":"NECA 0.22/E normal"},{"code":"CONN-2","description":"2\" EMT Set Screw Connector","unit":"ea","mat_unit":2.9319,"labour_unit":0.25,"category":"Fittings-EMT","notes":"NECA 0.25/E normal"},{"code":"CONN-2.5","description":"2-1/2\" EMT Set Screw Connector","unit":"ea","mat_unit":6.9215,"labour_unit":0.3,"category":"Fittings-EMT","notes":"NECA 0.30/E normal"},{"code":"CONN-3","description":"3\" EMT Set Screw Connector","unit":"ea","mat_unit":8.9205,"labour_unit":0.35,"category":"Fittings-EMT","notes":"NECA 0.35/E normal"},{"code":"CONN-4","description":"4\" EMT Set Screw Connector","unit":"ea","mat_unit":13.7133,"labour_unit":0.45,"category":"Fittings-EMT","notes":"NECA 0.45/E normal"},{"code":"STRAP-2","description":"2\" One Hole Strap, EMT","unit":"ea","mat_unit":0.28,"labour_unit":0.025,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2.5","description":"2-1/2\" One Hole Strap, EMT","unit":"ea","mat_unit":0.55,"labour_unit":0.03,"category":"Fittings-EMT","notes":""},{"code":"STRAP-3","description":"3\" One Hole Strap, EMT","unit":"ea","mat_unit":0.85,"labour_unit":0.035,"category":"Fittings-EMT","notes":""},{"code":"STRAP-4","description":"4\" One Hole Strap, EMT","unit":"ea","mat_unit":1.4,"labour_unit":0.04,"category":"Fittings-EMT","notes":""},{"code":"CBDY-3/4-LB","description":"3/4\" LB Conduit Body, EMT","unit":"ea","mat_unit":4.2,"labour_unit":0.35,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1-LB","description":"1\" LB Conduit Body, EMT","unit":"ea","mat_unit":6.5,"labour_unit":0.4,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1.5-LB","description":"1-1/2\" LB Conduit Body, EMT","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Fittings-EMT","notes":""},{"code":"CBDY-3/4-LL","description":"3/4\" LL Conduit Body, EMT","unit":"ea","mat_unit":4.2,"labour_unit":0.35,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1-LL","description":"1\" LL Conduit Body, EMT","unit":"ea","mat_unit":6.5,"labour_unit":0.4,"category":"Fittings-EMT","notes":""},{"code":"CBDY-3/4-T","description":"3/4\" T Conduit Body, EMT","unit":"ea","mat_unit":5.5,"labour_unit":0.4,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1-T","description":"1\" T Conduit Body, EMT","unit":"ea","mat_unit":8.0,"labour_unit":0.45,"category":"Fittings-EMT","notes":""},{"code":"BOX-4SQ-BLK-CVR","description":"4\" Square Box + Blank Cover (supply & install)","unit":"ea","mat_unit":6.8,"labour_unit":0.35,"category":"Box Assemblies","notes":"4\" sq metallic box + raised blank cover. CEC R12-3034 box fill verified for conductor count"},{"code":"BOX-4SQ-1G-CVR","description":"4\" Square Box + 1-Gang Raised Cover (supply & install)","unit":"ea","mat_unit":7.2,"labour_unit":0.38,"category":"Box Assemblies","notes":"4\" sq metallic box + 1-gang raised device cover. Standard device mounting"},{"code":"BOX-4SQ-2G-CVR","description":"4\" Square Box + 2-Gang Raised Cover (supply & install)","unit":"ea","mat_unit":8.5,"labour_unit":0.4,"category":"Box Assemblies","notes":"4\" sq metallic box + 2-gang raised device cover"},{"code":"BOX-4SQ-WP","description":"4\" Square Box + Weatherproof Cover (supply & install)","unit":"ea","mat_unit":14.5,"labour_unit":0.5,"category":"Box Assemblies","notes":"4\" sq + WP gasketed cover. Wet/damp location per CEC Rule 2-130"},{"code":"BOX-4OCT-BLK-CVR","description":"4\" Octagon Box + Blank Cover (supply & install)","unit":"ea","mat_unit":5.5,"labour_unit":0.3,"category":"Box Assemblies","notes":"4\" oct + blank cover. Ceiling/junction use"},{"code":"BOX-HANDY-CVR","description":"Handy Box + Blank Cover (supply & install)","unit":"ea","mat_unit":3.8,"labour_unit":0.25,"category":"Box Assemblies","notes":"Surface mount handy box + blank cover"},{"code":"BOX-4SQ-DEEP","description":"4-11/16\" Square Box, Deep (ABB 72171K)","unit":"ea","mat_unit":5.0115,"labour_unit":0.4,"category":"Boxes","notes":"Gescan BOX72171K"},{"code":"BOX-1G-DEVICE","description":"Single Gang Device Box (supply & install)","unit":"ea","mat_unit":2.2,"labour_unit":0.2,"category":"Box Assemblies","notes":"Standard 2x4 device box"},{"code":"BOX-2G-DEVICE","description":"2-Gang Device Box (supply & install)","unit":"ea","mat_unit":3.5,"labour_unit":0.25,"category":"Box Assemblies","notes":""},{"code":"BOX-3G-DEVICE","description":"3-Gang Device Box (supply & install)","unit":"ea","mat_unit":5.2,"labour_unit":0.3,"category":"Box Assemblies","notes":""},{"code":"BOX-6SQ","description":"6\" Square Steel Junction Box (supply & install)","unit":"ea","mat_unit":22.0,"labour_unit":0.65,"category":"Box Assemblies","notes":"Pull/junction box for larger conduit systems"},{"code":"BOX-8SQ","description":"8\" Square Steel Junction Box (supply & install)","unit":"ea","mat_unit":38.0,"labour_unit":0.85,"category":"Box Assemblies","notes":""},{"code":"BOX-PULL-12X12","description":"12\"x12\"x6\" Steel Pull Box (supply & install)","unit":"ea","mat_unit":95.0,"labour_unit":1.5,"category":"Box Assemblies","notes":"Surface mount pull box for feeder systems"},{"code":"BOX-PULL-18X18","description":"18\"x18\"x8\" Steel Pull Box (supply & install)","unit":"ea","mat_unit":165.0,"labour_unit":2.0,"category":"Box Assemblies","notes":"CEC R12-3040: pull box sizing = 8x largest conduit"},{"code":"REC-15A-COM","description":"15A/125V Duplex Receptacle, Commercial Grade (complete)","unit":"ea","mat_unit":18.5,"labour_unit":0.65,"category":"Receptacles","notes":"CEC R26-700: 15A commercial duplex + SS coverplate + device box. Incl rough-in + termination"},{"code":"REC-20A-COM","description":"20A/125V Simplex Receptacle, Commercial Grade (complete)","unit":"ea","mat_unit":24.0,"labour_unit":0.7,"category":"Receptacles","notes":"CEC R26-700: 20A/125V T-slot simplex + SS coverplate + device box. Incl rough-in + termination"},{"code":"REC-20A-DUP-COM","description":"20A/125V Duplex Receptacle, Commercial Grade (complete)","unit":"ea","mat_unit":28.0,"labour_unit":0.7,"category":"Receptacles","notes":"20A duplex commercial grade + SS plate + box"},{"code":"REC-GFCI-15A","description":"15A GFCI Receptacle, Commercial Grade (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.75,"category":"Receptacles","notes":"CEC R26-700/R26-710: GFCI required within 1.5m of sink, wet areas. Incl box + SS plate"},{"code":"REC-GFCI-20A","description":"20A GFCI Receptacle, Commercial Grade (complete)","unit":"ea","mat_unit":48.0,"labour_unit":0.8,"category":"Receptacles","notes":"CEC R26-710: 20A GFCI. Commercial grade + SS plate + box"},{"code":"REC-WP-15A","description":"15A WP Receptacle In-Use Cover (complete)","unit":"ea","mat_unit":42.0,"labour_unit":0.85,"category":"Receptacles","notes":"CEC R26-700 + wet location. Gasketed in-use cover. Outdoor/wet/damp rated"},{"code":"REC-WP-20A","description":"20A WP Receptacle In-Use Cover (complete)","unit":"ea","mat_unit":52.0,"labour_unit":0.9,"category":"Receptacles","notes":"CEC wet location rated. In-use cover required if cord connected in wet location"},{"code":"REC-GFCI-WP-20A","description":"20A GFCI WP Receptacle + In-Use Cover (complete)","unit":"ea","mat_unit":68.0,"labour_unit":1.0,"category":"Receptacles","notes":"Outdoor/wet use. CEC R26-710. Tamper-resistant + WP in-use cover"},{"code":"REC-20A-ISOLATED","description":"20A Isolated Ground Receptacle, Commercial (complete)","unit":"ea","mat_unit":65.0,"labour_unit":0.85,"category":"Receptacles","notes":"CEC R26-700: IG receptacle for sensitive equipment. Orange face + IG ground run"},{"code":"REC-30A-DRYER","description":"30A/125-250V Dryer Receptacle (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.85,"category":"Receptacles","notes":"NEMA 14-30R + flush cover + 2-gang box"},{"code":"REC-50A-RANGE","description":"50A/125-250V Range Receptacle (complete)","unit":"ea","mat_unit":52.0,"labour_unit":1.0,"category":"Receptacles","notes":"NEMA 14-50R + flush cover + 2-gang box"},{"code":"SW-1P-COM","description":"1-Pole 15A Switch, Commercial Grade (complete)","unit":"ea","mat_unit":16.5,"labour_unit":0.55,"category":"Switches","notes":"CEC R30-500: 15A SP switch + SS plate + device box. Standard lighting control"},{"code":"SW-1P-20A-COM","description":"1-Pole 20A Switch, Commercial Grade (complete)","unit":"ea","mat_unit":22.0,"labour_unit":0.6,"category":"Switches","notes":"20A rated SP switch + SS plate + box. Higher ampacity circuits"},{"code":"SW-3W-COM","description":"3-Way Switch, Commercial Grade (complete)","unit":"ea","mat_unit":28.0,"labour_unit":0.7,"category":"Switches","notes":"3-way switch + SS plate + box. Requires traveller wire between locations"},{"code":"SW-4W-COM","description":"4-Way Switch, Commercial Grade (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.75,"category":"Switches","notes":"4-way switch for 3+ switching locations + SS plate + box"},{"code":"SW-PILOT-COM","description":"1-Pole Pilot Light Switch, Commercial Grade (complete)","unit":"ea","mat_unit":34.0,"labour_unit":0.65,"category":"Switches","notes":"Illuminated switch + SS plate + box. Lighted when load is ON"},{"code":"SW-DPST-20A","description":"Double Pole 20A Switch, Commercial Grade (complete)","unit":"ea","mat_unit":42.0,"labour_unit":0.7,"category":"Switches","notes":"DPST switch for 240V load disconnect + SS plate + box"},{"code":"SW-COMBO-REC","description":"Switch + Outlet Combo, Commercial Grade (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.75,"category":"Switches","notes":"SP switch + 20A receptacle combo device + SS plate + box"},{"code":"LT-2X4-LED","description":"2x4 LED Troffer, 40W (supply & install)","unit":"ea","mat_unit":145.0,"labour_unit":1.0,"category":"Lighting","notes":"Recessed 2x4 lay-in LED troffer, 40W/4000lm, 0-10V dimmable. Incl whip + connection"},{"code":"LT-2X2-LED","description":"2x2 LED Troffer, 24W (supply & install)","unit":"ea","mat_unit":125.0,"labour_unit":1.0,"category":"Lighting","notes":"Recessed 2x2 lay-in LED troffer, 24W/2800lm, 0-10V dimmable"},{"code":"LT-1X4-LED","description":"1x4 LED Strip/Wrap, 30W (supply & install)","unit":"ea","mat_unit":98.0,"labour_unit":0.85,"category":"Lighting","notes":"Surface/pendant 1x4 LED wrap, 30W. CEC R30-900 lighting circuit"},{"code":"LT-HB-100W","description":"LED High Bay, 100W (supply & install)","unit":"ea","mat_unit":285.0,"labour_unit":1.5,"category":"Lighting","notes":"Industrial LED high bay, 100W/14000lm. Incl aircraft cable/hook mount + whip"},{"code":"LT-HB-150W","description":"LED High Bay, 150W (supply & install)","unit":"ea","mat_unit":380.0,"labour_unit":1.75,"category":"Lighting","notes":"Industrial LED high bay, 150W/21000lm. Incl mount + whip"},{"code":"LT-HB-200W","description":"LED High Bay, 200W (supply & install)","unit":"ea","mat_unit":480.0,"labour_unit":2.0,"category":"Lighting","notes":"Industrial LED high bay 200W. Suitable for 20-30ft ceiling heights"},{"code":"LT-POT-4-LED","description":"4\" LED Pot Light, Recessed (supply & install)","unit":"ea","mat_unit":65.0,"labour_unit":0.65,"category":"Lighting","notes":"4\" LED recessed downlight, 9W, IC-rated. Incl new work housing + trim + whip"},{"code":"LT-POT-6-LED","description":"6\" LED Pot Light, Recessed (supply & install)","unit":"ea","mat_unit":75.0,"labour_unit":0.7,"category":"Lighting","notes":"6\" LED recessed downlight, 12W, IC-rated. Incl housing + trim + whip"},{"code":"LT-SURF-LED","description":"Surface LED Disk/Flush Mount (supply & install)","unit":"ea","mat_unit":55.0,"labour_unit":0.6,"category":"Lighting","notes":"Surface LED flush mount, 15W. Hallway/stairwell/utility use"},{"code":"LT-VAPOR-LED","description":"LED Vapor Tight Fixture, 4ft 40W (supply & install)","unit":"ea","mat_unit":145.0,"labour_unit":1.0,"category":"Lighting","notes":"4ft LED vapor tight, 40W. Wet/damp location. Parkade, mechanical, washroom"},{"code":"LT-VAPOR-8FT","description":"LED Vapor Tight Fixture, 8ft 60W (supply & install)","unit":"ea","mat_unit":210.0,"labour_unit":1.25,"category":"Lighting","notes":"8ft LED vapor tight, 60W. Industrial/mechanical wet locations"},{"code":"LT-SHOP-4FT","description":"LED Shop Light, 4ft 40W Linkable (supply & install)","unit":"ea","mat_unit":68.0,"labour_unit":0.65,"category":"Lighting","notes":"Surface/chain hung 4ft LED shop light, 40W linkable"},{"code":"LT-WALLPACK-20W","description":"LED Wall Pack, 20W (supply & install)","unit":"ea","mat_unit":165.0,"labour_unit":1.25,"category":"Lighting","notes":"Exterior LED wall pack, 20W/2400lm. Incl back box + conduit stub"},{"code":"LT-WALLPACK-40W","description":"LED Wall Pack, 40W (supply & install)","unit":"ea","mat_unit":225.0,"labour_unit":1.5,"category":"Lighting","notes":"Exterior LED wall pack, 40W/5000lm"},{"code":"LT-EXIT-LED","description":"LED Exit Sign (supply & install)","unit":"ea","mat_unit":95.0,"labour_unit":1.0,"category":"Lighting-Emergency","notes":"CEC R46-108: LED exit sign, single or double face. Battery backup. Incl box + connection"},{"code":"LT-EMER-LED","description":"LED Emergency Light, Twin Head (supply & install)","unit":"ea","mat_unit":115.0,"labour_unit":1.25,"category":"Lighting-Emergency","notes":"CEC R46-108: LED emergency egress light, twin adjustable heads. Battery backup 90min"},{"code":"LT-COMBO-EXIT-EM","description":"LED Exit/Emergency Combo Unit (supply & install)","unit":"ea","mat_unit":175.0,"labour_unit":1.5,"category":"Lighting-Emergency","notes":"CEC R46-108: Combination exit + emergency head unit. Battery backup 90min"},{"code":"LT-OCC-WALL","description":"Wall Occupancy Sensor (supply & install)","unit":"ea","mat_unit":65.0,"labour_unit":0.5,"category":"Lighting-Controls","notes":"120-277V wall switch occupancy sensor + coverplate + box. Replace standard switch"},{"code":"LT-OCC-CEILING","description":"Ceiling Occupancy Sensor (supply & install)","unit":"ea","mat_unit":75.0,"labour_unit":0.6,"category":"Lighting-Controls","notes":"360deg ceiling mount PIR/dual-tech sensor, low-voltage or line-voltage"},{"code":"LT-DIM-SWITCH","description":"0-10V Dimmer Switch (supply & install)","unit":"ea","mat_unit":85.0,"labour_unit":0.65,"category":"Lighting-Controls","notes":"0-10V dimmer wall switch for LED drivers. Commercial grade + SS plate + box"},{"code":"LT-WHIP-6FT","description":"6ft Flexible Conduit Fixture Whip (supply & install)","unit":"ea","mat_unit":12.0,"labour_unit":0.25,"category":"Lighting","notes":"3/8\" flex + #12 THWN conductors, 6ft. For connecting recessed/lay-in fixtures to J-box"},{"code":"LT-CONN-JBOX","description":"Lighting Fixture Junction Box Connection (labour)","unit":"ea","mat_unit":0.0,"labour_unit":0.35,"category":"Lighting","notes":"Labour to make connection at J-box/4sq box for fixture. No material"},{"code":"WIRE-14","description":"#14 RW90 Copper, 600V (Black) per ft","unit":"ft","mat_unit":0.1577,"labour_unit":0.006,"category":"Wire","notes":"NECA ~6.00/M. Gescan $0.5175/M"},{"code":"WIRE-4","description":"#4 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":2.1768,"labour_unit":0.015,"category":"Wire","notes":"NECA ~15.00/M. Gescan $7.1417/M"},{"code":"WIRE-2","description":"#2 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":3.4069,"labour_unit":0.019,"category":"Wire","notes":"NECA ~19.00/M. Gescan $11.1776/M"},{"code":"WIRE-1","description":"#1 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":3.8938,"labour_unit":0.021,"category":"Wire","notes":"NECA ~21.00/M. Gescan $12.7748/M"},{"code":"WIRE-1/0","description":"#1/0 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":4.4038,"labour_unit":0.024,"category":"Wire","notes":"NECA ~24.00/M. Gescan $14.4482/M"},{"code":"WIRE-2/0","description":"#2/0 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":5.9011,"labour_unit":0.027,"category":"Wire","notes":"NECA ~27.00/M. Gescan $19.3606/M"},{"code":"WIRE-3/0","description":"#3/0 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":7.4975,"labour_unit":0.03,"category":"Wire","notes":"NECA ~30.00/M. Gescan $24.5982/M"},{"code":"WIRE-4/0","description":"#4/0 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":9.4953,"labour_unit":0.033,"category":"Wire","notes":"NECA ~33.00/M. Gescan $31.1526/M"},{"code":"WIRE-250","description":"250MCM RW90 Copper, 600V per ft","unit":"ft","mat_unit":11.2534,"labour_unit":0.036,"category":"Wire","notes":"NECA ~36.00/M. Gescan $36.9206/M"},{"code":"WIRE-350","description":"350MCM RW90 Copper, 600V per ft","unit":"ft","mat_unit":15.6313,"labour_unit":0.042,"category":"Wire","notes":"NECA ~42.00/M. Gescan $51.2837/M"},{"code":"WIRE-500","description":"500MCM RW90 Copper, 600V per ft","unit":"ft","mat_unit":22.2511,"labour_unit":0.048,"category":"Wire","notes":"NECA ~48.00/M. Gescan $73.0022/M"},{"code":"GND-8","description":"#8 AWG RW90 Green Ground (per foot)","unit":"ft","mat_unit":0.7568,"labour_unit":0.007,"category":"Wire","notes":"EGC"},{"code":"GND-6","description":"#6 AWG RW90 Green Ground (per foot)","unit":"ft","mat_unit":1.0966,"labour_unit":0.009,"category":"Wire","notes":"EGC"},{"code":"GND-4","description":"#4 AWG RW90 Green Ground (per foot)","unit":"ft","mat_unit":2.1768,"labour_unit":0.012,"category":"Wire","notes":"EGC"},{"code":"GND-2","description":"#2 AWG RW90 Green Ground (per foot)","unit":"ft","mat_unit":3.4069,"labour_unit":0.015,"category":"Wire","notes":"EGC"},{"code":"PNL-42CKT-225A","description":"225A 42-Circuit Panel (supply & install)","unit":"ea","mat_unit":1850.0,"labour_unit":16.0,"category":"Panels","notes":"42-ckt 225A MLO or main breaker panelboard. Incl mounting, bonding, labelling"},{"code":"PNL-42CKT-100A","description":"100A 42-Circuit Panel (supply & install)","unit":"ea","mat_unit":780.0,"labour_unit":10.0,"category":"Panels","notes":"42-ckt 100A panelboard. Sub-panel or branch circuit distribution"},{"code":"PNL-BKR-1P-15A","description":"1-Pole 15A Breaker (supply & install)","unit":"ea","mat_unit":18.0,"labour_unit":0.2,"category":"Panels","notes":"Add breaker to existing panel"},{"code":"PNL-BKR-1P-20A","description":"1-Pole 20A Breaker (supply & install)","unit":"ea","mat_unit":18.0,"labour_unit":0.2,"category":"Panels","notes":""},{"code":"PNL-BKR-2P-20A","description":"2-Pole 20A Breaker (supply & install)","unit":"ea","mat_unit":42.0,"labour_unit":0.25,"category":"Panels","notes":"240V circuit"},{"code":"PNL-BKR-2P-30A","description":"2-Pole 30A Breaker (supply & install)","unit":"ea","mat_unit":48.0,"labour_unit":0.25,"category":"Panels","notes":""},{"code":"PNL-BKR-2P-60A","description":"2-Pole 60A Breaker (supply & install)","unit":"ea","mat_unit":85.0,"labour_unit":0.35,"category":"Panels","notes":""},{"code":"PNL-BKR-2P-100A","description":"2-Pole 100A Breaker (supply & install)","unit":"ea","mat_unit":145.0,"labour_unit":0.4,"category":"Panels","notes":""},{"code":"PNL-BKR-3P-60A","description":"3-Pole 60A Breaker (supply & install)","unit":"ea","mat_unit":125.0,"labour_unit":0.4,"category":"Panels","notes":"3-phase circuit"},{"code":"PNL-BKR-3P-100A","description":"3-Pole 100A Breaker (supply & install)","unit":"ea","mat_unit":195.0,"labour_unit":0.5,"category":"Panels","notes":""},{"code":"DISC-30A-240","description":"30A 240V Non-Fused Disconnect (supply & install)","unit":"ea","mat_unit":145.0,"labour_unit":2.5,"category":"Disconnects","notes":"NEMA 3R outdoor or NEMA 1 indoor. CEC R28-600: disconnect within sight of equipment"},{"code":"DISC-60A-240","description":"60A 240V Non-Fused Disconnect (supply & install)","unit":"ea","mat_unit":195.0,"labour_unit":3.0,"category":"Disconnects","notes":""},{"code":"DISC-100A-240","description":"100A 240V Non-Fused Disconnect (supply & install)","unit":"ea","mat_unit":325.0,"labour_unit":3.5,"category":"Disconnects","notes":""},{"code":"DISC-30A-FUS","description":"30A 600V Fusible Safety Switch (supply & install)","unit":"ea","mat_unit":185.0,"labour_unit":2.5,"category":"Disconnects","notes":"Class J or RK5 fuses required separately. CEC R14-010 for motor disconnects"},{"code":"DISC-60A-FUS","description":"60A 600V Fusible Safety Switch (supply & install)","unit":"ea","mat_unit":245.0,"labour_unit":3.0,"category":"Disconnects","notes":""},{"code":"FA-PULL","description":"Manual Pull Station (supply & install)","unit":"ea","mat_unit":85.0,"labour_unit":1.0,"category":"Fire Alarm","notes":"Single-action addressable pull station. CEC R32 + BC Fire Code. Red backbox"},{"code":"FA-SMKE-DET","description":"Smoke Detector, Addressable (supply & install)","unit":"ea","mat_unit":95.0,"labour_unit":0.75,"category":"Fire Alarm","notes":"Addressable photoelectric smoke detector + base. Low-voltage wiring by FA contractor"},{"code":"FA-HEAT-DET","description":"Heat Detector, Addressable (supply & install)","unit":"ea","mat_unit":80.0,"labour_unit":0.65,"category":"Fire Alarm","notes":"Addressable fixed-temp heat detector + base"},{"code":"FA-HORN-STROBE","description":"Horn/Strobe Combo, 24VDC (supply & install)","unit":"ea","mat_unit":145.0,"labour_unit":1.25,"category":"Fire Alarm","notes":"Wall-mount horn/strobe. CEC R32. candela per NFPA 72 / BC Fire Code requirements"},{"code":"FA-STROBE-185CD","description":"Strobe 185cd, Wall Mount (supply & install)","unit":"ea","mat_unit":125.0,"labour_unit":1.0,"category":"Fire Alarm","notes":"185cd strobe, wall mount. High ceiling adjustment per ULC S524. Incl 2x4 box"},{"code":"FA-DUCT-SMKE","description":"Duct Smoke Detector (supply & install)","unit":"ea","mat_unit":285.0,"labour_unit":2.5,"category":"Fire Alarm","notes":"Duct-mount smoke detector for HVAC shutoff. CEC R32. Sampling tube + remote indicator"},{"code":"CONN-1/2","description":"1/2\" EMT Set Screw Connector","unit":"ea","mat_unit":0.2217,"labour_unit":0.08,"category":"Fittings-EMT","notes":"NECA 0.08/E normal"},{"code":"CONN-1.25","description":"1-1/4\" EMT Set Screw Connector","unit":"ea","mat_unit":1.5477,"labour_unit":0.16,"category":"Fittings-EMT","notes":"NECA 0.16/E normal"},{"code":"COUP-1/2","description":"1/2\" EMT Set Screw Coupling","unit":"ea","mat_unit":0.2391,"labour_unit":0.04,"category":"Fittings-EMT","notes":"NECA 0.04/E normal"},{"code":"COUP-1.25","description":"1-1/4\" EMT Set Screw Coupling","unit":"ea","mat_unit":1.5489,"labour_unit":0.08,"category":"Fittings-EMT","notes":"NECA 0.08/E normal"},{"code":"CONN-COMP-1/2","description":"1/2\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":1.4825,"labour_unit":0.015,"category":"Fittings-EMT","notes":"GES12WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-3/4","description":"3/4\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":1.7087,"labour_unit":0.018,"category":"Fittings-EMT","notes":"GES34WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-1","description":"1\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":2.491,"labour_unit":0.022,"category":"Fittings-EMT","notes":"GES1WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-1.25","description":"1-1/4\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":3.3897,"labour_unit":0.028,"category":"Fittings-EMT","notes":"GES114WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-1.5","description":"1-1/2\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":5.8245,"labour_unit":0.032,"category":"Fittings-EMT","notes":"GES112WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-2","description":"2\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":10.0396,"labour_unit":0.038,"category":"Fittings-EMT","notes":"GES2WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-2.5","description":"2-1/2\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":24.9872,"labour_unit":0.05,"category":"Fittings-EMT","notes":"GES212WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-3","description":"3\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":30.9394,"labour_unit":0.062,"category":"Fittings-EMT","notes":"GES53WLCNST \u2013 wet location rated"},{"code":"CONN-COMP-4","description":"4\" Compression Connector, EMT WL (ABB)","unit":"ea","mat_unit":36.9007,"labour_unit":0.075,"category":"Fittings-EMT","notes":"GES54WLCNST \u2013 wet location rated"},{"code":"COUP-COMP-1/2","description":"1/2\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":1.4816,"labour_unit":0.015,"category":"Fittings-EMT","notes":"GES12WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-3/4","description":"3/4\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":1.7697,"labour_unit":0.018,"category":"Fittings-EMT","notes":"GES34WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-1","description":"1\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":2.6762,"labour_unit":0.022,"category":"Fittings-EMT","notes":"GES1WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-1.25","description":"1-1/4\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":4.6123,"labour_unit":0.028,"category":"Fittings-EMT","notes":"GES114WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-1.5","description":"1-1/2\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":5.2374,"labour_unit":0.032,"category":"Fittings-EMT","notes":"GES112WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-2","description":"2\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":10.1518,"labour_unit":0.038,"category":"Fittings-EMT","notes":"GES2WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-2.5","description":"2-1/2\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":25.838,"labour_unit":0.05,"category":"Fittings-EMT","notes":"GES212WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-3","description":"3\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":33.2731,"labour_unit":0.062,"category":"Fittings-EMT","notes":"GES3WLCPST \u2013 wet location rated"},{"code":"COUP-COMP-4","description":"4\" Compression Coupling, EMT WL (ABB)","unit":"ea","mat_unit":38.2217,"labour_unit":0.075,"category":"Fittings-EMT","notes":"GES4WLCPST \u2013 wet location rated"},{"code":"STRAP-1/2","description":"1/2\" One Hole Strap, EMT","unit":"ea","mat_unit":0.12,"labour_unit":0.01,"category":"Fittings-EMT","notes":""},{"code":"STRAP-1.25","description":"1-1/4\" One Hole Strap, EMT","unit":"ea","mat_unit":0.22,"labour_unit":0.018,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-1/2","description":"1/2\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.25,"labour_unit":0.012,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-3/4","description":"3/4\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.3,"labour_unit":0.015,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-1","description":"1\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.42,"labour_unit":0.018,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-1.25","description":"1-1/4\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.55,"labour_unit":0.02,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-1.5","description":"1-1/2\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.65,"labour_unit":0.022,"category":"Fittings-EMT","notes":""},{"code":"STRAP-2H-2","description":"2\" Two Hole Strap, EMT","unit":"ea","mat_unit":0.85,"labour_unit":0.025,"category":"Fittings-EMT","notes":""},{"code":"ELB-90-1/2","description":"1/2\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":3.8352,"labour_unit":0.045,"category":"Fittings-EMT","notes":"EMTELB12"},{"code":"ELB-90-3/4","description":"3/4\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":4.1652,"labour_unit":0.05,"category":"Fittings-EMT","notes":"EMTELB34"},{"code":"ELB-90-1","description":"1\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":6.2891,"labour_unit":0.06,"category":"Fittings-EMT","notes":"EMTELB1"},{"code":"ELB-90-1.25","description":"1-1/4\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":7.7443,"labour_unit":0.07,"category":"Fittings-EMT","notes":"EMTELB114"},{"code":"ELB-90-1.5","description":"1-1/2\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":9.0066,"labour_unit":0.08,"category":"Fittings-EMT","notes":"EMTELB112"},{"code":"ELB-90-2","description":"2\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":13.2295,"labour_unit":0.095,"category":"Fittings-EMT","notes":"EMTELB2"},{"code":"ELB-90-2.5","description":"2-1/2\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":32.4226,"labour_unit":0.12,"category":"Fittings-EMT","notes":"EMTELB212"},{"code":"ELB-90-3","description":"3\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":48.0253,"labour_unit":0.15,"category":"Fittings-EMT","notes":"EMTELB3"},{"code":"ELB-90-4","description":"4\" 90\u00b0 Pre-Bent EMT Elbow (CAP Products)","unit":"ea","mat_unit":76.2276,"labour_unit":0.2,"category":"Fittings-EMT","notes":"EMTELB4"},{"code":"FXCN-3/8","description":"3/8\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":1.3031,"labour_unit":0.08,"category":"Fittings-Flex","notes":"GES38FXCN"},{"code":"FXCN-1/2","description":"1/2\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":1.4201,"labour_unit":0.085,"category":"Fittings-Flex","notes":"GES12FXCN"},{"code":"FXCN-3/4","description":"3/4\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":1.853,"labour_unit":0.09,"category":"Fittings-Flex","notes":"GES34FXCN"},{"code":"FXCN-1","description":"1\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":3.1209,"labour_unit":0.1,"category":"Fittings-Flex","notes":"GES1FXCN"},{"code":"FXCN-1.25","description":"1-1/4\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":5.9777,"labour_unit":0.12,"category":"Fittings-Flex","notes":"GES114FXCN"},{"code":"FXCN-1.5","description":"1-1/2\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":10.6819,"labour_unit":0.14,"category":"Fittings-Flex","notes":"GES112FXCN"},{"code":"FXCN-2","description":"2\" Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":10.5818,"labour_unit":0.16,"category":"Fittings-Flex","notes":"GES2FXCN"},{"code":"FXCN-90-3/8","description":"3/8\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":1.6552,"labour_unit":0.09,"category":"Fittings-Flex","notes":"GES3890FXCN"},{"code":"FXCN-90-1/2","description":"1/2\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":2.6541,"labour_unit":0.095,"category":"Fittings-Flex","notes":"GES1290FXCN"},{"code":"FXCN-90-3/4","description":"3/4\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":4.9076,"labour_unit":0.1,"category":"Fittings-Flex","notes":"GES3490FXCN"},{"code":"FXCN-90-1","description":"1\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":12.0587,"labour_unit":0.12,"category":"Fittings-Flex","notes":"GES190FXCN"},{"code":"FXCN-90-1.25","description":"1-1/4\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":14.328,"labour_unit":0.14,"category":"Fittings-Flex","notes":"GES11490FXCN"},{"code":"FXCN-90-1.5","description":"1-1/2\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":35.4929,"labour_unit":0.16,"category":"Fittings-Flex","notes":"GES11290FXCN"},{"code":"FXCN-90-2","description":"2\" 90\u00b0 Flex Connector, Dry (ABB Iberville)","unit":"ea","mat_unit":37.9082,"labour_unit":0.175,"category":"Fittings-Flex","notes":"GES290FXCN"},{"code":"LTCN-STR-3/8","description":"3/8\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":5.5939,"labour_unit":0.08,"category":"Fittings-Liquidtight","notes":"TAB6603"},{"code":"LTCN-STR-1/2","description":"1/2\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":5.1757,"labour_unit":0.085,"category":"Fittings-Liquidtight","notes":"TABCI6604"},{"code":"LTCN-STR-3/4","description":"3/4\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":7.1743,"labour_unit":0.09,"category":"Fittings-Liquidtight","notes":"TABCI6606"},{"code":"LTCN-STR-1","description":"1\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":18.5,"labour_unit":0.1,"category":"Fittings-Liquidtight","notes":"Market rate \u2013 TABCI6608 PDF price appears erroneous"},{"code":"LTCN-STR-1.25","description":"1-1/4\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":24.0317,"labour_unit":0.12,"category":"Fittings-Liquidtight","notes":"GES114LTCN"},{"code":"LTCN-STR-1.5","description":"1-1/2\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":57.9006,"labour_unit":0.14,"category":"Fittings-Liquidtight","notes":"TAB5236"},{"code":"LTCN-STR-2","description":"2\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":68.1425,"labour_unit":0.16,"category":"Fittings-Liquidtight","notes":"GES2LTCN"},{"code":"LTCN-STR-2.5","description":"2-1/2\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":229.7599,"labour_unit":0.2,"category":"Fittings-Liquidtight","notes":"GES212LTCN"},{"code":"LTCN-STR-3","description":"3\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":249.474,"labour_unit":0.24,"category":"Fittings-Liquidtight","notes":"GES3LTCN"},{"code":"LTCN-STR-4","description":"4\" Liquidtight Straight Connector (ABB)","unit":"ea","mat_unit":323.7658,"labour_unit":0.28,"category":"Fittings-Liquidtight","notes":"GES4LTCN"},{"code":"LTCN-90-3/8","description":"3/8\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":9.9302,"labour_unit":0.09,"category":"Fittings-Liquidtight","notes":"TAB6703"},{"code":"LTCN-90-1/2","description":"1/2\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":10.3187,"labour_unit":0.095,"category":"Fittings-Liquidtight","notes":"TABCI6704"},{"code":"LTCN-90-3/4","description":"3/4\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":14.8043,"labour_unit":0.1,"category":"Fittings-Liquidtight","notes":"TABCI6706"},{"code":"LTCN-90-1","description":"1\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":28.5,"labour_unit":0.12,"category":"Fittings-Liquidtight","notes":"Market rate \u2013 TABCI6708 PDF price appears erroneous"},{"code":"LTCN-90-1.25","description":"1-1/4\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":66.033,"labour_unit":0.14,"category":"Fittings-Liquidtight","notes":"GES11490LTCN"},{"code":"LTCN-90-2","description":"2\" Liquidtight 90\u00b0 Connector (ABB)","unit":"ea","mat_unit":117.9253,"labour_unit":0.175,"category":"Fittings-Liquidtight","notes":"GES290LTCN"},{"code":"FXEMT-3/8-1/2","description":"3/8\" Flex to 1/2\" EMT Transition Coupling","unit":"ea","mat_unit":3.9881,"labour_unit":0.1,"category":"Fittings-Flex","notes":"GES38FX12EMTCN"},{"code":"FXEMT-1/2-1/2","description":"1/2\" Flex to 1/2\" EMT Transition Coupling","unit":"ea","mat_unit":5.6413,"labour_unit":0.1,"category":"Fittings-Flex","notes":"GES12FX12EMTCP"},{"code":"FXEMT-3/4-3/4","description":"3/4\" Flex to 3/4\" EMT Transition Coupling","unit":"ea","mat_unit":5.4595,"labour_unit":0.11,"category":"Fittings-Flex","notes":"GES34FX34EMTCN"},{"code":"FLX-3/8","description":"3/8\" Armadillo Flexible Conduit (per foot)","unit":"ft","mat_unit":0.985723168456859,"labour_unit":0.022,"category":"Conduit-Flex","notes":"FLXCON3875M \u2013 dry location"},{"code":"FLX-3/4","description":"3/4\" Armadillo Flexible Conduit (per foot)","unit":"ft","mat_unit":2.72247351288085,"labour_unit":0.028,"category":"Conduit-Flex","notes":"FLXCON34REEL \u2013 dry location"},{"code":"FLX-1","description":"1\" Armadillo Flexible Conduit (per foot)","unit":"ft","mat_unit":5.19616927372258,"labour_unit":0.035,"category":"Conduit-Flex","notes":"FLXCON1REEL \u2013 dry location"},{"code":"FLX-1.25","description":"1-1/4\" Armadillo Flexible Conduit (per foot)","unit":"ft","mat_unit":5.83454237329464,"labour_unit":0.04,"category":"Conduit-Flex","notes":"FLXCON114REEL \u2013 dry location"},{"code":"FLX-2","description":"2\" Armadillo Flexible Conduit (per foot)","unit":"ft","mat_unit":9.71172016922496,"labour_unit":0.055,"category":"Conduit-Flex","notes":"FLXCON2REEL \u2013 dry location"},{"code":"LIQFX-3/8","description":"3/8\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":1.86903354019093,"labour_unit":0.025,"category":"Conduit-Flex","notes":"LIQCON3830M \u2013 wet location FT4"},{"code":"LIQFX-1/2","description":"1/2\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":2.0747125736092,"labour_unit":0.028,"category":"Conduit-Flex","notes":"LIQCON12REEL \u2013 wet location FT4"},{"code":"LIQFX-3/4","description":"3/4\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":2.64737079528414,"labour_unit":0.032,"category":"Conduit-Flex","notes":"LIQCON34REEL \u2013 wet location FT4"},{"code":"LIQFX-1","description":"1\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":4.21940722497897,"labour_unit":0.038,"category":"Conduit-Flex","notes":"LIQCON130M \u2013 wet location FT4"},{"code":"LIQFX-1.25","description":"1-1/4\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":5.46372270516087,"labour_unit":0.045,"category":"Conduit-Flex","notes":"LIQCON114REEL \u2013 wet location FT4"},{"code":"LIQFX-1.5","description":"1-1/2\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":6.97943209665817,"labour_unit":0.052,"category":"Conduit-Flex","notes":"LIQCON11215M \u2013 wet location FT4"},{"code":"LIQFX-2","description":"2\" Liquidtight Flex Conduit, FT4 (per foot)","unit":"ft","mat_unit":9.48854561636654,"labour_unit":0.065,"category":"Conduit-Flex","notes":"LIQCON2REEL \u2013 wet location FT4"},{"code":"CBDY-1/2-LB","description":"1/2\" LB Conduit Body, EMT","unit":"ea","mat_unit":3.2,"labour_unit":0.28,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1/2-LL","description":"1/2\" LL Conduit Body, EMT","unit":"ea","mat_unit":3.2,"labour_unit":0.28,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1/2-LR","description":"1/2\" LR Conduit Body, EMT","unit":"ea","mat_unit":3.2,"labour_unit":0.28,"category":"Fittings-EMT","notes":""},{"code":"CBDY-3/4-LR","description":"3/4\" LR Conduit Body, EMT","unit":"ea","mat_unit":4.2,"labour_unit":0.3,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1-LR","description":"1\" LR Conduit Body, EMT","unit":"ea","mat_unit":6.5,"labour_unit":0.35,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1.25-LB","description":"1-1/4\" LB Conduit Body, EMT","unit":"ea","mat_unit":9.5,"labour_unit":0.45,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1.25-LL","description":"1-1/4\" LL Conduit Body, EMT","unit":"ea","mat_unit":9.5,"labour_unit":0.45,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1.25-T","description":"1-1/4\" T Conduit Body, EMT","unit":"ea","mat_unit":11.0,"labour_unit":0.5,"category":"Fittings-EMT","notes":""},{"code":"CBDY-2-LB","description":"2\" LB Conduit Body, EMT","unit":"ea","mat_unit":22.0,"labour_unit":0.55,"category":"Fittings-EMT","notes":""},{"code":"CBDY-2-LL","description":"2\" LL Conduit Body, EMT","unit":"ea","mat_unit":22.0,"labour_unit":0.55,"category":"Fittings-EMT","notes":""},{"code":"CBDY-2-T","description":"2\" T Conduit Body, EMT","unit":"ea","mat_unit":26.0,"labour_unit":0.6,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1/2-C","description":"1/2\" C Conduit Body (Straight Pull), EMT","unit":"ea","mat_unit":3.5,"labour_unit":0.25,"category":"Fittings-EMT","notes":""},{"code":"CBDY-3/4-C","description":"3/4\" C Conduit Body (Straight Pull), EMT","unit":"ea","mat_unit":4.5,"labour_unit":0.27,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1-C","description":"1\" C Conduit Body (Straight Pull), EMT","unit":"ea","mat_unit":7.0,"labour_unit":0.32,"category":"Fittings-EMT","notes":""},{"code":"CBDY-1.5-C","description":"1-1/2\" C Conduit Body (Straight Pull), EMT","unit":"ea","mat_unit":13.0,"labour_unit":0.45,"category":"Fittings-EMT","notes":""},{"code":"CBDY-2-C","description":"2\" C Conduit Body (Straight Pull), EMT","unit":"ea","mat_unit":24.0,"labour_unit":0.55,"category":"Fittings-EMT","notes":""},{"code":"BX-CN-3/8","description":"3/8\" AC90/BX Connector (ABB Iberville)","unit":"ea","mat_unit":0.4727,"labour_unit":0.07,"category":"Fittings-AC90","notes":"GES38BXCN \u2013 one-screw"},{"code":"BX-CN-1/2","description":"1/2\" AC90/BX Connector (ABB Iberville)","unit":"ea","mat_unit":2.7692,"labour_unit":0.075,"category":"Fittings-AC90","notes":"GES12BXCN \u2013 one-screw"},{"code":"BX-CN-3/4","description":"3/4\" AC90/BX Connector (ABB Iberville)","unit":"ea","mat_unit":3.0207,"labour_unit":0.08,"category":"Fittings-AC90","notes":"GES34BXCN \u2013 one-screw"},{"code":"BX-CN-1","description":"1\" AC90/BX Connector (ABB Iberville)","unit":"ea","mat_unit":6.5167,"labour_unit":0.09,"category":"Fittings-AC90","notes":"GES1BXCN \u2013 one-screw"},{"code":"EMT-1/2-N","description":"1/2\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":0.5225,"labour_unit":0.045,"category":"Conduit-EMT","notes":"NECA 4.50/C normal"},{"code":"EMT-1/2-D","description":"1/2\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":0.5225,"labour_unit":0.056,"category":"Conduit-EMT","notes":"NECA 5.60/C difficult"},{"code":"EMT-1.25-N","description":"1-1/4\" EMT Conduit \u2013 Normal install","unit":"ft","mat_unit":2.6975,"labour_unit":0.062,"category":"Conduit-EMT","notes":"NECA 6.20/C normal"},{"code":"EMT-1.25-D","description":"1-1/4\" EMT Conduit \u2013 Difficult install","unit":"ft","mat_unit":2.6975,"labour_unit":0.078,"category":"Conduit-EMT","notes":"NECA 7.80/C difficult"},{"code":"CONN-1.5","description":"1-1/2\" EMT Set Screw Connector","unit":"ea","mat_unit":2.2376,"labour_unit":0.2,"category":"Fittings-EMT","notes":"NECA 0.20/E normal"},{"code":"ELB-1/2","description":"1/2\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":3.8352,"labour_unit":0.2,"category":"Fittings-EMT","notes":"NECA 0.20/E normal"},{"code":"ELB-3/4","description":"3/4\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":4.1652,"labour_unit":0.22,"category":"Fittings-EMT","notes":"NECA 0.22/E normal"},{"code":"ELB-1","description":"1\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":6.2891,"labour_unit":0.25,"category":"Fittings-EMT","notes":"NECA 0.25/E normal"},{"code":"ELB-1.25","description":"1-1/4\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":7.7443,"labour_unit":0.32,"category":"Fittings-EMT","notes":"NECA 0.32/E normal"},{"code":"ELB-1.5","description":"1-1/2\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":9.0066,"labour_unit":0.4,"category":"Fittings-EMT","notes":"NECA 0.40/E normal"},{"code":"ELB-2","description":"2\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":13.2295,"labour_unit":0.5,"category":"Fittings-EMT","notes":"NECA 0.50/E normal"},{"code":"ELB-2.5","description":"2-1/2\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":32.4226,"labour_unit":0.6,"category":"Fittings-EMT","notes":"NECA 0.60/E normal"},{"code":"ELB-3","description":"3\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":48.0253,"labour_unit":0.7,"category":"Fittings-EMT","notes":"NECA 0.70/E normal"},{"code":"ELB-4","description":"4\" EMT 90\u00b0 Factory Elbow","unit":"ea","mat_unit":76.2276,"labour_unit":1.0,"category":"Fittings-EMT","notes":"NECA 1.00/E normal"},{"code":"WIRE-3","description":"#3 RW90 Copper, 600V Stranded per ft","unit":"ft","mat_unit":2.6777,"labour_unit":0.017,"category":"Wire","notes":"NECA ~17.00/M. Gescan $8.7850/M"},{"code":"AC90-14/2","description":"14/2C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":0.7224,"labour_unit":0.025,"category":"Cable-AC90","notes":"NECA MC #14-2 ~25/M"},{"code":"AC90-12/2","description":"12/2C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":0.894,"labour_unit":0.026,"category":"Cable-AC90","notes":"NECA MC #12-2 ~26/M"},{"code":"AC90-12/3","description":"12/3C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":1.3849,"labour_unit":0.028,"category":"Cable-AC90","notes":"NECA MC #12-3 ~28/M"},{"code":"AC90-10/2","description":"10/2C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":1.7116,"labour_unit":0.029,"category":"Cable-AC90","notes":"NECA MC #10-2 ~29/M"},{"code":"AC90-10/3","description":"10/3C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":2.1785,"labour_unit":0.032,"category":"Cable-AC90","notes":"NECA MC #10-3 ~32/M"},{"code":"AC90-8/3","description":"8/3C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":3.3865,"labour_unit":0.036,"category":"Cable-AC90","notes":"NECA MC #8-3 ~36/M"},{"code":"AC90-6/3","description":"6/3C AC90 Armoured Cable, 600V per ft","unit":"ft","mat_unit":5.5049,"labour_unit":0.041,"category":"Cable-AC90","notes":"NECA MC #6-3 ~41/M"},{"code":"TECK-14/2","description":"14/2C TECK90 Armoured, 600V per ft","unit":"ft","mat_unit":1.4918,"labour_unit":0.025,"category":"Cable-TECK","notes":"NECA 600V IA ~25/M"},{"code":"TECK-12/3","description":"12/3C TECK90 Armoured, 600V per ft","unit":"ft","mat_unit":2.2346,"labour_unit":0.028,"category":"Cable-TECK","notes":"NECA 600V IA ~28/M"},{"code":"TECK-10/3","description":"10/3C TECK90 Armoured, 600V per ft","unit":"ft","mat_unit":2.859,"labour_unit":0.032,"category":"Cable-TECK","notes":"NECA 600V IA ~32/M"},{"code":"TECK-8/3","description":"8/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":4.0884,"labour_unit":0.036,"category":"Cable-TECK","notes":"NECA 600V IA #8-3 ~36/M"},{"code":"TECK-6/3","description":"6/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":6.2253,"labour_unit":0.041,"category":"Cable-TECK","notes":"NECA 600V IA #6-3 ~41/M"},{"code":"TECK-4/3","description":"4/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":9.0224,"labour_unit":0.045,"category":"Cable-TECK","notes":"NECA 600V IA #4-3 ~45/M"},{"code":"TECK-2/3","description":"2/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":13.0193,"labour_unit":0.048,"category":"Cable-TECK","notes":"NECA 600V IA #2-3 ~48/M"},{"code":"TECK-1/3","description":"1/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":15.9941,"labour_unit":0.056,"category":"Cable-TECK","notes":"NECA 600V IA #1-3 ~56/M"},{"code":"TECK-1/0/3","description":"1/0/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":19.5989,"labour_unit":0.06,"category":"Cable-TECK","notes":"NECA 600V IA 1/0-3 ~60/M"},{"code":"TECK-4/0/3","description":"4/0/3C TECK90 Armoured, 1kV per ft","unit":"ft","mat_unit":35.2469,"labour_unit":0.075,"category":"Cable-TECK","notes":"NECA 600V IA 4/0-3 ~75/M"},{"code":"FA-18/2","description":"18/2C FT4 Fire Alarm Cable per ft","unit":"ft","mat_unit":0.2472,"labour_unit":0.02,"category":"Cable-FA","notes":"NECA IBS ~20/M"},{"code":"FA-18/4","description":"18/4C FT4 Fire Alarm Cable per ft","unit":"ft","mat_unit":0.4276,"labour_unit":0.024,"category":"Cable-FA","notes":"NECA IBS ~24/M"},{"code":"FA-18/6","description":"18/6C FT4 Fire Alarm Cable per ft","unit":"ft","mat_unit":0.6198,"labour_unit":0.028,"category":"Cable-FA","notes":"NECA IBS ~28/M"},{"code":"BOX-2G-DEV","description":"2-Gang Device Box (ABB 2304LHTQ2)","unit":"ea","mat_unit":4.388,"labour_unit":0.25,"category":"Boxes","notes":"Gescan BOX2304LHTQ2"},{"code":"BOX-3G-DEV","description":"3-Gang Device Box (ABB 2304LHTQ3)","unit":"ea","mat_unit":6.058,"labour_unit":0.3,"category":"Boxes","notes":"Gescan BOX2304LHTQ3"},{"code":"BOX-JBOX-6x6","description":"6x6x4\" Screw Cover Pull Box (Hoffman)","unit":"ea","mat_unit":9.86,"labour_unit":0.5,"category":"Boxes","notes":"Gescan GESSTLDBX664"},{"code":"BOX-JBOX-8x8","description":"8x8x6\" Screw Cover Pull Box (Hoffman)","unit":"ea","mat_unit":21.24,"labour_unit":0.65,"category":"Boxes","notes":"Gescan GESSTLDBX886"},{"code":"BOX-JBOX-10x10","description":"10x10x4\" Screw Cover Pull Box (Hoffman)","unit":"ea","mat_unit":18.03,"labour_unit":0.75,"category":"Boxes","notes":"Gescan GESSTLDBX10104"},{"code":"BOX-JBOX-12x12","description":"12x12x4\" Screw Cover Pull Box (Hoffman)","unit":"ea","mat_unit":17.57,"labour_unit":0.85,"category":"Boxes","notes":"Gescan GESSTLDBX12124"},{"code":"BOX-HINGE-8x8","description":"8x8x6\" Hinged Cover JBox (Hoffman)","unit":"ea","mat_unit":32.87,"labour_unit":0.75,"category":"Boxes","notes":"Gescan GESSTLEBOX886"},{"code":"BOX-HINGE-12x12","description":"12x12x6\" Hinged Cover JBox (Hoffman)","unit":"ea","mat_unit":32.83,"labour_unit":1.0,"category":"Boxes","notes":"Gescan GESSTLEBOX12126"},{"code":"PVC-1/2-N","description":"1/2\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":0.6578,"labour_unit":0.041,"category":"Conduit-PVC","notes":"NECA 4.10/C normal"},{"code":"PVC-3/4-N","description":"3/4\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":0.8214,"labour_unit":0.045,"category":"Conduit-PVC","notes":"NECA 4.50/C normal"},{"code":"PVC-1-N","description":"1\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":1.2291,"labour_unit":0.053,"category":"Conduit-PVC","notes":"NECA 5.25/C normal"},{"code":"PVC-2-N","description":"2\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":2.574,"labour_unit":0.08,"category":"Conduit-PVC","notes":"NECA 8.00/C normal"},{"code":"PVC-3-N","description":"3\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":5.8489,"labour_unit":0.1,"category":"Conduit-PVC","notes":"NECA 10.00/C normal"},{"code":"PVC-4-N","description":"4\" PVC Sch40 Conduit \u2013 Normal install","unit":"ft","mat_unit":8.8069,"labour_unit":0.14,"category":"Conduit-PVC","notes":"NECA 14.00/C normal"},{"code":"GRC-3/4-N","description":"3/4\" Galv Rigid Steel Conduit \u2013 Normal","unit":"ft","mat_unit":4.8591,"labour_unit":0.06,"category":"Conduit-GRC","notes":"NECA 6.00/C normal"},{"code":"GRC-1-N","description":"1\" Galv Rigid Steel Conduit \u2013 Normal","unit":"ft","mat_unit":7.4186,"labour_unit":0.07,"category":"Conduit-GRC","notes":"NECA 7.00/C normal"},{"code":"GRC-2-N","description":"2\" Galv Rigid Steel Conduit \u2013 Normal","unit":"ft","mat_unit":15.0506,"labour_unit":0.11,"category":"Conduit-GRC","notes":"NECA 11.00/C normal"},{"code":"GRC-3-N","description":"3\" Galv Rigid Steel Conduit \u2013 Normal","unit":"ft","mat_unit":32.3339,"labour_unit":0.2,"category":"Conduit-GRC","notes":"NECA 20.00/C normal"},{"code":"GRC-4-N","description":"4\" Galv Rigid Steel Conduit \u2013 Normal","unit":"ft","mat_unit":51.4436,"labour_unit":0.3,"category":"Conduit-GRC","notes":"NECA 30.00/C normal"},{"code":"LT-1/2-N","description":"1/2\" Liquidtight Flex Conduit \u2013 Normal","unit":"ft","mat_unit":2.0747,"labour_unit":0.04,"category":"Conduit-LT","notes":"NECA LFSC 4.00/C. Gescan per M/10"},{"code":"LT-3/4-N","description":"3/4\" Liquidtight Flex Conduit \u2013 Normal","unit":"ft","mat_unit":2.6474,"labour_unit":0.05,"category":"Conduit-LT","notes":"NECA LFSC 5.00/C. Gescan per M/10"},{"code":"LT-1-N","description":"1\" Liquidtight Flex Conduit \u2013 Normal","unit":"ft","mat_unit":4.2194,"labour_unit":0.075,"category":"Conduit-LT","notes":"NECA LFSC 7.50/C"},{"code":"BARE-8","description":"#8 Bare Stranded Copper per ft","unit":"ft","mat_unit":0.7956,"labour_unit":0.006,"category":"Wire-Ground","notes":"Gescan $2.6101/M"},{"code":"BARE-6","description":"#6 Bare Stranded Copper per ft","unit":"ft","mat_unit":1.1517,"labour_unit":0.007,"category":"Wire-Ground","notes":"Gescan $3.7785/M"},{"code":"BARE-4","description":"#4 Bare Stranded Copper per ft","unit":"ft","mat_unit":1.7908,"labour_unit":0.009,"category":"Wire-Ground","notes":"Gescan $5.8753/M"},{"code":"BARE-2","description":"#2 Bare Stranded Copper per ft","unit":"ft","mat_unit":2.8933,"labour_unit":0.011,"category":"Wire-Ground","notes":"Gescan $9.4924/M"},{"code":"TECK-CN-1/2","description":"1/2\" Star Teck Connector, MI (0.875-0.985\")","unit":"ea","mat_unit":36.8529,"labour_unit":0.5,"category":"Fittings-TECK","notes":"ABB TAB10466. Fits: 14/2, 12/2, 10/2, 14/3, 12/3 TECK"},{"code":"TECK-CN-1/2-AL","description":"1/2\" Star Teck ST Connector, Alum (0.600-0.760\")","unit":"ea","mat_unit":22.7509,"labour_unit":0.5,"category":"Fittings-TECK","notes":"ABB TABST050464. Fits: 14/2, 12/2 smaller OD TECK"},{"code":"TECK-CN-3/4","description":"3/4\" Star Teck Connector, MI (0.880-1.065\")","unit":"ea","mat_unit":52.1211,"labour_unit":0.6,"category":"Fittings-TECK","notes":"ABB TAB10467. Fits: 10/3, 10/4, 8/2, 8/3 TECK"},{"code":"TECK-CN-1","description":"1\" Star Teck Connector, MI (1.187-1.375\")","unit":"ea","mat_unit":68.658,"labour_unit":0.8,"category":"Fittings-TECK","notes":"ABB TAB10469. Fits: 6/3, 6/4, 4/3, 4/4 TECK"},{"code":"TECK-CN-1.25","description":"1-1/4\" Star Teck Connector, MI","unit":"ea","mat_unit":95.6399,"labour_unit":1.0,"category":"Fittings-TECK","notes":"ABB TAB10470. Fits: 3/3, 2/3, 2/4, 1/3 TECK"},{"code":"BX-CN2-3/4","description":"3/4\" BX/AC90 Two-Screw Connector","unit":"ea","mat_unit":1.4892,"labour_unit":0.15,"category":"Fittings-BX","notes":"ABB IBV806. Fits: 12/2, 12/3, 10/2 AC90"},{"code":"BX-CN2-1","description":"1\" BX/AC90 Two-Screw Connector","unit":"ea","mat_unit":3.2738,"labour_unit":0.18,"category":"Fittings-BX","notes":"ABB IBV808. Fits: 10/3, 8/3 AC90"},{"code":"BX-CN2-1.25","description":"1-1/4\" BX/AC90 Two-Screw Connector","unit":"ea","mat_unit":4.6976,"labour_unit":0.2,"category":"Fittings-BX","notes":"ABB IBV810. Fits: 6/3 AC90"},{"code":"STRAP-BX-3/8","description":"3/8\" One-Hole Strap for BX/AC90","unit":"ea","mat_unit":0.12,"labour_unit":0.01,"category":"Fittings-BX","notes":"For 14/2, 14/3 AC90"},{"code":"STRAP-BX-1/2","description":"1/2\" One-Hole Strap for BX/AC90","unit":"ea","mat_unit":0.15,"labour_unit":0.01,"category":"Fittings-BX","notes":"For 12/2, 12/3, 10/2 AC90"},{"code":"STRAP-BX-3/4","description":"3/4\" One-Hole Strap for BX/AC90","unit":"ea","mat_unit":0.2,"labour_unit":0.012,"category":"Fittings-BX","notes":"For 10/3, 8/3 AC90"},{"code":"STRAP-BX-1","description":"1\" One-Hole Strap for BX/AC90","unit":"ea","mat_unit":0.3,"labour_unit":0.015,"category":"Fittings-BX","notes":"For 6/3 AC90"}];
 
+
 const CATS = [...new Set(LIBRARY.map(i=>i.category))].sort();
+
+// Custom library items (user-added)
+let customLibrary = JSON.parse(localStorage.getItem('deltec_custom_lib') || '[]');
+// Assemblies
+let assemblies = JSON.parse(localStorage.getItem('deltec_assemblies') || '[]');
+
+function getAllLibItems() {
+  return [...LIBRARY, ...customLibrary];
+}
+
+function saveCustomLib() {
+  localStorage.setItem('deltec_custom_lib', JSON.stringify(customLibrary));
+}
+function saveAssemblies() {
+  localStorage.setItem('deltec_assemblies', JSON.stringify(assemblies));
+}
 
 let state = {
   id: null,
@@ -285,6 +618,10 @@ let state = {
 
 let dirty = false;
 let saveTimeout = null;
+let rowEditIdx = null;
+let libAddEditCode = null; // null=new, string=editing existing custom
+let asmEditIdx = null;
+let asmPendingItems = []; // items being built for assembly modal
 
 function markDirty(){
   dirty = true;
@@ -347,37 +684,14 @@ function sheetTotals(sheet){
 function fmt(n,dec=2){return '$'+(n||0).toLocaleString('en-CA',{minimumFractionDigits:dec,maximumFractionDigits:dec})}
 function fmtH(n){return (n||0).toFixed(2)+'h'}
 
-// --- Sheet tabs ---
+// ============================================================
+// SHEET TABS & MENU
+// ============================================================
 function renderSheetTabs(){
   const el = $('sheet-tabs');
   el.innerHTML = state.sheets.map((sh,i)=>
-    `<div class="sheet-tab ${i===state.activeSheet?'active':''}" onclick="switchSheet(${i})" ondblclick="renameSheet(${i})" title="Double-click to rename">${sh.name}</div>`
+    `<div class="sheet-tab ${i===state.activeSheet?'active':''}" onclick="switchSheet(${i})" ondblclick="renameSheetInline(${i})" title="Double-click to rename">${esc(sh.name)}</div>`
   ).join('');
-}
-
-function renameSheet(i){
-  const current = state.sheets[i].name;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = current;
-  input.className = 'sheet-tab active';
-  input.style.cssText = 'width:90px;font-size:12px;padding:4px 8px;border:1px solid #888;border-radius:20px;outline:none;background:#fff;color:#1a1a18;';
-  const tabs = $('sheet-tabs').children[i];
-  tabs.replaceWith(input);
-  input.focus();
-  input.select();
-  const commit = () => {
-    const val = input.value.trim() || current;
-    state.sheets[i].name = val;
-    markDirty();
-    renderSheetTabs();
-    renderSummary();
-  };
-  input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e => {
-    if(e.key === 'Enter') input.blur();
-    if(e.key === 'Escape'){ input.value = current; input.blur(); }
-  });
 }
 
 function renderCatFilter(){
@@ -403,15 +717,142 @@ function addSheet(){
 }
 
 function clearSheet(){
-  if(!confirm('Clear all rows on this sheet?')) return;
-  state.sheets[state.activeSheet].rows=[];
+  closeSheetMenu();
+  showConfirm('Clear all rows on this sheet?', ()=>{
+    state.sheets[state.activeSheet].rows=[];
+    renderTakeoff();
+    refreshAll();
+    markDirty();
+  });
+}
+
+function deleteSheet(){
+  closeSheetMenu();
+  if(state.sheets.length === 1){ showToast('Cannot delete the only sheet'); return; }
+  const name = state.sheets[state.activeSheet].name;
+  showConfirm(`Delete sheet "${name}"? This cannot be undone.`, ()=>{
+    state.sheets.splice(state.activeSheet, 1);
+    state.activeSheet = Math.max(0, state.activeSheet - 1);
+    renderSheetTabs();
+    renderTakeoff();
+    refreshAll();
+    markDirty();
+    showToast('Sheet deleted');
+  });
+}
+
+// Generic confirm modal (avoids window.confirm timing issues with menus)
+function showConfirm(msg, onYes){
+  $('confirm-msg').textContent = msg;
+  $('confirm-modal').style.display = 'flex';
+  $('confirm-modal')._onYes = onYes;
+}
+function closeConfirm(){ $('confirm-modal').style.display = 'none'; }
+function confirmYes(){
+  const fn = $('confirm-modal')._onYes;
+  closeConfirm();
+  if(fn) fn();
+}
+
+function toggleSheetMenu(){
+  const d = $('sheet-menu-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+function closeSheetMenu(){
+  $('sheet-menu-dropdown').style.display = 'none';
+}
+
+function renameSheetMenu(){
+  closeSheetMenu();
+  renameSheetInline(state.activeSheet);
+}
+
+function renameSheetInline(i){
+  const current = state.sheets[i].name;
+  const tabs = $('sheet-tabs').children[i];
+  if(!tabs) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'sheet-tab active';
+  input.style.cssText = 'width:90px;font-size:12px;padding:4px 8px;border:1px solid #888;border-radius:20px;outline:none;background:#fff;color:#1a1a18;';
+  tabs.replaceWith(input);
+  input.focus(); input.select();
+  const commit = () => {
+    const val = input.value.trim() || current;
+    state.sheets[i].name = val;
+    markDirty();
+    renderSheetTabs();
+    renderSummary();
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => {
+    if(e.key==='Enter') input.blur();
+    if(e.key==='Escape'){input.value=current; input.blur();}
+  });
+}
+
+function exportSheetPDF(){
+  closeSheetMenu();
+  exportPDF();
+}
+
+// ============================================================
+// CATEGORY FILTER + SUB-FILTER
+// ============================================================
+function onCatFilterChange(){
+  const cat = $('cat-filter').value;
+  const subSel = $('sub-filter');
+  if(cat){
+    const items = getAllLibItems().filter(i=>i.category===cat);
+    subSel.innerHTML = '<option value="">— select item to add —</option>' + items.map(i=>`<option value="${i.code}">${i.code} — ${i.description}</option>`).join('');
+    subSel.style.display = 'block';
+    $('cat-filter').classList.add('filter-active');
+  } else {
+    subSel.style.display = 'none';
+    subSel.innerHTML = '';
+    $('cat-filter').classList.remove('filter-active');
+  }
+}
+
+function onSubFilterChange(){
+  const code = $('sub-filter').value;
+  if(!code) return;
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  // Show quick-add modal
+  $('qadd-code').textContent = item.code;
+  $('qadd-desc').textContent = item.description;
+  $('qadd-unit').textContent = item.unit||'ea';
+  $('qadd-mat').textContent = fmt(item.mat_unit,2);
+  $('qadd-qty').value = 1;
+  $('qadd-modal')._item = item;
+  $('qadd-modal').style.display = 'flex';
+  setTimeout(()=>$('qadd-qty').select(), 50);
+}
+
+function closeQaddModal(){
+  $('qadd-modal').style.display = 'none';
+  $('sub-filter').value = '';
+}
+
+function confirmQadd(){
+  const item = $('qadd-modal')._item;
+  if(!item) return;
+  const qty = parseFloat($('qadd-qty').value) || 1;
+  state.sheets[state.activeSheet].rows.push({...item, qty});
   renderTakeoff();
   refreshAll();
   markDirty();
+  closeQaddModal();
+  showToast('Added: '+item.code+' ×'+qty);
 }
 
+// ============================================================
+// LIBRARY SEARCH (takeoff toolbar)
+// ============================================================
 function addBlankRow(){
-  state.sheets[state.activeSheet].rows.push({code:'',description:'',unit:'',mat_unit:0,labour_unit:0,qty:'',notes:'',category:''});
+  state.sheets[state.activeSheet].rows.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:'',notes:'',category:'',custom:true});
   renderTakeoff();
   markDirty();
 }
@@ -432,15 +873,14 @@ function deleteRow(idx){
   markDirty();
 }
 
-// --- Library search ---
 function onLibSearch(q){
   if(!q.trim()){$('search-results').style.display='none';return;}
   const lo=q.toLowerCase();
-  const res=LIBRARY.filter(i=>i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo)||i.category.toLowerCase().includes(lo)).slice(0,14);
+  const res=getAllLibItems().filter(i=>i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo)||i.category.toLowerCase().includes(lo)).slice(0,14);
   const el=$('search-results');
   if(!res.length){el.style.display='none';return;}
   el.innerHTML=res.map(i=>
-    `<div class="sr-item" onclick="addRowFromLib(LIBRARY.find(x=>x.code==='${i.code.replace(/'/g,"\\'")}'))">
+    `<div class="sr-item" onclick="addRowFromLib(getAllLibItems().find(x=>x.code==='${i.code.replace(/'/g,"\\'")}'))">
       <span class="cat">${i.category}</span><span class="code">${i.code}</span><span class="desc">${i.description}</span>
     </div>`
   ).join('');
@@ -449,22 +889,39 @@ function onLibSearch(q){
 
 function inlineSearch(idx, q){
   const container = $('ir-'+idx);
-  if(!q.trim()){container.innerHTML='';return;}
+  if(!q.trim()){container.innerHTML='';container.style.display='none';return;}
   const lo=q.toLowerCase();
   const cf=$('cat-filter').value;
-  const res=LIBRARY.filter(i=>(!cf||i.category===cf)&&(i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo))).slice(0,8);
+  const res=getAllLibItems().filter(i=>(!cf||i.category===cf)&&(i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo))).slice(0,10);
+  if(!res.length){container.innerHTML='';container.style.display='none';return;}
   container.innerHTML=res.map(i=>
     `<div class="ir-item" onclick="selectInline(${idx},'${i.code.replace(/'/g,"\\'")}')">
       <span class="ir-code">${i.code}</span>
       <span class="ir-desc">${i.description}</span>
     </div>`
   ).join('');
+  // Position using fixed coords
+  const inp = $('ii-'+idx);
+  if(inp){
+    const r = inp.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    container.style.display='block';
+    container.style.width = Math.max(300, r.width) + 'px';
+    container.style.left = r.left + 'px';
+    if(spaceBelow < 240){
+      container.style.top = '';
+      container.style.bottom = (window.innerHeight - r.top + 2) + 'px';
+    } else {
+      container.style.bottom = '';
+      container.style.top = (r.bottom + 2) + 'px';
+    }
+  }
 }
 
 function selectInline(idx, code){
-  const item=LIBRARY.find(x=>x.code===code);
+  const item=getAllLibItems().find(x=>x.code===code);
   if(!item) return;
-  Object.assign(state.sheets[state.activeSheet].rows[idx], item);
+  Object.assign(state.sheets[state.activeSheet].rows[idx], item, {custom:false});
   const inp = $('ii-'+idx);
   if(inp){inp.value=item.code; inp.classList.add('has-item');}
   const res=$('ir-'+idx);
@@ -485,44 +942,185 @@ function updateNotes(idx, val){
   markDirty();
 }
 
-// --- Render takeoff table ---
+// ============================================================
+// ROW 3-DOT MENU
+// ============================================================
+let activeRowMenu = null;
+
+function toggleRowMenu(idx, el){
+  // close others
+  document.querySelectorAll('.row-menu-dropdown').forEach(d=>{ if(d!==el.nextElementSibling) d.style.display='none'; });
+  const dd = el.nextElementSibling;
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  activeRowMenu = idx;
+}
+
+function closeAllRowMenus(){
+  document.querySelectorAll('.row-menu-dropdown').forEach(d=>d.style.display='none');
+}
+
+function openRowEdit(idx){
+  closeAllRowMenus();
+  rowEditIdx = idx;
+  const row = state.sheets[state.activeSheet].rows[idx];
+  $('re-code').value = row.code||'';
+  $('re-desc').value = row.description||'';
+  $('re-unit').value = row.unit||'ea';
+  $('re-cat').value = row.category||'';
+  $('re-mat').value = row.mat_unit||'';
+  $('re-lab').value = row.labour_unit||'';
+  $('re-notes').value = row.notes||'';
+  // Show "Save & Add to Library" only for truly custom rows (no library match)
+  const inLib = getAllLibItems().find(x=>x.code===row.code);
+  $('re-save-lib-btn').style.display = (!inLib && row.code) ? 'inline-block' : 'none';
+  $('row-edit-modal').style.display='flex';
+  setTimeout(()=>$('re-code').focus(),50);
+}
+
+function closeRowEditModal(){
+  $('row-edit-modal').style.display='none';
+  rowEditIdx = null;
+}
+
+function confirmRowEdit(){
+  if(rowEditIdx===null) return;
+  const row = state.sheets[state.activeSheet].rows[rowEditIdx];
+  row.code = $('re-code').value.trim();
+  row.description = $('re-desc').value.trim();
+  row.unit = $('re-unit').value;
+  row.category = $('re-cat').value.trim();
+  row.mat_unit = parseFloat($('re-mat').value)||0;
+  row.labour_unit = parseFloat($('re-lab').value)||0;
+  row.notes = $('re-notes').value.trim();
+  row.custom = true;
+  closeRowEditModal();
+  renderTakeoff();
+  refreshAll();
+  markDirty();
+}
+
+function saveRowEditAndAddToLib(){
+  confirmRowEdit();
+  // Add to custom library
+  const row = state.sheets[state.activeSheet].rows[rowEditIdx !== null ? rowEditIdx : state.sheets[state.activeSheet].rows.length-1];
+  // Re-read from the modal values since confirmRowEdit already applied them
+  const newItem = {
+    code: $('re-code').value.trim() || ('CUSTOM-'+Date.now()),
+    description: $('re-desc').value.trim(),
+    unit: $('re-unit').value,
+    category: $('re-cat').value.trim() || 'Custom',
+    mat_unit: parseFloat($('re-mat').value)||0,
+    labour_unit: parseFloat($('re-lab').value)||0,
+    notes: $('re-notes').value.trim(),
+    addedAt: new Date().toISOString()
+  };
+  // Don't duplicate
+  if(!customLibrary.find(x=>x.code===newItem.code)){
+    customLibrary.push(newItem);
+    saveCustomLib();
+    showToast('Added to library: '+newItem.code);
+  }
+  confirmRowEdit();
+}
+
+function addRowToAssembly(idx){
+  closeAllRowMenus();
+  // Open assembly modal pre-seeded with this row
+  const row = {...state.sheets[state.activeSheet].rows[idx]};
+  asmPendingItems = [{...row, qty: row.qty||1}];
+  openNewAssemblyModal();
+}
+
+// ============================================================
+// RENDER TAKEOFF TABLE
+// ============================================================
 function renderTakeoff(){
   const sheet=state.sheets[state.activeSheet];
-  const cf=$('cat-filter').value;
   const body=$('takeoff-body');
   if(!sheet.rows.length){
-    body.innerHTML=`<tr><td colspan="11" class="empty-msg">Search the library above or use "+ blank row" to start adding items.</td></tr>`;
+    // Show 5 empty placeholder rows so the table has visible space by default
+    body.innerHTML=Array(5).fill(0).map((_,i)=>`<tr style="height:36px"><td class="row-num" style="color:#e0dfd9">${i+1}</td><td colspan="10" style="border-bottom:1px solid #f0efeb"></td></tr>`).join('') +
+      `<tr><td colspan="11" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Search the library above or use "+ blank row" to add items.</td></tr>`;
     renderTotalsBar();
     return;
   }
   body.innerHTML=sheet.rows.map((row,i)=>{
-    const show=!cf||!row.category||row.category===cf;
-    if(!show) return '';
     const c=calcRow(row);
     const hasItem=!!row.code;
+    const isCustom=row.custom && !LIBRARY.find(x=>x.code===row.code);
+
+    // For custom/blank rows, show editable description cell
+    const descCell = isCustom
+      ? `<td class="editable-cell"><input type="text" value="${esc(row.description||'')}" placeholder="Description" style="width:100%;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--amber-bg)" onchange="updateRowField(${i},'description',this.value)"/></td>`
+      : `<td class="desc-cell" title="${esc(row.description||'')}">${esc(row.description||'–')}</td>`;
+
     return `<tr>
       <td class="row-num">${i+1}</td>
       <td>
-        <div class="inline-wrap">
-          <input id="ii-${i}" class="inline-input${hasItem?' has-item':''}" type="text" value="${esc(row.code||'')}" placeholder="code or search…"
-            oninput="inlineSearch(${i},this.value)" autocomplete="off"/>
-          <div class="inline-results" id="ir-${i}"></div>
-        </div>
+        ${isCustom
+          ? `<input type="text" value="${esc(row.code||'')}" placeholder="Item code / name" style="width:100%;font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--amber-bg)" onchange="updateRowField(${i},'code',this.value)"/>`
+          : `<div class="inline-wrap">
+              <input id="ii-${i}" class="inline-input${hasItem?' has-item':''}" type="text" value="${esc(row.code||'')}" placeholder="search library…"
+                oninput="inlineSearch(${i},this.value)" autocomplete="off"/>
+              <div class="inline-results" id="ir-${i}" style="display:none"></div>
+            </div>`
+        }
       </td>
-      <td class="desc-cell" title="${esc(row.description||'')}">${esc(row.description||'–')}</td>
-      <td><span class="unit-badge">${esc(row.unit||'')}</span></td>
+      ${descCell}
+      <td>${isCustom
+        ? `<select style="font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px" onchange="updateRowField(${i},'unit',this.value)"><option${row.unit==='ea'?' selected':''}>ea</option><option${row.unit==='ft'?' selected':''}>ft</option><option${row.unit==='m'?' selected':''}>m</option><option${row.unit==='ls'?' selected':''}>ls</option><option${row.unit==='hr'?' selected':''}>hr</option></select>`
+        : `<span class="unit-badge">${esc(row.unit||'')}</span>`}</td>
       <td><input class="qty-input" type="number" min="0" value="${row.qty||''}" placeholder="0"
         oninput="updateQty(${i},this.value)"/></td>
-      <td class="num">${row.mat_unit?fmt(row.mat_unit,2):''}</td>
+      <td class="num">${isCustom
+        ? `<input type="number" value="${row.mat_unit||''}" placeholder="0.00" step="0.01" style="width:72px;text-align:right;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--amber-bg)" onchange="updateRowField(${i},'mat_unit',parseFloat(this.value)||0)"/>`
+        : (row.mat_unit?fmt(row.mat_unit,2):'')}</td>
       <td class="num">${row.qty?fmt(c.mat):''}</td>
-      <td class="num">${row.labour_unit?(row.labour_unit).toFixed(4):''}</td>
+      <td class="num">${isCustom
+        ? `<input type="number" value="${row.labour_unit||''}" placeholder="0.000" step="0.001" style="width:60px;text-align:right;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--amber-bg)" onchange="updateRowField(${i},'labour_unit',parseFloat(this.value)||0)"/>`
+        : (row.labour_unit?(row.labour_unit).toFixed(3):'')}</td>
       <td class="num">${row.qty?fmt(c.lab):''}</td>
       <td><input class="notes-input" type="text" value="${esc(row.notes||'')}" placeholder="notes"
         oninput="updateNotes(${i},this.value)"/></td>
-      <td><button class="del-btn" onclick="deleteRow(${i})">&#10005;</button></td>
+      <td style="white-space:nowrap">
+        <div class="row-menu-wrap">
+          <button class="row-menu-btn" onclick="toggleRowMenu(${i},this)" title="Row options">&#8942;</button>
+          <div class="row-menu-dropdown" style="display:none">
+            <div class="mi" onclick="openRowEdit(${i})">&#9998; Edit fields</div>
+            ${isCustom?`<div class="mi" onclick="addCustomRowToLib(${i})">&#43; Add to library</div>`:''}
+            <div class="mi" onclick="addRowToAssembly(${i})">&#9965; Add to assembly</div>
+            <div class="sep"></div>
+            <div class="mi danger" onclick="deleteRow(${i});closeAllRowMenus()">&#10005; Delete row</div>
+          </div>
+        </div>
+        <button class="del-btn" onclick="deleteRow(${i})">&#10005;</button>
+      </td>
     </tr>`;
   }).join('');
   renderTotalsBar();
+}
+
+function updateRowField(idx, field, val){
+  state.sheets[state.activeSheet].rows[idx][field] = val;
+  refreshAll();
+  markDirty();
+}
+
+function addCustomRowToLib(idx){
+  closeAllRowMenus();
+  const row = state.sheets[state.activeSheet].rows[idx];
+  if(!row.code){ showToast('Add a code to the row first'); return; }
+  if(getAllLibItems().find(x=>x.code===row.code)){ showToast('Code already in library'); return; }
+  const newItem = {
+    code: row.code, description: row.description||'', unit: row.unit||'ea',
+    category: row.category||'Custom', mat_unit: parseFloat(row.mat_unit)||0,
+    labour_unit: parseFloat(row.labour_unit)||0, notes: row.notes||'',
+    addedAt: new Date().toISOString()
+  };
+  customLibrary.push(newItem);
+  saveCustomLib();
+  renderCatFilter();
+  showToast('Added to library: '+newItem.code);
 }
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -575,9 +1173,344 @@ function switchTab(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+name));
   if(name==='summary') renderSummary();
+  if(name==='library') renderLibraryPane();
+  if(name==='assemblies') renderAssembliesPane();
 }
 
-// --- Save / Load ---
+// ============================================================
+// LIBRARY PANE
+// ============================================================
+function renderLibraryPane(){
+  const q = ($('lib-pane-search').value||'').toLowerCase();
+  const cat = $('lib-cat-filter').value;
+  const sort = $('lib-sort').value;
+  const src = $('lib-source-filter').value;
+
+  let items = getAllLibItems().map((item,i)=>({...item, _isCustom: i>=LIBRARY.length}));
+
+  if(q) items = items.filter(i=>i.code.toLowerCase().includes(q)||i.description.toLowerCase().includes(q)||i.category.toLowerCase().includes(q));
+  if(cat) items = items.filter(i=>i.category===cat);
+  if(src==='default') items = items.filter(i=>!i._isCustom);
+  if(src==='custom') items = items.filter(i=>i._isCustom);
+
+  items.sort((a,b)=>{
+    if(sort==='mat_unit') return (b.mat_unit||0)-(a.mat_unit||0);
+    if(sort==='added') return (b.addedAt||'') > (a.addedAt||'') ? 1 : -1;
+    return (a[sort]||'').localeCompare(b[sort]||'');
+  });
+
+  const body = $('lib-pane-body');
+  if(!items.length){ body.innerHTML=`<tr><td colspan="9" class="empty-msg">No items found.</td></tr>`; return; }
+
+  body.innerHTML = items.map(item=>{
+    const canEdit = item._isCustom;
+    const srcBadge = item._isCustom
+      ? `<span class="lib-source-badge custom">Custom</span>`
+      : `<span class="lib-source-badge default">Default</span>`;
+    return `<tr>
+      <td style="font-size:12px;font-weight:500">${esc(item.code)}</td>
+      <td style="font-size:12px">${canEdit
+        ? `<input class="lib-edit-input" value="${esc(item.description)}" onchange="updateCustomLibField('${esc(item.code)}','description',this.value)"/>`
+        : esc(item.description)}</td>
+      <td><span class="unit-badge">${esc(item.unit||'')}</span></td>
+      <td class="num">${canEdit
+        ? `<input class="lib-edit-input" type="number" value="${item.mat_unit||''}" style="width:70px;text-align:right" onchange="updateCustomLibField('${esc(item.code)}','mat_unit',parseFloat(this.value)||0)"/>`
+        : fmt(item.mat_unit,2)}</td>
+      <td class="num">${canEdit
+        ? `<input class="lib-edit-input" type="number" value="${item.labour_unit||''}" style="width:55px;text-align:right" onchange="updateCustomLibField('${esc(item.code)}','labour_unit',parseFloat(this.value)||0)"/>`
+        : (item.labour_unit||0).toFixed(3)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(item.category)}</td>
+      <td>${srcBadge}</td>
+      <td style="font-size:12px;color:var(--muted)">${canEdit
+        ? `<input class="lib-edit-input" value="${esc(item.notes||'')}" onchange="updateCustomLibField('${esc(item.code)}','notes',this.value)"/>`
+        : esc(item.notes||'')}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" style="margin-right:3px" onclick="editLibItem('${esc(item.code)}',${item._isCustom})" title="Edit">&#9998;</button>
+        ${canEdit?`<button class="lib-del-btn" style="opacity:1;color:var(--danger);font-size:13px;padding:0 4px;background:none;border:none;cursor:pointer" onclick="deleteCustomLibItem('${esc(item.code)}')">&#10005;</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function updateCustomLibField(code, field, val){
+  const item = customLibrary.find(x=>x.code===code);
+  if(item){ item[field]=val; saveCustomLib(); }
+}
+
+function deleteCustomLibItem(code){
+  if(!confirm('Remove "'+code+'" from library?')) return;
+  customLibrary = customLibrary.filter(x=>x.code!==code);
+  saveCustomLib();
+  renderLibraryPane();
+  showToast('Removed from library');
+}
+
+function editLibItem(code, isCustom){
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  if(isCustom){
+    // Open editable modal pre-filled
+    libAddEditCode = code;
+    $('lib-add-title').textContent = 'Edit Library Item';
+    $('la-code').value = item.code;
+    $('la-desc').value = item.description||'';
+    $('la-unit').value = item.unit||'ea';
+    $('la-cat').value = item.category||'';
+    $('la-mat').value = item.mat_unit||'';
+    $('la-lab').value = item.labour_unit||'';
+    $('la-notes').value = item.notes||'';
+    $('lib-add-modal').style.display='flex';
+  } else {
+    // Default item: open as read-only view but allow "Save as Custom Copy"
+    libAddEditCode = null;
+    $('lib-add-title').textContent = 'View / Copy Item';
+    $('la-code').value = item.code+'-COPY';
+    $('la-desc').value = item.description||'';
+    $('la-unit').value = item.unit||'ea';
+    $('la-cat').value = item.category||'';
+    $('la-mat').value = item.mat_unit||'';
+    $('la-lab').value = item.labour_unit||'';
+    $('la-notes').value = item.notes||'';
+    $('lib-add-modal').style.display='flex';
+    showToast('Tip: Change the code and save to create a custom copy');
+  }
+}
+
+function addLibItemToAssembly(){
+  // Read current modal values as the item
+  const code = $('la-code').value.trim();
+  const item = {
+    code: code || 'ITEM',
+    description: $('la-desc').value.trim(),
+    unit: $('la-unit').value,
+    category: $('la-cat').value.trim(),
+    mat_unit: parseFloat($('la-mat').value)||0,
+    labour_unit: parseFloat($('la-lab').value)||0,
+    notes: $('la-notes').value.trim()
+  };
+  $('asm-picker-code').textContent = item.code;
+  $('asm-picker-modal')._item = item;
+
+  // Show existing assemblies if any
+  if(assemblies.length){
+    $('asm-picker-existing').style.display='block';
+    $('asm-picker-list').innerHTML = assemblies.map((a,i)=>`
+      <div class="mi" onclick="asmPickerAddToExisting(${i})" style="padding:9px 14px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border)">
+        <span>${esc(a.name)}</span>
+        <span style="color:var(--muted);font-size:11px">${a.items.length} item${a.items.length!==1?'s':''}</span>
+      </div>`).join('');
+  } else {
+    $('asm-picker-existing').style.display='none';
+  }
+
+  closeLibAddModal();
+  $('asm-picker-modal').style.display='flex';
+}
+
+function closeAsmPicker(){ $('asm-picker-modal').style.display='none'; }
+
+function asmPickerNew(){
+  const item = $('asm-picker-modal')._item;
+  closeAsmPicker();
+  asmPendingItems = [{...item, qty:1}];
+  openNewAssemblyModal();
+}
+
+function asmPickerAddToExisting(i){
+  const item = $('asm-picker-modal')._item;
+  assemblies[i].items.push({...item, qty:1});
+  saveAssemblies();
+  closeAsmPicker();
+  showToast(`Added to "${assemblies[i].name}"`);
+  renderAssembliesPane();
+}
+  libAddEditCode = null;
+  $('lib-add-title').textContent = 'Add Library Item';
+  $('la-code').value = prefill?.code||'';
+  $('la-desc').value = prefill?.description||'';
+  $('la-unit').value = prefill?.unit||'ea';
+  $('la-cat').value = prefill?.category||'';
+  $('la-mat').value = prefill?.mat_unit||'';
+  $('la-lab').value = prefill?.labour_unit||'';
+  $('la-notes').value = prefill?.notes||'';
+  $('lib-add-modal').style.display='flex';
+  setTimeout(()=>$('la-code').focus(),50);
+}
+function closeLibAddModal(){ $('lib-add-modal').style.display='none'; }
+
+function confirmLibAdd(){
+  const code = $('la-code').value.trim();
+  if(!code){ showToast('Code is required'); return; }
+  if(getAllLibItems().find(x=>x.code===code && !customLibrary.find(c=>c.code===code))){
+    showToast('Code already exists in default library');
+    return;
+  }
+  const existing = customLibrary.findIndex(x=>x.code===code);
+  const item = {
+    code, description:$('la-desc').value.trim(),
+    unit:$('la-unit').value, category:$('la-cat').value.trim()||'Custom',
+    mat_unit:parseFloat($('la-mat').value)||0,
+    labour_unit:parseFloat($('la-lab').value)||0,
+    notes:$('la-notes').value.trim(),
+    addedAt: existing>=0 ? customLibrary[existing].addedAt : new Date().toISOString()
+  };
+  if(existing>=0) customLibrary[existing]=item;
+  else customLibrary.push(item);
+  saveCustomLib();
+  renderLibraryPane();
+  renderCatFilter();
+  closeLibAddModal();
+  showToast(existing>=0?'Item updated':'Added: '+code);
+}
+
+function populateLibCatFilter(){
+  const el = $('lib-cat-filter');
+  const cur = el.value;
+  el.innerHTML = '<option value="">All categories</option>'+CATS.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+}
+
+// ============================================================
+// ASSEMBLIES
+// ============================================================
+function renderAssembliesPane(){
+  const grid = $('assembly-grid');
+  if(!assemblies.length){
+    grid.innerHTML = '<div class="empty-msg">No assemblies yet. Create one from the button above, or use the row ⋮ menu to start one from a takeoff row.</div>';
+    return;
+  }
+  grid.innerHTML = assemblies.map((asm,i)=>{
+    const totalMat = asm.items.reduce((s,it)=>s+(it.mat_unit||0)*(it.qty||1),0);
+    const totalLab = asm.items.reduce((s,it)=>s+(it.labour_unit||0)*(it.qty||1),0);
+    return `<div class="assembly-card">
+      <div class="assembly-card-header">
+        <div>
+          <div class="assembly-card-name">${esc(asm.name)}</div>
+          ${asm.desc?`<div class="assembly-card-meta">${esc(asm.desc)}</div>`:''}
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn sm" onclick="insertAssembly(${i})">&#43; Add to sheet</button>
+          <button class="btn sm" onclick="editAssembly(${i})">&#9998; Edit</button>
+          <button class="btn sm danger" onclick="deleteAssembly(${i})">&#10005;</button>
+        </div>
+      </div>
+      <div class="assembly-items">
+        ${asm.items.map(it=>`<div class="assembly-item-row"><span>${esc(it.code)} — ${esc(it.description||'')}</span><span>×${it.qty||1} &nbsp;|&nbsp; ${fmt((it.mat_unit||0)*(it.qty||1),2)}</span></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)">
+          <span>${asm.items.length} item${asm.items.length!==1?'s':''}</span>
+          <span>Mat: ${fmt(totalMat)} &nbsp;|&nbsp; Lab: ${fmtH(totalLab)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openNewAssemblyModal(){
+  asmEditIdx = null;
+  if(!asmPendingItems.length) asmPendingItems = [];
+  $('assembly-modal-title').textContent = 'New Assembly';
+  $('asm-name').value = '';
+  $('asm-desc').value = '';
+  renderAsmItemsList();
+  $('asm-item-search-wrap').style.display='none';
+  $('assembly-modal').style.display='flex';
+  setTimeout(()=>$('asm-name').focus(),50);
+}
+
+function editAssembly(i){
+  asmEditIdx = i;
+  const asm = assemblies[i];
+  asmPendingItems = asm.items.map(x=>({...x}));
+  $('assembly-modal-title').textContent = 'Edit Assembly';
+  $('asm-name').value = asm.name;
+  $('asm-desc').value = asm.desc||'';
+  renderAsmItemsList();
+  $('asm-item-search-wrap').style.display='none';
+  $('assembly-modal').style.display='flex';
+}
+
+function closeAssemblyModal(){
+  $('assembly-modal').style.display='none';
+  asmPendingItems=[];
+  asmEditIdx=null;
+}
+
+function renderAsmItemsList(){
+  const list = $('asm-items-list');
+  const empty = $('asm-items-empty');
+  if(!asmPendingItems.length){
+    list.innerHTML='<div class="empty-msg" id="asm-items-empty">No items yet. Add items above.</div>';
+    return;
+  }
+  list.innerHTML = asmPendingItems.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:12px"><b>${esc(it.code)}</b> ${esc(it.description||'')}</span>
+      <input type="number" min="1" value="${it.qty||1}" style="width:50px;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;text-align:right" onchange="asmPendingItems[${i}].qty=parseFloat(this.value)||1;renderAsmItemsList()"/>
+      <span style="font-size:11px;color:var(--muted)">${it.unit||'ea'}</span>
+      <button onclick="asmPendingItems.splice(${i},1);renderAsmItemsList()" style="background:none;border:none;cursor:pointer;color:#bbb;font-size:13px">&#10005;</button>
+    </div>`).join('');
+}
+
+function openAssemblyItemSearch(){
+  const w = $('asm-item-search-wrap');
+  w.style.display = w.style.display==='none' ? 'block' : 'none';
+  if(w.style.display==='block') setTimeout(()=>$('asm-item-search').focus(),50);
+}
+
+function onAsmItemSearch(q){
+  const el = $('asm-item-results');
+  if(!q.trim()){el.innerHTML='';return;}
+  const lo=q.toLowerCase();
+  const res=getAllLibItems().filter(i=>i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo)).slice(0,10);
+  el.innerHTML=res.map(i=>`<div class="ir-item" onclick="addAsmItem('${i.code.replace(/'/g,"\\'")}')">
+    <span class="ir-code">${i.code}</span><span class="ir-desc">${i.description}</span>
+  </div>`).join('');
+}
+
+function addAsmItem(code){
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  asmPendingItems.push({...item, qty:1});
+  $('asm-item-search').value='';
+  $('asm-item-results').innerHTML='';
+  $('asm-item-search-wrap').style.display='none';
+  renderAsmItemsList();
+}
+
+function confirmAssembly(){
+  const name = $('asm-name').value.trim();
+  if(!name){ showToast('Assembly name is required'); return; }
+  if(!asmPendingItems.length){ showToast('Add at least one item'); return; }
+  const asm = { name, desc:$('asm-desc').value.trim(), items:asmPendingItems.map(x=>({...x})), createdAt: new Date().toISOString() };
+  if(asmEditIdx!==null) assemblies[asmEditIdx]=asm;
+  else assemblies.push(asm);
+  saveAssemblies();
+  closeAssemblyModal();
+  renderAssembliesPane();
+  showToast(asmEditIdx!==null?'Assembly updated':'Assembly saved: '+name);
+}
+
+function deleteAssembly(i){
+  if(!confirm('Delete assembly "'+assemblies[i].name+'"?')) return;
+  assemblies.splice(i,1);
+  saveAssemblies();
+  renderAssembliesPane();
+}
+
+function insertAssembly(i){
+  const asm = assemblies[i];
+  asm.items.forEach(it=>{
+    state.sheets[state.activeSheet].rows.push({...it, qty: it.qty||1});
+  });
+  renderTakeoff();
+  refreshAll();
+  markDirty();
+  switchTab('takeoff');
+  showToast('Inserted '+asm.items.length+' items from "'+asm.name+'"');
+}
+
+// ============================================================
+// SAVE / LOAD
+// ============================================================
 function collectPayload(){
   return {
     id: state.id,
@@ -598,9 +1531,9 @@ function collectPayload(){
 async function saveEstimate(){
   const payload=collectPayload();
   if(!payload.name || payload.name.trim()==='' || payload.name==='Untitled'){
-    $('est-name-input').value = payload.name === 'Untitled' ? '' : payload.name;
+    $('est-name-input').value = payload.name==='Untitled'?'':payload.name;
     $('name-modal').style.display='flex';
-    setTimeout(()=>$('est-name-input').focus(), 50);
+    setTimeout(()=>$('est-name-input').focus(),50);
     return;
   }
   await doSave(payload);
@@ -705,20 +1638,6 @@ function newEstimate(){
   renderSheetTabs();renderTakeoff();refreshAll();
 }
 
-function exportPDF(){
-  // Populate print header
-  const name = $('proj-name').value || 'Untitled Estimate';
-  const client = $('proj-client').value;
-  const num = $('proj-num').value;
-  const date = new Date().toLocaleDateString('en-CA');
-  $('print-header').innerHTML = `
-    <h2>${esc(name)}</h2>
-    <p>${client?esc(client)+' &nbsp;·&nbsp; ':''}${num?'Estimate #'+esc(num)+' &nbsp;·&nbsp; ':''}${date}</p>`;
-  // Switch to takeoff tab for print
-  switchTab('takeoff');
-  setTimeout(()=>window.print(), 100);
-}
-
 function showToast(msg){
   const t=$('toast');
   t.textContent=msg;
@@ -726,17 +1645,85 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
+function exportPDF(){
+  // Show field-selection modal first
+  $('pdf-modal').style.display='flex';
+}
+
+function closePdfModal(){
+  $('pdf-modal').style.display='none';
+}
+
+function confirmExportPDF(){
+  const inclFields = {
+    projectName: $('pdf-field-name').checked,
+    client:      $('pdf-field-client').checked,
+    estimateNum: $('pdf-field-num').checked,
+    date:        $('pdf-field-date').checked,
+    sheetBreak:  $('pdf-field-sheets').checked,
+    labourCol:   $('pdf-field-labour').checked,
+    taxLines:    $('pdf-field-tax').checked,
+    grandTotal:  $('pdf-field-grand').checked,
+  };
+  closePdfModal();
+
+  // Build print-header
+  const parts = [];
+  if(inclFields.projectName && $('proj-name').value) parts.push(`<strong>${esc($('proj-name').value)}</strong>`);
+  if(inclFields.client && $('proj-client').value) parts.push(esc($('proj-client').value));
+  if(inclFields.estimateNum && $('proj-num').value) parts.push('Estimate #'+esc($('proj-num').value));
+  if(inclFields.date) parts.push(new Date().toLocaleDateString('en-CA'));
+  $('print-header').innerHTML = parts.length ? `<h2>${parts[0]}</h2><p>${parts.slice(1).join(' &nbsp;·&nbsp; ')}</p>` : '';
+
+  // Store print options for print CSS to use
+  window._printOpts = inclFields;
+
+  // Switch to summary tab for printing
+  switchTab('summary');
+  renderSummary();
+
+  // Dynamically hide/show columns based on selections
+  const styleId = 'pdf-print-style';
+  let styleEl = document.getElementById(styleId);
+  if(!styleEl){ styleEl = document.createElement('style'); styleEl.id=styleId; document.head.appendChild(styleEl); }
+  let css = '@media print { ';
+  if(!inclFields.labourCol) css += '#pane-summary th:nth-child(3),#pane-summary td:nth-child(3),#pane-summary th:nth-child(4),#pane-summary td:nth-child(4){display:none} ';
+  if(!inclFields.taxLines) css += '#pane-summary #grand-total-body tr:nth-child(2),#pane-summary #grand-total-body tr:nth-child(3){display:none} ';
+  if(!inclFields.grandTotal) css += '#pane-summary .grand-row{display:none} ';
+  css += '}';
+  styleEl.textContent = css;
+
+  setTimeout(()=>{
+    window.print();
+    // Restore after print
+    setTimeout(()=>{ if(styleEl) styleEl.textContent=''; }, 500);
+  }, 150);
+}
+
 // Close dropdowns on outside click
 document.addEventListener('click',e=>{
   if(!e.target.closest('.search-wrap')) $('search-results').style.display='none';
-  if(!e.target.closest('.inline-wrap')) document.querySelectorAll('.inline-results').forEach(el=>el.innerHTML='');
+  if(!e.target.closest('.inline-wrap') && !e.target.closest('.inline-results')){
+    document.querySelectorAll('.inline-results').forEach(el=>{el.innerHTML='';el.style.display='none';});
+  }
+  if(!e.target.closest('.sheet-menu-wrap')) closeSheetMenu();
+  if(!e.target.closest('.row-menu-wrap')) closeAllRowMenus();
+  if(!e.target.closest('#qadd-modal') && !e.target.closest('.toolbar select')) {
+    // don't close qadd on sub-filter click — handled by onSubFilterChange
+  }
 });
 
-// Warn before navigating away with unsaved changes
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 
 // Init
+function populateCatDatalist(){
+  const dl = $('cat-datalist');
+  dl.innerHTML = CATS.map(c=>`<option value="${c}">`).join('');
+}
+
 renderCatFilter();
+populateLibCatFilter();
+populateCatDatalist();
 renderSheetTabs();
 renderTakeoff();
 renderSummary();
