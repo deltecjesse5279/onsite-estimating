@@ -1,7 +1,7 @@
 {
-  "name": "deltec-estimating",
-  "version": "1.0.1",
-  "description": "Deltec Electrical Estimating App",
+  "name": "onsite-estimating",
+  "version": "1.1.0",
+  "description": "OnSite Electrical Estimating App",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
