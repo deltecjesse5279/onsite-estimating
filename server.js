@@ -8,13 +8,69 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'estimates.json');
 const APP_PASSWORD = process.env.APP_PASSWORD || 'deltec2024';
 const APP_USER = process.env.APP_USER || 'deltec';
+const DATABASE_URL = process.env.DATABASE_URL || null;
 
-// Ensure data directory exists
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'));
+// --- Storage backend: Postgres if DATABASE_URL set, else JSON file ---
+let db = null;
+
+async function initStorage() {
+  if (DATABASE_URL) {
+    const { Client } = require('pg');
+    db = new Client({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    await db.connect();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS estimates (
+        id TEXT PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('Using PostgreSQL storage');
+  } else {
+    // Ensure data directory exists for file fallback
+    if (!fs.existsSync(path.join(__dirname, 'data'))) {
+      fs.mkdirSync(path.join(__dirname, 'data'));
+    }
+    if (!fs.existsSync(DATA_FILE)) {
+      fs.writeFileSync(DATA_FILE, JSON.stringify({}));
+    }
+    console.log('Using file storage (data/estimates.json)');
+  }
 }
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify({}));
+
+async function readEstimates() {
+  if (db) {
+    const res = await db.query('SELECT id, data FROM estimates');
+    const out = {};
+    res.rows.forEach(r => { out[r.id] = r.data; });
+    return out;
+  }
+  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
+  catch { return {}; }
+}
+
+async function writeEstimate(id, est) {
+  if (db) {
+    await db.query(
+      `INSERT INTO estimates (id, data, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [id, JSON.stringify(est)]
+    );
+  } else {
+    const all = await readEstimates();
+    all[id] = est;
+    fs.writeFileSync(DATA_FILE, JSON.stringify(all, null, 2));
+  }
+}
+
+async function deleteEstimate(id) {
+  if (db) {
+    await db.query('DELETE FROM estimates WHERE id = $1', [id]);
+  } else {
+    const all = await readEstimates();
+    delete all[id];
+    fs.writeFileSync(DATA_FILE, JSON.stringify(all, null, 2));
+  }
 }
 
 // Basic auth on everything
@@ -29,63 +85,67 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Estimates API ---
 
-function readEstimates() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
-function writeEstimates(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
 // List all estimates
-app.get('/api/estimates', (req, res) => {
-  const data = readEstimates();
-  const list = Object.entries(data).map(([id, est]) => ({
-    id,
-    name: est.name,
-    client: est.client,
-    estimateNum: est.estimateNum,
-    updatedAt: est.updatedAt,
-    sheetCount: (est.sheets || []).length
-  }));
-  list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  res.json(list);
+app.get('/api/estimates', async (req, res) => {
+  try {
+    const data = await readEstimates();
+    const list = Object.entries(data).map(([id, est]) => ({
+      id,
+      name: est.name,
+      client: est.client,
+      estimateNum: est.estimateNum,
+      updatedAt: est.updatedAt,
+      sheetCount: (est.sheets || []).length
+    }));
+    list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    res.json(list);
+  } catch(e) {
+    res.status(500).json({ error: 'Failed to read estimates' });
+  }
 });
 
 // Get single estimate
-app.get('/api/estimates/:id', (req, res) => {
-  const data = readEstimates();
-  const est = data[req.params.id];
-  if (!est) return res.status(404).json({ error: 'Not found' });
-  res.json(est);
+app.get('/api/estimates/:id', async (req, res) => {
+  try {
+    const data = await readEstimates();
+    const est = data[req.params.id];
+    if (!est) return res.status(404).json({ error: 'Not found' });
+    res.json(est);
+  } catch(e) {
+    res.status(500).json({ error: 'Failed to read estimate' });
+  }
 });
 
 // Save estimate (create or update)
-app.post('/api/estimates', (req, res) => {
-  const data = readEstimates();
-  const id = req.body.id || ('est_' + Date.now());
-  data[id] = {
-    ...req.body,
-    id,
-    updatedAt: new Date().toISOString()
-  };
-  writeEstimates(data);
-  res.json({ id, updatedAt: data[id].updatedAt });
+app.post('/api/estimates', async (req, res) => {
+  try {
+    const id = req.body.id || ('est_' + Date.now());
+    const est = { ...req.body, id, updatedAt: new Date().toISOString() };
+    await writeEstimate(id, est);
+    res.json({ id, updatedAt: est.updatedAt });
+  } catch(e) {
+    res.status(500).json({ error: 'Failed to save estimate' });
+  }
 });
 
 // Delete estimate
-app.delete('/api/estimates/:id', (req, res) => {
-  const data = readEstimates();
-  if (!data[req.params.id]) return res.status(404).json({ error: 'Not found' });
-  delete data[req.params.id];
-  writeEstimates(data);
-  res.json({ ok: true });
+app.delete('/api/estimates/:id', async (req, res) => {
+  try {
+    const data = await readEstimates();
+    if (!data[req.params.id]) return res.status(404).json({ error: 'Not found' });
+    await deleteEstimate(req.params.id);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: 'Failed to delete estimate' });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`Deltec Estimating running on port ${PORT}`);
+// Boot
+initStorage().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Deltec Estimating running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialise storage:', err);
+  process.exit(1);
 });
