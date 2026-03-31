@@ -209,6 +209,12 @@ tr.dragging{opacity:.4}
 .export-opt-btn{flex:1;border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;cursor:pointer;background:#fff;transition:border-color .15s,background .15s;display:block}
 .export-opt-btn:hover{border-color:#aaa;background:var(--bg2)}
 .export-opt-btn.active{border-color:var(--text);background:var(--bg2)}
+/* Export include toggle pills */
+.export-toggle-btn{border:1.5px solid var(--border);border-radius:var(--radius);padding:7px 12px;cursor:pointer;background:#fff;font-size:12px;transition:border-color .15s,background .15s;display:flex;align-items:center;gap:6px;user-select:none}
+.export-toggle-btn:hover{border-color:#aaa;background:var(--bg2)}
+.export-toggle-btn.active{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.export-toggle-btn.active::before{content:'✓';font-size:11px;font-weight:700}
+.export-toggle-btn:not(.active)::before{content:'○';font-size:11px;color:#bbb}
 
 /* Filter active indicator */
 select.filter-active{border-color:var(--amber);background:#fffbf2}
@@ -345,7 +351,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
       <option value="custom">Custom only</option>
     </select>
     <button class="btn primary" onclick="openAddLibItemModal()">+ Add item</button>
-    <button class="btn" onclick="exportLibraryCSV()" title="Export library as CSV for supplier pricing">&#11015; Export CSV</button>
+    <button class="btn" onclick="openLibExportModal()" title="Export library as CSV for supplier pricing">&#11015; Export CSV</button>
   </div>
   <div class="lib-table-wrap">
     <table class="lib-table">
@@ -598,6 +604,55 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
   </div>
 </div>
 
+<!-- LIBRARY CSV EXPORT MODAL -->
+<div class="modal-overlay" id="lib-export-modal" style="display:none" onclick="if(event.target===this)closeLibExportModal()">
+  <div class="modal" style="width:380px">
+    <h3 style="margin-bottom:4px">Export Library as CSV</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Choose which columns to include. Send to your supplier to fill in pricing.</p>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Columns</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:18px">
+      <div class="export-toggle-btn active" id="csv-col-code-lbl" onclick="toggleCsvCol('code',this)">Code</div>
+      <div class="export-toggle-btn active" id="csv-col-desc-lbl" onclick="toggleCsvCol('desc',this)">Description</div>
+      <div class="export-toggle-btn active" id="csv-col-unit-lbl" onclick="toggleCsvCol('unit',this)">Unit</div>
+      <div class="export-toggle-btn active" id="csv-col-mat-lbl" onclick="toggleCsvCol('mat',this)">Mat $/unit</div>
+      <div class="export-toggle-btn active" id="csv-col-lab-lbl" onclick="toggleCsvCol('lab',this)">Lab hrs/unit</div>
+      <div class="export-toggle-btn active" id="csv-col-cat-lbl" onclick="toggleCsvCol('cat',this)">Category</div>
+      <div class="export-toggle-btn active" id="csv-col-details-lbl" onclick="toggleCsvCol('details',this)">Details</div>
+      <div class="export-toggle-btn" id="csv-col-source-lbl" onclick="toggleCsvCol('source',this)">Source</div>
+    </div>
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Items to export</div>
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+      <div class="export-toggle-btn active" id="csv-src-all-lbl" onclick="selectCsvSrc('all')" style="flex:1">All items</div>
+      <div class="export-toggle-btn" id="csv-src-default-lbl" onclick="selectCsvSrc('default')" style="flex:1">Default only</div>
+      <div class="export-toggle-btn" id="csv-src-custom-lbl" onclick="selectCsvSrc('custom')" style="flex:1">Custom only</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeLibExportModal()">Cancel</button>
+      <button class="btn primary" onclick="confirmLibExportCSV()">&#11015; Export CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSEMBLY ITEMS EDIT MODAL (edit this instance's items only) -->
+<div class="modal-overlay" id="asm-items-edit-modal" style="display:none" onclick="if(event.target===this)closeAsmItemsEdit()">
+  <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto">
+    <h3 id="asm-items-edit-title">Edit Assembly Items</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Changes apply to this instance only — the saved assembly is not affected.</p>
+    <div id="asm-items-edit-list" style="border:1px solid var(--border);border-radius:var(--radius);min-height:60px;margin-bottom:12px;overflow:hidden"></div>
+    <div id="asm-items-edit-search-wrap" style="display:none;position:relative;margin-bottom:12px">
+      <input type="text" id="asm-items-edit-search" placeholder="Search library to add item…" oninput="onAsmItemsEditSearch(this.value)" autocomplete="off" style="width:100%;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
+      <div id="asm-items-edit-results" style="position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <button class="btn sm" onclick="toggleAsmItemsEditSearch()">+ Add item</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAsmItemsEdit()">Cancel</button>
+      <button class="btn primary" onclick="confirmAsmItemsEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- GENERIC CONFIRM MODAL -->
 <div class="modal-overlay" id="confirm-modal" style="display:none">
   <div class="modal" style="width:340px">
@@ -621,6 +676,10 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
         <span>Mat: <b id="qadd-mat"></b></span>
       </div>
     </div>
+    <div id="qadd-sheet-row" style="display:none;margin-bottom:12px">
+      <label class="modal-label">Add to sheet</label>
+      <select id="qadd-sheet" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:#fff"></select>
+    </div>
     <label class="modal-label">Quantity</label>
     <input type="number" id="qadd-qty" value="1" min="0.01" step="any" style="font-size:20px;text-align:center;padding:10px;margin-bottom:14px"/>
     <div class="modal-actions">
@@ -640,16 +699,14 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Format</div>
       <div style="display:flex;gap:8px">
-        <label id="fmt-summary-lbl" class="export-opt-btn active" onclick="selectExportFmt('summary')">
-          <input type="radio" name="export-fmt" value="summary" checked style="display:none">
+        <div id="fmt-summary-lbl" class="export-opt-btn active" onclick="selectExportFmt('summary')">
           <div style="font-weight:600;font-size:13px">Summary</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Sheet totals + grand total</div>
-        </label>
-        <label id="fmt-bom-lbl" class="export-opt-btn" onclick="selectExportFmt('bom')">
-          <input type="radio" name="export-fmt" value="bom" style="display:none">
+        </div>
+        <div id="fmt-bom-lbl" class="export-opt-btn" onclick="selectExportFmt('bom')">
           <div style="font-weight:600;font-size:13px">Bill of Materials</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Full item-by-item list</div>
-        </label>
+        </div>
       </div>
     </div>
 
@@ -657,34 +714,37 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Audience</div>
       <div style="display:flex;gap:8px">
-        <label id="view-client-lbl" class="export-opt-btn active" onclick="selectExportView('client')">
-          <input type="radio" name="export-view" value="client" checked style="display:none">
+        <div id="view-client-lbl" class="export-opt-btn active" onclick="selectExportView('client')">
           <div style="font-weight:600;font-size:13px">Client View</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Totals only, no rates</div>
-        </label>
-        <label id="view-office-lbl" class="export-opt-btn" onclick="selectExportView('office')">
-          <input type="radio" name="export-view" value="office" style="display:none">
+        </div>
+        <div id="view-office-lbl" class="export-opt-btn" onclick="selectExportView('office')">
           <div style="font-weight:600;font-size:13px">Office View</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Full cost breakdown</div>
-        </label>
-        <label id="view-field-lbl" class="export-opt-btn" onclick="selectExportView('field')">
-          <input type="radio" name="export-view" value="field" style="display:none">
+        </div>
+        <div id="view-field-lbl" class="export-opt-btn" onclick="selectExportView('field')">
           <div style="font-weight:600;font-size:13px">Field View</div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px">Quantities, no $</div>
-        </label>
+        </div>
       </div>
     </div>
 
-    <!-- Include options -->
+    <!-- BoM sheet selector (shown only when BoM is selected) -->
+    <div id="bom-sheet-selector" style="display:none;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Sheets to include</div>
+      <div id="bom-sheet-checkboxes" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+
+    <!-- Include options as card-style toggles -->
     <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Include</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-name" checked> Project name</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-client" checked> Client / GC</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-num" checked> Estimate #</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-date" checked> Date</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-tax" checked> Tax lines (GST/PST)</label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:4px 0"><input type="checkbox" id="pdf-field-grand" checked> Grand total</label>
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Include in header</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="pdf-include-grid">
+        <div class="export-toggle-btn active" id="inc-name-lbl" onclick="toggleExportInclude('name',this)">Project name</div>
+        <div class="export-toggle-btn active" id="inc-client-lbl" onclick="toggleExportInclude('client',this)">Client / GC</div>
+        <div class="export-toggle-btn active" id="inc-num-lbl" onclick="toggleExportInclude('num',this)">Estimate #</div>
+        <div class="export-toggle-btn active" id="inc-date-lbl" onclick="toggleExportInclude('date',this)">Date</div>
+        <div class="export-toggle-btn active" id="inc-tax-lbl" onclick="toggleExportInclude('tax',this)">Tax lines</div>
+        <div class="export-toggle-btn active" id="inc-grand-lbl" onclick="toggleExportInclude('grand',this)">Grand total</div>
       </div>
     </div>
 
@@ -963,20 +1023,32 @@ function onCatFilterChange(){
   }
 }
 
-function onSubFilterChange(){
-  const code = $('sub-filter').value;
-  if(!code) return;
-  const item = getAllLibItems().find(x=>x.code===code);
-  if(!item) return;
-  // Show quick-add modal
+function _openQaddModal(item){
   $('qadd-code').textContent = item.code;
   $('qadd-desc').textContent = item.description;
   $('qadd-unit').textContent = item.unit||'ea';
   $('qadd-mat').textContent = fmt(item.mat_unit,2);
   $('qadd-qty').value = 1;
   $('qadd-modal')._item = item;
+  // Show sheet picker only from Library tab or if multiple sheets
+  const sheetRow = $('qadd-sheet-row');
+  const sheetSel = $('qadd-sheet');
+  if(state.sheets.length > 1 && sheetSel){
+    sheetSel.innerHTML = state.sheets.map((s,i)=>`<option value="${i}"${i===state.activeSheet?' selected':''}>${esc(s.name)}</option>`).join('');
+    sheetRow.style.display = 'block';
+  } else {
+    if(sheetRow) sheetRow.style.display = 'none';
+  }
   $('qadd-modal').style.display = 'flex';
   setTimeout(()=>$('qadd-qty').select(), 50);
+}
+
+function onSubFilterChange(){
+  const code = $('sub-filter').value;
+  if(!code) return;
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  _openQaddModal(item);
 }
 
 function closeQaddModal(){
@@ -988,17 +1060,28 @@ function confirmQadd(){
   const item = $('qadd-modal')._item;
   if(!item) return;
   const qty = parseFloat($('qadd-qty').value) || 1;
-  state.sheets[state.activeSheet].rows.push({
+  // Use sheet picker if visible, otherwise active sheet
+  const sheetSel = $('qadd-sheet');
+  const targetSheet = (sheetSel && $('qadd-sheet-row').style.display !== 'none')
+    ? parseInt(sheetSel.value)
+    : state.activeSheet;
+  state.sheets[targetSheet].rows.push({
     ...item,
     details: item.details || item.notes || '',
     notes: '',
     qty
   });
+  // Switch to target sheet so user sees the result
+  if(targetSheet !== state.activeSheet){
+    state.activeSheet = targetSheet;
+    renderSheetTabs();
+    switchTab('takeoff');
+  }
   renderTakeoff();
   refreshAll();
   markDirty();
   closeQaddModal();
-  showToast('Added: '+item.code+' ×'+qty);
+  showToast('Added: '+item.code+' ×'+qty+' → '+state.sheets[targetSheet].name);
 }
 
 // ============================================================
@@ -1053,14 +1136,7 @@ function openQaddFromSearch(code){
   $('lib-search').value='';
   const item = getAllLibItems().find(x=>x.code===code);
   if(!item) return;
-  $('qadd-code').textContent = item.code;
-  $('qadd-desc').textContent = item.description;
-  $('qadd-unit').textContent = item.unit||'ea';
-  $('qadd-mat').textContent = fmt(item.mat_unit,2);
-  $('qadd-qty').value = 1;
-  $('qadd-modal')._item = item;
-  $('qadd-modal').style.display = 'flex';
-  setTimeout(()=>$('qadd-qty').select(), 50);
+  _openQaddModal(item);
 }
 
 function inlineSearch(idx, q){
@@ -1142,9 +1218,9 @@ function duplicateRow(idx){
   const rows = state.sheets[state.activeSheet].rows;
   const orig = {...rows[idx]};
   // Generate a unique copy code
-  const baseCode = orig.code ? orig.code.replace(/^Copy\d*[-_]?/,'') : '';
-  const existing = rows.filter(r=>(r.code||'').startsWith('Copy')).length;
-  orig.code = existing === 0 ? (baseCode ? 'Copy-'+baseCode : 'Copy') : `Copy${existing}-${baseCode||'item'}`;
+  const baseCode = orig.code ? orig.code.replace(/-Copy\d*$/,'') : '';
+  const existing = rows.filter(r=>(r.code||'').match(/-Copy\d*$/)).length;
+  orig.code = existing === 0 ? (baseCode ? baseCode+'-Copy' : 'Copy') : `${baseCode||'item'}-Copy${existing}`;
   rows.splice(idx+1, 0, orig);
   renderTakeoff();
   refreshAll();
@@ -1418,7 +1494,7 @@ function renderTakeoff(){
         </td>
         <td><span class="unit-badge">ls</span></td>
         <td><input class="qty-input" type="number" min="0.01" step="any" value="${row.qty||1}" title="Quantity multiplier"
-          oninput="updateAsmQty(${i},this.value)"/></td>
+          oninput="updateAsmQty(${i},this.value)" onchange="updateAsmQty(${i},this.value)" onblur="updateAsmQty(${i},this.value)"/></td>
         <td class="num" style="font-size:11px;color:var(--muted)">—</td>
         <td class="num" id="asm-mat-${i}">${fmt(c.mat)}</td>
         <td class="num" id="asm-hrs-${i}">${c.hrs.toFixed(2)}</td>
@@ -1431,6 +1507,9 @@ function renderTakeoff(){
             <button class="row-menu-btn" onclick="toggleRowMenu(${i},this)">&#8942;</button>
             <div class="row-menu-dropdown" style="display:none">
               <div class="mi" onclick="expandAsmToRows(${i})">&#8677; Expand to rows</div>
+              <div class="mi" onclick="duplicateRow(${i})">&#10064; Duplicate assembly</div>
+              <div class="mi" onclick="openMoveRowModal(${i})">&#8646; Move / Copy to sheet</div>
+              <div class="mi" onclick="openAsmItemsEdit(${i})">&#9998; Edit contained items</div>
               <div class="sep"></div>
               <div class="mi danger" onclick="deleteRow(${i});closeAllRowMenus()">&#10005; Delete</div>
             </div>
@@ -1472,7 +1551,7 @@ function renderTakeoff(){
         ? `<select style="font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px" onchange="updateRowField(${i},'unit',this.value)"><option${row.unit==='ea'?' selected':''}>ea</option><option${row.unit==='ft'?' selected':''}>ft</option><option${row.unit==='m'?' selected':''}>m</option><option${row.unit==='ls'?' selected':''}>ls</option><option${row.unit==='hr'?' selected':''}>hr</option></select>`
         : `<span class="unit-badge">${esc(row.unit||'')}</span>`}</td>
       <td><input class="qty-input" type="number" min="0" value="${row.qty||''}" placeholder="0"
-        oninput="updateQty(${i},this.value)" onchange="updateQty(${i},this.value)"/></td>
+        oninput="updateQty(${i},this.value)" onchange="updateQty(${i},this.value)" onblur="updateQty(${i},this.value)"/></td>
       <td class="num">${isCustom
         ? `<input type="number" value="${row.mat_unit||''}" placeholder="0.00" step="0.01" style="width:72px;text-align:right;font-size:12px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--amber-bg)" onchange="updateRowField(${i},'mat_unit',parseFloat(this.value)||0)"/>`
         : (row.mat_unit?fmt(row.mat_unit,2):'')}</td>
@@ -1690,6 +1769,7 @@ function renderLibraryPane(){
         ? `<input class="lib-edit-input" value="${esc(notesVal)}" onchange="updateCustomLibField('${esc(item.code)}','_userNotes',this.value)" placeholder="Your notes…"/>`
         : ''}</td>
       <td style="white-space:nowrap">
+        <button class="btn sm" style="margin-right:3px" onclick="openQaddFromLib('${esc(item.code)}')" title="Add to sheet">+ Sheet</button>
         <button class="btn sm" style="margin-right:3px" onclick="editLibItem('${esc(item.code)}',${item._isCustom})" title="Edit">&#9998;</button>
         <button class="btn sm" style="margin-right:3px" onclick="duplicateLibItem('${esc(item.code)}')" title="Duplicate">&#10064;</button>
         <button class="lib-del-btn" style="opacity:1;color:var(--danger);font-size:13px;padding:0 4px;background:none;border:none;cursor:pointer" onclick="deleteCustomLibItem('${esc(item.code)}')" title="Delete">&#10005;</button>
@@ -1728,10 +1808,10 @@ function duplicateLibItem(code){
   const item = getAllLibItems().find(x=>x.code===code);
   if(!item) return;
   // Generate unique copy code
-  let newCode = 'Copy-'+code;
+  let newCode = code+'-Copy';
   let n = 1;
   while(getAllLibItems().find(x=>x.code===newCode)){
-    newCode = 'Copy'+n+'-'+code;
+    newCode = code+'-Copy'+n;
     n++;
   }
   const copy = {...item, code:newCode, _hidden:false, addedAt:new Date().toISOString()};
@@ -1865,6 +1945,12 @@ function confirmLibAdd(){
   showToast(existing>=0?'Item updated':'Added: '+code);
 }
 
+function openQaddFromLib(code){
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  _openQaddModal(item);
+}
+
 function populateLibCatFilter(){
   const el = $('lib-cat-filter');
   const cur = el.value;
@@ -1880,9 +1966,11 @@ function renderAssembliesPane(){
     grid.innerHTML = '<div class="empty-msg">No assemblies yet. Create one from the button above, or use the row ⋮ menu to start one from a takeoff row.</div>';
     return;
   }
+  const s = getSettings();
   grid.innerHTML = assemblies.map((asm,i)=>{
     const totalMat = asm.items.reduce((s,it)=>s+(it.mat_unit||0)*(it.qty||1),0);
-    const totalLab = asm.items.reduce((s,it)=>s+(it.labour_unit||0)*(it.qty||1),0);
+    const totalLabHrs = asm.items.reduce((s,it)=>s+(it.labour_unit||0)*(it.qty||1),0);
+    const totalLabDollar = totalLabHrs * s.jm;
     return `<div class="assembly-card">
       <div class="assembly-card-header">
         <div>
@@ -1897,11 +1985,44 @@ function renderAssembliesPane(){
         </div>
       </div>
       <div class="assembly-items">
-        ${asm.items.map(it=>`<div class="assembly-item-row"><span>${esc(it.code)} — ${esc(it.description||'')}</span><span>×${it.qty||1} &nbsp;|&nbsp; ${fmt((it.mat_unit||0)*(it.qty||1),2)}</span></div>`).join('')}
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--muted)">
-          <span>${asm.items.length} item${asm.items.length!==1?'s':''}</span>
-          <span>Mat: ${fmt(totalMat)} &nbsp;|&nbsp; Lab: ${fmtH(totalLab)}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px">
+          <thead>
+            <tr style="border-bottom:1px solid #eeecea">
+              <th style="text-align:left;padding:3px 4px;font-weight:500;color:var(--muted);font-size:10px">Item</th>
+              <th style="text-align:right;padding:3px 4px;font-weight:500;color:var(--muted);font-size:10px;width:36px">Qty</th>
+              <th style="text-align:right;padding:3px 4px;font-weight:500;color:var(--muted);font-size:10px;width:72px">Mat total</th>
+              <th style="text-align:right;padding:3px 4px;font-weight:500;color:var(--muted);font-size:10px;width:52px">Lab hrs</th>
+              <th style="text-align:right;padding:3px 4px;font-weight:500;color:var(--muted);font-size:10px;width:72px">Lab $</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${asm.items.map(it=>{
+              const qty = it.qty||1;
+              const itMat = (it.mat_unit||0)*qty;
+              const itLabHrs = (it.labour_unit||0)*qty;
+              const itLabDollar = itLabHrs * s.jm;
+              return `<tr style="border-bottom:1px solid #f5f4f0">
+                <td style="padding:3px 4px">
+                  <span style="font-weight:600">${esc(it.code)}</span>
+                  <span style="color:var(--muted);margin-left:4px">${esc(it.description||'')}</span>
+                </td>
+                <td style="text-align:right;padding:3px 4px;color:var(--muted)">×${qty}</td>
+                <td style="text-align:right;padding:3px 4px;font-variant-numeric:tabular-nums">${fmt(itMat)}</td>
+                <td style="text-align:right;padding:3px 4px;color:var(--amber);font-variant-numeric:tabular-nums">${itLabHrs.toFixed(2)}h</td>
+                <td style="text-align:right;padding:3px 4px;font-variant-numeric:tabular-nums">${fmt(itLabDollar)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:1px solid var(--border);font-weight:600;font-size:11px">
+              <td style="padding:4px 4px;color:var(--muted)">${asm.items.length} item${asm.items.length!==1?'s':''}</td>
+              <td></td>
+              <td style="text-align:right;padding:4px 4px;color:var(--green)">${fmt(totalMat)}</td>
+              <td style="text-align:right;padding:4px 4px;color:var(--amber)">${totalLabHrs.toFixed(2)}h</td>
+              <td style="text-align:right;padding:4px 4px;color:var(--green)">${fmt(totalLabDollar)}</td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>`;
   }).join('');
@@ -2258,32 +2379,170 @@ function showToast(msg){
 }
 
 // ============================================================
+// EDIT ASSEMBLY INSTANCE ITEMS (does not affect master assembly)
+// ============================================================
+let _asmEditRowIdx = null;
+let _asmEditItems = [];
+
+function openAsmItemsEdit(idx){
+  closeAllRowMenus();
+  const row = state.sheets[state.activeSheet].rows[idx];
+  if(!row._assembly) return;
+  _asmEditRowIdx = idx;
+  _asmEditItems = JSON.parse(JSON.stringify(row._items || []));
+  $('asm-items-edit-title').textContent = 'Edit items: ' + esc(row._asmName || 'Assembly');
+  $('asm-items-edit-search-wrap').style.display = 'none';
+  renderAsmItemsEditList();
+  $('asm-items-edit-modal').style.display = 'flex';
+}
+
+function closeAsmItemsEdit(){
+  $('asm-items-edit-modal').style.display = 'none';
+  _asmEditRowIdx = null;
+  _asmEditItems = [];
+}
+
+function renderAsmItemsEditList(){
+  const list = $('asm-items-edit-list');
+  if(!_asmEditItems.length){
+    list.innerHTML = '<div class="empty-msg">No items. Use "+ Add item" to add from library.</div>';
+    return;
+  }
+  list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:5px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Code / Item</th>
+      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:56px">Qty</th>
+      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:70px">Mat$/unit</th>
+      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:60px">Lab hrs</th>
+      <th style="width:28px;border-bottom:1px solid var(--border)"></th>
+    </tr></thead>
+    <tbody>${_asmEditItems.map((it,i)=>`
+      <tr style="border-bottom:1px solid #f0efeb">
+        <td style="padding:4px 8px">
+          <div style="font-weight:600;font-size:12px">${esc(it.code)}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${esc(it.description||'')}</div>
+        </td>
+        <td style="padding:4px 6px;text-align:right">
+          <input type="number" min="0.01" step="any" value="${it.qty||1}"
+            style="width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
+            onchange="_asmEditItems[${i}].qty=parseFloat(this.value)||1"/>
+        </td>
+        <td style="padding:4px 6px;text-align:right">
+          <input type="number" min="0" step="0.01" value="${it.mat_unit||0}"
+            style="width:65px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
+            onchange="_asmEditItems[${i}].mat_unit=parseFloat(this.value)||0"/>
+        </td>
+        <td style="padding:4px 6px;text-align:right">
+          <input type="number" min="0" step="0.001" value="${it.labour_unit||0}"
+            style="width:55px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
+            onchange="_asmEditItems[${i}].labour_unit=parseFloat(this.value)||0"/>
+        </td>
+        <td style="padding:4px;text-align:center">
+          <button onclick="_asmEditItems.splice(${i},1);renderAsmItemsEditList()"
+            style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0 3px;line-height:1"
+            onmouseover="this.style.color='#a32d2d'" onmouseout="this.style.color='#999'">&#10005;</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function toggleAsmItemsEditSearch(){
+  const w = $('asm-items-edit-search-wrap');
+  w.style.display = w.style.display === 'none' ? 'block' : 'none';
+  if(w.style.display === 'block') setTimeout(()=>$('asm-items-edit-search').focus(), 50);
+}
+
+function onAsmItemsEditSearch(q){
+  const el = $('asm-items-edit-results');
+  if(!q.trim()){ el.innerHTML=''; return; }
+  const res = getAllLibItems().filter(i=>fuzzyMatch(q,i)).sort((a,b)=>fuzzyScore(q,b)-fuzzyScore(q,a)).slice(0,10);
+  el.innerHTML = res.map(i=>`<div class="ir-item" onclick="addAsmItemsEditItem('${i.code.replace(/'/g,"\\'")}')">
+    <span class="ir-code">${i.code}</span><span class="ir-desc">${i.description}</span>
+  </div>`).join('');
+}
+
+function addAsmItemsEditItem(code){
+  const item = getAllLibItems().find(x=>x.code===code);
+  if(!item) return;
+  _asmEditItems.push({...item, qty:1});
+  $('asm-items-edit-search').value = '';
+  $('asm-items-edit-results').innerHTML = '';
+  $('asm-items-edit-search-wrap').style.display = 'none';
+  renderAsmItemsEditList();
+}
+
+function confirmAsmItemsEdit(){
+  if(_asmEditRowIdx === null) return;
+  const row = state.sheets[state.activeSheet].rows[_asmEditRowIdx];
+  if(!row._assembly) return;
+  row._items = JSON.parse(JSON.stringify(_asmEditItems));
+  closeAsmItemsEdit();
+  renderTakeoff();
+  refreshAll();
+  markDirty();
+  showToast('Assembly items updated');
+}
+
+
+// ============================================================
 // LIBRARY CSV EXPORT
 // ============================================================
-function exportLibraryCSV(){
-  const items = getAllLibItems();
-  const headers = ['Code','Description','Unit','Mat $/unit','Lab hrs/unit','Category','Details','Source'];
-  const rows = items.map(item => {
-    const details = item.details || (item.notes||'');
-    const source = LIBRARY.find(x=>x.code===item.code) ? 'Default' : 'Custom';
-    return [
-      item.code,
-      item.description||'',
-      item.unit||'',
-      item.mat_unit||0,
-      item.labour_unit||0,
-      item.category||'',
-      details,
-      source
-    ].map(v => {
-      const s = String(v);
-      // Wrap in quotes if contains comma, quote, or newline
-      return (s.includes(',') || s.includes('"') || s.includes('\n'))
-        ? '"' + s.replace(/"/g, '""') + '"'
-        : s;
-    });
+let _csvSrc = 'all';
+
+function openLibExportModal(){
+  ['code','desc','unit','mat','lab','cat','details'].forEach(k=>{
+    const lbl=$('csv-col-'+k+'-lbl'); if(lbl) lbl.classList.add('active');
+    const cb=$('csv-col-'+k); if(cb) cb.checked=true;
   });
-  const csv = [headers, ...rows].map(r=>r.join(',')).join('\r\n');
+  const srcLbl=$('csv-col-source-lbl'); if(srcLbl) srcLbl.classList.remove('active');
+  const srcCb=$('csv-col-source'); if(srcCb) srcCb.checked=false;
+  _csvSrc='all';
+  ['all','default','custom'].forEach(s=>{
+    const el=$('csv-src-'+s+'-lbl'); if(el) el.classList.toggle('active',s==='all');
+  });
+  $('lib-export-modal').style.display='flex';
+}
+
+function closeLibExportModal(){ $('lib-export-modal').style.display='none'; }
+
+function toggleCsvCol(key, el){
+  el.classList.toggle('active');
+}
+
+function selectCsvSrc(src){
+  _csvSrc=src;
+  ['all','default','custom'].forEach(s=>{
+    const el=$('csv-src-'+s+'-lbl'); if(el) el.classList.toggle('active',s===src);
+  });
+}
+
+function confirmLibExportCSV(){
+  closeLibExportModal();
+  let items = getAllLibItems().map((item,i)=>({...item, _isCustom: i>=LIBRARY.length}));
+  if(_csvSrc==='default') items=items.filter(x=>!x._isCustom);
+  if(_csvSrc==='custom') items=items.filter(x=>x._isCustom);
+
+  const isActive = id => { const el=$('csv-col-'+id+'-lbl'); return el && el.classList.contains('active'); };
+  const cols = [];
+  if(isActive('code'))    cols.push({label:'Code',        fn:x=>x.code});
+  if(isActive('desc'))    cols.push({label:'Description', fn:x=>x.description||''});
+  if(isActive('unit'))    cols.push({label:'Unit',        fn:x=>x.unit||''});
+  if(isActive('mat'))     cols.push({label:'Mat $/unit',  fn:x=>x.mat_unit||0});
+  if(isActive('lab'))     cols.push({label:'Lab hrs/unit',fn:x=>x.labour_unit||0});
+  if(isActive('cat'))     cols.push({label:'Category',    fn:x=>x.category||''});
+  if(isActive('details')) cols.push({label:'Details',     fn:x=>x.details||(x._isCustom?'':(x.notes||''))});
+  if(isActive('source'))  cols.push({label:'Source',      fn:x=>x._isCustom?'Custom':'Default'});
+
+  if(!cols.length){ showToast('Select at least one column'); return; }
+
+  const csvEsc = v => {
+    const s = String(v);
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+
+  const rows = [cols.map(c=>c.label), ...items.map(item=>cols.map(c=>csvEsc(c.fn(item))))];
+  const csv = rows.map(r=>r.join(',')).join('\r\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2294,7 +2553,7 @@ function exportLibraryCSV(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Library exported: '+items.length+' items');
+  showToast('Exported '+items.length+' items, '+cols.length+' columns');
 }
 
 let _exportFmt = 'summary';  // 'summary' | 'bom'
@@ -2306,6 +2565,13 @@ function selectExportFmt(fmt){
     const el = $('fmt-'+f+'-lbl');
     if(el) el.classList.toggle('active', f===fmt);
   });
+  // Show BoM sheet selector only for BoM format
+  const bomSel = $('bom-sheet-selector');
+  if(bomSel) bomSel.style.display = fmt === 'bom' ? 'block' : 'none';
+}
+
+function toggleExportInclude(key, el){
+  el.classList.toggle('active');
 }
 
 function selectExportView(view){
@@ -2321,6 +2587,19 @@ function exportPDF(){
   _exportView = 'client';
   ['summary','bom'].forEach(f=>{ const el=$('fmt-'+f+'-lbl'); if(el) el.classList.toggle('active',f==='summary'); });
   ['client','office','field'].forEach(v=>{ const el=$('view-'+v+'-lbl'); if(el) el.classList.toggle('active',v==='client'); });
+  // Reset include toggles to all active
+  ['name','client','num','date','tax','grand'].forEach(k=>{
+    const lbl = $('inc-'+k+'-lbl'); if(lbl) lbl.classList.add('active');
+  });
+  // Populate BoM sheet pills (all active by default)
+  const sheetCbs = $('bom-sheet-checkboxes');
+  if(sheetCbs){
+    sheetCbs.innerHTML = state.sheets.map((sh,i)=>`
+      <div class="export-toggle-btn active" id="bom-sheet-${i}" onclick="this.classList.toggle('active')"
+        style="justify-content:flex-start">${esc(sh.name)}</div>`).join('');
+  }
+  const bomSel = $('bom-sheet-selector');
+  if(bomSel) bomSel.style.display = 'none';
   $('pdf-modal').style.display='flex';
 }
 
@@ -2331,13 +2610,14 @@ function closePdfModal(){
 function confirmExportPDF(){
   const fmt = _exportFmt;
   const view = _exportView;
+  const isInc = key => { const el=$('inc-'+key+'-lbl'); return !el || el.classList.contains('active'); };
   const inclFields = {
-    projectName: $('pdf-field-name').checked,
-    client:      $('pdf-field-client').checked,
-    estimateNum: $('pdf-field-num').checked,
-    date:        $('pdf-field-date').checked,
-    taxLines:    $('pdf-field-tax').checked,
-    grandTotal:  $('pdf-field-grand').checked,
+    projectName: isInc('name'),
+    client:      isInc('client'),
+    estimateNum: isInc('num'),
+    date:        isInc('date'),
+    taxLines:    isInc('tax'),
+    grandTotal:  isInc('grand'),
   };
   closePdfModal();
 
@@ -2395,20 +2675,117 @@ function confirmExportPDF(){
     }
     // office view: show everything
   } else {
-    // BOM — print the takeoff table
-    switchTab('takeoff');
-    if(view === 'field'){
-      css += '#pane-takeoff th:nth-child(6),#pane-takeoff td:nth-child(6),' +
-             '#pane-takeoff th:nth-child(7),#pane-takeoff td:nth-child(7),' +
-             '#pane-takeoff th:nth-child(9),#pane-takeoff td:nth-child(9),' +
-             '#pane-takeoff .totals-bar{display:none!important} ';
-    } else if(view === 'client'){
-      css += '#pane-takeoff th:nth-child(6),#pane-takeoff td:nth-child(6),' +
-             '#pane-takeoff th:nth-child(7),#pane-takeoff td:nth-child(7),' +
-             '#pane-takeoff th:nth-child(8),#pane-takeoff td:nth-child(8),' +
-             '#pane-takeoff th:nth-child(9),#pane-takeoff td:nth-child(9),' +
-             '#pane-takeoff .totals-bar{display:none!important} ';
+    // BOM — build a print-friendly view of selected sheets
+    // Determine which sheets to include
+    const selectedSheetIdxs = state.sheets
+      .map((_,i) => ({ i, checked: document.getElementById('bom-sheet-'+i)?.classList.contains('active') !== false }))
+      .filter(x => x.checked)
+      .map(x => x.i);
+
+    // Build a temporary print div with full item tables per sheet
+    let printDiv = document.getElementById('bom-print-area');
+    if(printDiv) printDiv.remove();
+    printDiv = document.createElement('div');
+    printDiv.id = 'bom-print-area';
+    printDiv.style.cssText = 'display:none';
+
+    selectedSheetIdxs.forEach(si => {
+      const sh = state.sheets[si];
+      const sheetBlock = document.createElement('div');
+      sheetBlock.style.cssText = 'page-break-inside:avoid;margin-bottom:20px';
+
+      // Sheet header
+      const sheetHdr = document.createElement('h3');
+      sheetHdr.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ccc';
+      sheetHdr.textContent = sh.name;
+      sheetBlock.appendChild(sheetHdr);
+
+      // Build column headers based on view
+      const showMoney = view !== 'field';
+      const showLabour = view === 'office';
+      let headerCols = ['#', 'Code', 'Description', 'Unit', 'Qty'];
+      if(showMoney) headerCols.push('Mat total');
+      if(showLabour) headerCols.push('Lab hrs', 'Lab $');
+      if(view === 'office') headerCols.push('Notes');
+
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px';
+      const thead = table.createTHead();
+      const hrow = thead.insertRow();
+      headerCols.forEach(h => {
+        const th = document.createElement('th');
+        th.style.cssText = 'text-align:left;padding:3px 5px;background:#eee;border-bottom:1px solid #ccc;font-size:10px;color:#666;white-space:nowrap';
+        th.textContent = h;
+        hrow.appendChild(th);
+      });
+
+      const tbody = table.createTBody();
+      (sh.rows || []).forEach((row, ri) => {
+        const c = calcRow(row);
+        const trow = tbody.insertRow();
+        trow.style.borderBottom = '1px solid #f0efeb';
+        const cells = [];
+        cells.push(ri + 1);
+        if(row._assembly){
+          cells.push(row._asmName || 'Assembly');
+          cells.push('×' + (row.qty||1) + ' ('+((row._items||[]).length)+' items)');
+          cells.push('ls');
+          cells.push(row.qty||1);
+          if(showMoney) cells.push(fmt(c.mat));
+          if(showLabour){ cells.push(c.hrs.toFixed(2)); cells.push(fmt(c.lab)); }
+          if(view === 'office') cells.push(row.notes||'');
+        } else {
+          cells.push(row.code||'');
+          cells.push(row.description||'');
+          cells.push(row.unit||'');
+          cells.push(row.qty||'');
+          if(showMoney) cells.push(row.qty ? fmt(c.mat) : '');
+          if(showLabour){ cells.push(row.qty ? c.hrs.toFixed(2) : ''); cells.push(row.qty ? fmt(c.lab) : ''); }
+          if(view === 'office') cells.push(row.notes||'');
+        }
+        cells.forEach(v => {
+          const td = trow.insertCell();
+          td.style.cssText = 'padding:3px 5px;vertical-align:middle;font-size:11px';
+          td.textContent = String(v);
+        });
+      });
+
+      sheetBlock.appendChild(table);
+
+      // Sheet totals (office view only)
+      if(view === 'office'){
+        const t = sheetTotals(sh);
+        const totRow = document.createElement('div');
+        totRow.style.cssText = 'display:flex;gap:16px;margin-top:6px;font-size:11px;color:#666;justify-content:flex-end';
+        totRow.innerHTML = `<span>Mat: <b>${fmt(t.rawMat)}</b></span> <span>Labour: <b>${fmt(t.rawLab)}</b></span> <span>Subtotal: <b>${fmt(t.sub)}</b></span>`;
+        sheetBlock.appendChild(totRow);
+      }
+
+      printDiv.appendChild(sheetBlock);
+    });
+
+    // Grand summary at end for office view
+    if(view === 'office' && inclFields.grandTotal){
+      let tS=0; selectedSheetIdxs.forEach(si=>{ tS += sheetTotals(state.sheets[si]).sub; });
+      const s = getSettings();
+      const gst = tS*s.gst, pst = tS*s.pst, grand = tS+gst+pst;
+      const grandDiv = document.createElement('div');
+      grandDiv.style.cssText = 'margin-top:16px;padding:10px;background:#f5f4f0;border-radius:6px;font-size:12px';
+      grandDiv.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span><b>${fmt(tS)}</b></span></div>` +
+        (inclFields.taxLines ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>GST (${(s.gst*100).toFixed(0)}%)</span><span>${fmt(gst)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>PST (${(s.pst*100).toFixed(0)}%)</span><span>${fmt(pst)}</span></div>` : '') +
+        `<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-top:6px;padding-top:6px;border-top:1px solid #ccc"><span>Grand Total</span><span style="color:#2d6b1f">${fmt(grand)}</span></div>`;
+      printDiv.appendChild(grandDiv);
     }
+
+    document.body.appendChild(printDiv);
+
+    // Print CSS to show bom-print-area and hide everything else
+    css += '#bom-print-area{display:block!important} .topbar,.tabs,#pane-takeoff,#pane-summary,#pane-library,#pane-assemblies,#pane-settings{display:none!important} ';
+    css += '.print-header{display:block!important} ';
+    // Make sure print-header is visible
+    const ph = $('print-header');
+    if(ph){ ph.style.display = ''; }
   }
 
   if(!inclFields.taxLines) css += '#pane-summary #grand-total-body tr:nth-child(2),#pane-summary #grand-total-body tr:nth-child(3){display:none} ';
@@ -2418,7 +2795,11 @@ function confirmExportPDF(){
 
   setTimeout(()=>{
     window.print();
-    setTimeout(()=>{ if(styleEl) styleEl.textContent=''; }, 500);
+    setTimeout(()=>{
+      if(styleEl) styleEl.textContent='';
+      const pd = document.getElementById('bom-print-area');
+      if(pd) pd.remove();
+    }, 500);
   }, 150);
 }
 
