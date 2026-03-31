@@ -352,6 +352,8 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
     </select>
     <button class="btn primary" onclick="openAddLibItemModal()">+ Add item</button>
     <button class="btn" onclick="openLibExportModal()" title="Export library as CSV for supplier pricing">&#11015; Export CSV</button>
+    <button class="btn" onclick="triggerLibImport()" title="Import supplier pricing from CSV">&#11014; Import Pricing</button>
+    <input type="file" id="lib-import-input" accept=".csv" style="display:none" onchange="handleLibImportFile(this)"/>
   </div>
   <div class="lib-table-wrap">
     <table class="lib-table">
@@ -604,6 +606,70 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
   </div>
 </div>
 
+<!-- LIBRARY IMPORT PREVIEW MODAL -->
+<div class="modal-overlay" id="lib-import-modal" style="display:none" onclick="if(event.target===this)closeLibImportModal()">
+  <div class="modal" style="width:700px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column">
+    <h3 style="margin-bottom:4px">Import Pricing Update</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px" id="lib-import-summary-line">Review changes before applying.</p>
+
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:12px;gap:0">
+      <div id="imp-tab-matched" class="imp-tab active" onclick="showImportTab('matched')" style="padding:7px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid var(--text);color:var(--text);font-weight:500;user-select:none">
+        Matched <span id="imp-count-matched" style="font-size:11px;background:var(--green-bg);color:var(--green);border-radius:10px;padding:1px 6px;margin-left:4px"></span>
+      </div>
+      <div id="imp-tab-unmatched" class="imp-tab" onclick="showImportTab('unmatched')" style="padding:7px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);user-select:none">
+        Unmatched <span id="imp-count-unmatched" style="font-size:11px;background:var(--amber-bg);color:var(--amber);border-radius:10px;padding:1px 6px;margin-left:4px"></span>
+      </div>
+    </div>
+
+    <!-- Matched tab -->
+    <div id="imp-pane-matched" style="flex:1;overflow-y:auto;min-height:0">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--bg2);position:sticky;top:0;z-index:1">
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Code</th>
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Description</th>
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Matched by</th>
+            <th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Old Mat $</th>
+            <th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">New Mat $</th>
+            <th style="padding:6px 8px;text-align:center;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Δ</th>
+            <th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Old Lab</th>
+            <th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">New Lab</th>
+            <th style="width:36px;border-bottom:1px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody id="imp-matched-body"></tbody>
+      </table>
+      <div id="imp-matched-empty" style="display:none" class="empty-msg">No matches found.</div>
+    </div>
+
+    <!-- Unmatched tab -->
+    <div id="imp-pane-unmatched" style="display:none;flex:1;overflow-y:auto;min-height:0">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">These rows from the CSV could not be matched to any library item. They will be skipped.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--bg2)">
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">CSV Code</th>
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">CSV Description</th>
+            <th style="padding:6px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Mat $</th>
+            <th style="padding:6px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Reason</th>
+          </tr>
+        </thead>
+        <tbody id="imp-unmatched-body"></tbody>
+      </table>
+      <div id="imp-unmatched-empty" class="empty-msg">All rows matched successfully!</div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <span style="font-size:12px;color:var(--muted)" id="imp-apply-note"></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeLibImportModal()">Cancel</button>
+        <button class="btn primary" id="imp-apply-btn" onclick="applyLibImport()">Apply <span id="imp-apply-count"></span> Updates</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- LIBRARY CSV EXPORT MODAL -->
 <div class="modal-overlay" id="lib-export-modal" style="display:none" onclick="if(event.target===this)closeLibExportModal()">
   <div class="modal" style="width:380px">
@@ -770,8 +836,9 @@ let assemblies = JSON.parse(localStorage.getItem('deltec_assemblies') || '[]');
 function getAllLibItems() {
   const hiddenCodes = new Set(customLibrary.filter(x=>x._hidden).map(x=>x.code));
   const visibleCustom = customLibrary.filter(x=>!x._hidden);
-  const customCodes = new Set(visibleCustom.map(x=>x.code));
-  const visibleDefault = LIBRARY.filter(x=>!hiddenCodes.has(x.code));
+  // Also exclude default items that have been price-overridden by a custom entry
+  const overriddenCodes = new Set(visibleCustom.map(x=>x.code));
+  const visibleDefault = LIBRARY.filter(x=>!hiddenCodes.has(x.code) && !overriddenCodes.has(x.code));
   return [...visibleDefault, ...visibleCustom];
 }
 
@@ -1745,9 +1812,11 @@ function renderLibraryPane(){
     // For default items, "details" lives in their "notes" field (legacy)
     const detailsVal = item.details || (item._isCustom ? '' : (item.notes||''));
     const notesVal = item._userNotes || (item._isCustom ? (item.notes||'') : '');
-    const srcBadge = item._isCustom
-      ? `<span class="lib-source-badge custom">Custom</span>`
-      : `<span class="lib-source-badge default">Default</span>`;
+    const srcBadge = item._priceOverride
+      ? `<span class="lib-source-badge" style="background:#fff3cd;color:#856404">Repriced</span>`
+      : item._isCustom
+        ? `<span class="lib-source-badge custom">Custom</span>`
+        : `<span class="lib-source-badge default">Default</span>`;
     return `<tr>
       <td style="font-size:12px;font-weight:500">${esc(item.code)}</td>
       <td style="font-size:12px">${canEdit
@@ -2485,8 +2554,324 @@ function confirmAsmItemsEdit(){
 
 
 // ============================================================
-// LIBRARY CSV EXPORT
+// LIBRARY CSV IMPORT (pricing update)
 // ============================================================
+let _importMatches = [];   // [{libCode, libItem, csvRow, newMat, newLab, matchBy, skip}]
+let _importUnmatched = []; // [{csvCode, csvDesc, csvMat, reason}]
+
+function triggerLibImport(){
+  const inp = $('lib-import-input');
+  inp.value = ''; // allow re-importing same file
+  inp.click();
+}
+
+function handleLibImportFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseImportCSV(e.target.result);
+  reader.readAsText(file, 'UTF-8');
+}
+
+// Robust CSV parser — handles quoted fields, \r\n and \n
+function parseCSV(text){
+  const rows = [];
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  let cur = '', inQuote = false, row = [];
+  for(let i=0; i<lines.length; i++){
+    const c = lines[i];
+    if(inQuote){
+      if(c==='"' && lines[i+1]==='"'){ cur+='"'; i++; }
+      else if(c==='"'){ inQuote=false; }
+      else cur+=c;
+    } else {
+      if(c==='"'){ inQuote=true; }
+      else if(c===','){ row.push(cur.trim()); cur=''; }
+      else if(c==='\n'){ row.push(cur.trim()); if(row.some(x=>x)) rows.push(row); row=[]; cur=''; }
+      else cur+=c;
+    }
+  }
+  row.push(cur.trim());
+  if(row.some(x=>x)) rows.push(row);
+  return rows;
+}
+
+// Normalise a string for fuzzy description matching
+function normStr(s){
+  return String(s||'').toLowerCase()
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function parseImportCSV(text){
+  const rows = parseCSV(text);
+  if(rows.length < 2){ showToast('CSV appears empty or invalid'); return; }
+
+  // Auto-detect column indices from header row (case-insensitive, flexible naming)
+  const header = rows[0].map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,''));
+  const colIdx = key => {
+    const aliases = {
+      code:    ['code','itemcode','sku','partno','partnumber','id'],
+      desc:    ['description','desc','name','itemname','itemdescription','product'],
+      mat:     ['matunit','matperunit','mat$unit','mat$/unit','material','matcost','mat','price','unitprice','cost'],
+      lab:     ['labhrsunit','labours','labourhrs','laborhrs','labhrs','labour','labor','hours'],
+    };
+    for(const a of (aliases[key]||[key])){
+      const i = header.indexOf(a);
+      if(i >= 0) return i;
+    }
+    // partial match fallback
+    for(let i=0;i<header.length;i++){
+      for(const a of (aliases[key]||[key])){
+        if(header[i].includes(a.substring(0,4))) return i;
+      }
+    }
+    return -1;
+  };
+
+  const codeCol = colIdx('code');
+  const descCol = colIdx('desc');
+  const matCol  = colIdx('mat');
+  const labCol  = colIdx('lab');
+
+  if(matCol === -1){
+    showToast('Could not find a Mat$/unit column in the CSV. Check headers.');
+    return;
+  }
+
+  const allLib = getAllLibItems();
+  // Build lookup maps for fast matching
+  const byCode = new Map();
+  const byNormDesc = new Map();
+  allLib.forEach(item => {
+    byCode.set(item.code.toLowerCase(), item);
+    const nd = normStr(item.description);
+    if(nd && !byNormDesc.has(nd)) byNormDesc.set(nd, item);
+  });
+
+  _importMatches = [];
+  _importUnmatched = [];
+
+  for(let r=1; r<rows.length; r++){
+    const row = rows[r];
+    if(!row || row.every(c=>!c)) continue;
+
+    const csvCode = codeCol >= 0 ? (row[codeCol]||'').trim() : '';
+    const csvDesc = descCol >= 0 ? (row[descCol]||'').trim() : '';
+    const csvMatRaw = matCol >= 0 ? (row[matCol]||'').trim() : '';
+    const csvLabRaw = labCol >= 0 ? (row[labCol]||'').trim() : '';
+
+    const newMat = parseFloat(csvMatRaw.replace(/[$,\s]/g,''));
+    const newLab = csvLabRaw ? parseFloat(csvLabRaw.replace(/[,\s]/g,'')) : null;
+
+    // Skip rows with no pricing data
+    if(isNaN(newMat) || newMat <= 0){
+      if(csvCode || csvDesc){
+        _importUnmatched.push({csvCode, csvDesc, csvMat: csvMatRaw, reason: 'No valid price value'});
+      }
+      continue;
+    }
+
+    // Attempt matching
+    let matched = null;
+    let matchBy = '';
+
+    // 1. Exact code match (case-insensitive)
+    if(csvCode){
+      matched = byCode.get(csvCode.toLowerCase());
+      if(matched) matchBy = 'Code (exact)';
+    }
+
+    // 2. Normalised description match
+    if(!matched && csvDesc){
+      const nd = normStr(csvDesc);
+      matched = byNormDesc.get(nd);
+      if(matched) matchBy = 'Description (exact)';
+    }
+
+    // 3. Token subset match — every token in the CSV desc appears in the lib desc
+    if(!matched && csvDesc){
+      const tokens = normStr(csvDesc).split(' ').filter(t=>t.length>2);
+      if(tokens.length >= 2){
+        let best = null, bestScore = 0;
+        for(const [nd, item] of byNormDesc){
+          const hits = tokens.filter(t=>nd.includes(t)).length;
+          const score = hits / tokens.length;
+          if(score > 0.8 && score > bestScore){ best=item; bestScore=score; }
+        }
+        if(best){ matched=best; matchBy=`Description (~${Math.round(bestScore*100)}%)`; }
+      }
+    }
+
+    if(matched){
+      _importMatches.push({
+        libCode: matched.code,
+        libItem: matched,
+        csvRow: row,
+        newMat,
+        newLab: (!isNaN(newLab) && newLab > 0) ? newLab : null,
+        matchBy,
+        skip: false
+      });
+    } else {
+      _importUnmatched.push({csvCode, csvDesc, csvMat: fmt(newMat,2), reason: 'No library match found'});
+    }
+  }
+
+  renderImportPreview();
+  $('lib-import-modal').style.display = 'flex';
+  showImportTab('matched');
+}
+
+function renderImportPreview(){
+  const matched = _importMatches.filter(m=>!m.skip);
+  const skipped = _importMatches.filter(m=>m.skip).length;
+
+  $('imp-count-matched').textContent = matched.length;
+  $('imp-count-unmatched').textContent = _importUnmatched.length;
+  $('imp-apply-count').textContent = matched.length;
+
+  const note = [];
+  if(skipped) note.push(skipped+' row'+(skipped!==1?'s':'')+' excluded');
+  if(_importUnmatched.length) note.push(_importUnmatched.length+' unmatched (will be skipped)');
+  $('imp-apply-note').textContent = note.join(' · ');
+
+  // Render matched table
+  const tbody = $('imp-matched-body');
+  if(!_importMatches.length){
+    tbody.innerHTML = '';
+    $('imp-matched-empty').style.display = 'block';
+  } else {
+    $('imp-matched-empty').style.display = 'none';
+    tbody.innerHTML = _importMatches.map((m,i) => {
+      const oldMat = m.libItem.mat_unit || 0;
+      const oldLab = m.libItem.labour_unit || 0;
+      const matDiff = m.newMat - oldMat;
+      const matPct = oldMat ? ((matDiff/oldMat)*100) : 0;
+      const deltaColor = matDiff > 0 ? '#a32d2d' : matDiff < 0 ? '#2d6b1f' : '#888';
+      const deltaStr = matDiff === 0 ? '—' :
+        (matDiff > 0 ? '▲' : '▼') + ' ' + Math.abs(matPct).toFixed(1) + '%';
+      const labChanged = m.newLab !== null && Math.abs(m.newLab - oldLab) > 0.0001;
+      const rowStyle = m.skip ? 'opacity:.4;text-decoration:line-through' : '';
+      return `<tr style="border-bottom:1px solid #f0efeb;${rowStyle}">
+        <td style="padding:5px 8px;font-weight:600;font-size:11px">${esc(m.libCode)}</td>
+        <td style="padding:5px 8px;font-size:11px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${esc(m.libItem.description)}">${esc(m.libItem.description)}</td>
+        <td style="padding:5px 8px;font-size:10px">
+          <span style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--muted)">${esc(m.matchBy)}</span>
+        </td>
+        <td style="padding:5px 8px;text-align:right;font-size:11px;color:var(--muted)">${fmt(oldMat,4)}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:11px;font-weight:600">${fmt(m.newMat,4)}</td>
+        <td style="padding:5px 8px;text-align:center;font-size:11px;font-weight:600;color:${deltaColor}">${deltaStr}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:11px;color:var(--muted)">${oldLab.toFixed(4)}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:11px;font-weight:${labChanged?'600':'400'};color:${labChanged?'var(--amber)':'var(--muted)'}">${m.newLab !== null ? m.newLab.toFixed(4) : '—'}</td>
+        <td style="padding:5px 4px;text-align:center">
+          <button onclick="toggleImportRow(${i})"
+            style="background:none;border:none;cursor:pointer;font-size:13px;color:${m.skip?'#ccc':'#888'};padding:0 3px"
+            title="${m.skip?'Re-include':'Exclude this row'}">${m.skip?'↩':'✕'}</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Render unmatched table
+  const utbody = $('imp-unmatched-body');
+  if(!_importUnmatched.length){
+    utbody.innerHTML = '';
+    $('imp-unmatched-empty').style.display = 'block';
+  } else {
+    $('imp-unmatched-empty').style.display = 'none';
+    utbody.innerHTML = _importUnmatched.map(u=>`<tr style="border-bottom:1px solid #f0efeb">
+      <td style="padding:5px 8px;font-size:11px;color:var(--muted)">${esc(u.csvCode)}</td>
+      <td style="padding:5px 8px;font-size:11px;color:var(--muted)">${esc(u.csvDesc)}</td>
+      <td style="padding:5px 8px;text-align:right;font-size:11px">${esc(u.csvMat)}</td>
+      <td style="padding:5px 8px;font-size:11px;color:var(--amber)">${esc(u.reason)}</td>
+    </tr>`).join('');
+  }
+}
+
+function toggleImportRow(i){
+  _importMatches[i].skip = !_importMatches[i].skip;
+  renderImportPreview();
+}
+
+function showImportTab(tab){
+  ['matched','unmatched'].forEach(t=>{
+    const btn = $('imp-tab-'+t);
+    const pane = $('imp-pane-'+t);
+    if(t === tab){
+      btn.style.borderBottomColor = 'var(--text)';
+      btn.style.color = 'var(--text)';
+      btn.style.fontWeight = '500';
+      if(pane) pane.style.display = 'block';
+    } else {
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.color = 'var(--muted)';
+      btn.style.fontWeight = '400';
+      if(pane) pane.style.display = 'none';
+    }
+  });
+}
+
+function closeLibImportModal(){
+  $('lib-import-modal').style.display = 'none';
+  _importMatches = [];
+  _importUnmatched = [];
+}
+
+function applyLibImport(){
+  const toApply = _importMatches.filter(m=>!m.skip);
+  if(!toApply.length){ showToast('Nothing to apply'); return; }
+
+  let updatedDefault = 0, updatedCustom = 0;
+
+  toApply.forEach(m => {
+    // Check if it's a custom item
+    const customIdx = customLibrary.findIndex(x=>x.code===m.libCode);
+    if(customIdx >= 0){
+      customLibrary[customIdx].mat_unit = m.newMat;
+      if(m.newLab !== null) customLibrary[customIdx].labour_unit = m.newLab;
+      updatedCustom++;
+    } else {
+      // Default library item — create a custom override with updated pricing
+      const base = LIBRARY.find(x=>x.code===m.libCode);
+      if(base){
+        // Check if there's already a hidden override for this code
+        const hiddenIdx = customLibrary.findIndex(x=>x.code===m.libCode && x._hidden);
+        if(hiddenIdx >= 0){
+          // Replace hidden with live override
+          customLibrary[hiddenIdx] = {
+            ...base,
+            mat_unit: m.newMat,
+            labour_unit: m.newLab !== null ? m.newLab : base.labour_unit,
+            _priceOverride: true,
+            addedAt: new Date().toISOString()
+          };
+        } else {
+          // Add as custom override (overrides default)
+          customLibrary.push({
+            ...base,
+            mat_unit: m.newMat,
+            labour_unit: m.newLab !== null ? m.newLab : base.labour_unit,
+            _priceOverride: true,
+            addedAt: new Date().toISOString()
+          });
+        }
+        updatedDefault++;
+      }
+    }
+  });
+
+  saveCustomLib();
+  closeLibImportModal();
+  renderLibraryPane();
+  renderCatFilter();
+  populateLibCatFilter();
+  showToast(`✓ Updated ${toApply.length} item${toApply.length!==1?'s':''} (${updatedDefault} default, ${updatedCustom} custom)`);
+}
+
+
 let _csvSrc = 'all';
 
 function openLibExportModal(){
@@ -2608,7 +2993,7 @@ function closePdfModal(){
 }
 
 function confirmExportPDF(){
-  const fmt = _exportFmt;
+  const exportFmt = _exportFmt;
   const view = _exportView;
   const isInc = key => { const el=$('inc-'+key+'-lbl'); return !el || el.classList.contains('active'); };
   const inclFields = {
@@ -2643,7 +3028,7 @@ function confirmExportPDF(){
   if(pd.estimator) detailParts.push('Est: '+esc(pd.estimator));
   if(pd.contact) detailParts.push(esc(pd.contact));
   if(detailParts.length) headerHTML += `<p style="font-size:11px;color:#666;margin-top:4px">${detailParts.join(' &nbsp;|&nbsp; ')}</p>`;
-  if(view !== 'client') headerHTML += `<p style="font-size:11px;color:#999;margin-top:2px;font-style:italic">${view.charAt(0).toUpperCase()+view.slice(1)} View &nbsp;·&nbsp; ${fmt==='bom'?'Bill of Materials':'Summary'}</p>`;
+  if(view !== 'client') headerHTML += `<p style="font-size:11px;color:#999;margin-top:2px;font-style:italic">${view.charAt(0).toUpperCase()+view.slice(1)} View &nbsp;·&nbsp; ${exportFmt==='bom'?'Bill of Materials':'Summary'}</p>`;
   $('print-header').innerHTML = headerHTML;
 
   // Build print CSS based on view + format
@@ -2652,11 +3037,10 @@ function confirmExportPDF(){
   if(!styleEl){ styleEl = document.createElement('style'); styleEl.id=styleId; document.head.appendChild(styleEl); }
   let css = '@media print { ';
 
-  if(fmt === 'summary'){
+  if(exportFmt === 'summary'){
     switchTab('summary');
     renderSummary();
     if(view === 'client'){
-      // Client: only sheet name + subtotal visible — hide raw mat, labour, lab hrs, mat mkp, overhead, profit
       css += '#pane-summary th:nth-child(2),#pane-summary td:nth-child(2),' +
              '#pane-summary th:nth-child(3),#pane-summary td:nth-child(3),' +
              '#pane-summary th:nth-child(4),#pane-summary td:nth-child(4),' +
@@ -2664,7 +3048,6 @@ function confirmExportPDF(){
              '#pane-summary th:nth-child(6),#pane-summary td:nth-child(6),' +
              '#pane-summary th:nth-child(7),#pane-summary td:nth-child(7){display:none} ';
     } else if(view === 'field'){
-      // Field: sheet name + lab hrs only
       css += '#pane-summary th:nth-child(2),#pane-summary td:nth-child(2),' +
              '#pane-summary th:nth-child(3),#pane-summary td:nth-child(3),' +
              '#pane-summary th:nth-child(5),#pane-summary td:nth-child(5),' +
@@ -2673,48 +3056,55 @@ function confirmExportPDF(){
              '#pane-summary th:nth-child(8),#pane-summary td:nth-child(8){display:none} ';
       css += '#pane-summary #grand-total-body,#pane-summary .summary-card:last-of-type{display:none} ';
     }
-    // office view: show everything
+
   } else {
-    // BOM — build a print-friendly view of selected sheets
-    // Determine which sheets to include
+    // BoM — build a standalone print area
     const selectedSheetIdxs = state.sheets
-      .map((_,i) => ({ i, checked: document.getElementById('bom-sheet-'+i)?.classList.contains('active') !== false }))
-      .filter(x => x.checked)
+      .map((_,i) => ({ i, active: document.getElementById('bom-sheet-'+i)?.classList.contains('active') }))
+      .filter(x => x.active !== false)
       .map(x => x.i);
 
-    // Build a temporary print div with full item tables per sheet
-    let printDiv = document.getElementById('bom-print-area');
-    if(printDiv) printDiv.remove();
-    printDiv = document.createElement('div');
-    printDiv.id = 'bom-print-area';
-    printDiv.style.cssText = 'display:none';
+    // Remove any stale print div
+    const old = document.getElementById('bom-print-area');
+    if(old) old.remove();
 
-    selectedSheetIdxs.forEach(si => {
+    const printDiv = document.createElement('div');
+    printDiv.id = 'bom-print-area';
+    // Visible but off-screen during build, print CSS will handle layout
+    printDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:750px';
+
+    // Print header clone
+    const hdrClone = document.createElement('div');
+    hdrClone.className = 'print-header';
+    hdrClone.style.cssText = 'display:block;margin-bottom:16px';
+    hdrClone.innerHTML = headerHTML;
+    printDiv.appendChild(hdrClone);
+
+    (selectedSheetIdxs.length ? selectedSheetIdxs : state.sheets.map((_,i)=>i)).forEach(si => {
       const sh = state.sheets[si];
       const sheetBlock = document.createElement('div');
-      sheetBlock.style.cssText = 'page-break-inside:avoid;margin-bottom:20px';
+      sheetBlock.style.cssText = 'margin-bottom:24px';
 
-      // Sheet header
       const sheetHdr = document.createElement('h3');
-      sheetHdr.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #ccc';
+      sheetHdr.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #333';
       sheetHdr.textContent = sh.name;
       sheetBlock.appendChild(sheetHdr);
 
-      // Build column headers based on view
       const showMoney = view !== 'field';
       const showLabour = view === 'office';
-      let headerCols = ['#', 'Code', 'Description', 'Unit', 'Qty'];
+      const headerCols = ['#', 'Code', 'Description', 'Unit', 'Qty'];
       if(showMoney) headerCols.push('Mat total');
       if(showLabour) headerCols.push('Lab hrs', 'Lab $');
-      if(view === 'office') headerCols.push('Notes');
+      if(view !== 'client') headerCols.push('Notes');
 
       const table = document.createElement('table');
-      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px';
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px';
+
       const thead = table.createTHead();
       const hrow = thead.insertRow();
       headerCols.forEach(h => {
         const th = document.createElement('th');
-        th.style.cssText = 'text-align:left;padding:3px 5px;background:#eee;border-bottom:1px solid #ccc;font-size:10px;color:#666;white-space:nowrap';
+        th.style.cssText = 'text-align:left;padding:4px 6px;background:#f0f0f0;border-bottom:1px solid #999;font-size:10px;color:#444;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact';
         th.textContent = h;
         hrow.appendChild(th);
       });
@@ -2723,17 +3113,17 @@ function confirmExportPDF(){
       (sh.rows || []).forEach((row, ri) => {
         const c = calcRow(row);
         const trow = tbody.insertRow();
-        trow.style.borderBottom = '1px solid #f0efeb';
+        trow.style.borderBottom = '1px solid #e8e8e8';
         const cells = [];
         cells.push(ri + 1);
         if(row._assembly){
           cells.push(row._asmName || 'Assembly');
-          cells.push('×' + (row.qty||1) + ' ('+((row._items||[]).length)+' items)');
+          cells.push(`×${row.qty||1} (${(row._items||[]).length} items)`);
           cells.push('ls');
           cells.push(row.qty||1);
           if(showMoney) cells.push(fmt(c.mat));
           if(showLabour){ cells.push(c.hrs.toFixed(2)); cells.push(fmt(c.lab)); }
-          if(view === 'office') cells.push(row.notes||'');
+          if(view !== 'client') cells.push(row.notes||'');
         } else {
           cells.push(row.code||'');
           cells.push(row.description||'');
@@ -2741,51 +3131,67 @@ function confirmExportPDF(){
           cells.push(row.qty||'');
           if(showMoney) cells.push(row.qty ? fmt(c.mat) : '');
           if(showLabour){ cells.push(row.qty ? c.hrs.toFixed(2) : ''); cells.push(row.qty ? fmt(c.lab) : ''); }
-          if(view === 'office') cells.push(row.notes||'');
+          if(view !== 'client') cells.push(row.notes||'');
         }
-        cells.forEach(v => {
+        cells.forEach((v, ci) => {
           const td = trow.insertCell();
-          td.style.cssText = 'padding:3px 5px;vertical-align:middle;font-size:11px';
+          const isNum = ci >= 5;
+          td.style.cssText = 'padding:4px 6px;vertical-align:middle;font-size:11px'+(isNum?';text-align:right':'');
           td.textContent = String(v);
         });
       });
 
+      if(!sh.rows || !sh.rows.length){
+        const empty = tbody.insertRow();
+        const td = empty.insertCell();
+        td.colSpan = headerCols.length;
+        td.style.cssText = 'padding:8px 6px;color:#999;font-style:italic;font-size:11px';
+        td.textContent = 'No items on this sheet';
+      }
+
       sheetBlock.appendChild(table);
 
-      // Sheet totals (office view only)
-      if(view === 'office'){
+      // Sheet subtotals row
+      if(view !== 'field'){
         const t = sheetTotals(sh);
-        const totRow = document.createElement('div');
-        totRow.style.cssText = 'display:flex;gap:16px;margin-top:6px;font-size:11px;color:#666;justify-content:flex-end';
-        totRow.innerHTML = `<span>Mat: <b>${fmt(t.rawMat)}</b></span> <span>Labour: <b>${fmt(t.rawLab)}</b></span> <span>Subtotal: <b>${fmt(t.sub)}</b></span>`;
-        sheetBlock.appendChild(totRow);
+        const totDiv = document.createElement('div');
+        totDiv.style.cssText = 'display:flex;gap:20px;justify-content:flex-end;padding:4px 0 2px;font-size:11px;color:#444;border-top:1px solid #ccc';
+        let totParts = [`<span>Mat: <b>${fmt(t.rawMat)}</b></span>`];
+        if(showLabour) totParts.push(`<span>Labour: <b>${fmt(t.rawLab)}</b></span>`);
+        if(view !== 'client') totParts.push(`<span>Subtotal: <b>${fmt(t.sub)}</b></span>`);
+        totDiv.innerHTML = totParts.join('');
+        sheetBlock.appendChild(totDiv);
       }
 
       printDiv.appendChild(sheetBlock);
     });
 
-    // Grand summary at end for office view
-    if(view === 'office' && inclFields.grandTotal){
-      let tS=0; selectedSheetIdxs.forEach(si=>{ tS += sheetTotals(state.sheets[si]).sub; });
+    // Grand total at end
+    if(inclFields.grandTotal && view !== 'field'){
+      let tS = 0;
+      (selectedSheetIdxs.length ? selectedSheetIdxs : state.sheets.map((_,i)=>i))
+        .forEach(si => { tS += sheetTotals(state.sheets[si]).sub; });
       const s = getSettings();
       const gst = tS*s.gst, pst = tS*s.pst, grand = tS+gst+pst;
       const grandDiv = document.createElement('div');
-      grandDiv.style.cssText = 'margin-top:16px;padding:10px;background:#f5f4f0;border-radius:6px;font-size:12px';
-      grandDiv.innerHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span><b>${fmt(tS)}</b></span></div>` +
-        (inclFields.taxLines ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>GST (${(s.gst*100).toFixed(0)}%)</span><span>${fmt(gst)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>PST (${(s.pst*100).toFixed(0)}%)</span><span>${fmt(pst)}</span></div>` : '') +
-        `<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-top:6px;padding-top:6px;border-top:1px solid #ccc"><span>Grand Total</span><span style="color:#2d6b1f">${fmt(grand)}</span></div>`;
+      grandDiv.style.cssText = 'margin-top:20px;padding:12px;background:#f5f4f0;border-radius:6px;font-size:12px;page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact';
+      let gHTML = `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><b>${fmt(tS)}</b></div>`;
+      if(inclFields.taxLines){
+        gHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>GST (${(s.gst*100).toFixed(0)}%)</span><span>${fmt(gst)}</span></div>`;
+        gHTML += `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>PST (${(s.pst*100).toFixed(0)}%)</span><span>${fmt(pst)}</span></div>`;
+      }
+      gHTML += `<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-top:8px;padding-top:8px;border-top:2px solid #999"><span>Grand Total</span><span style="color:#2d6b1f">${fmt(grand)}</span></div>`;
+      grandDiv.innerHTML = gHTML;
       printDiv.appendChild(grandDiv);
     }
 
     document.body.appendChild(printDiv);
 
-    // Print CSS to show bom-print-area and hide everything else
-    css += '#bom-print-area{display:block!important} .topbar,.tabs,#pane-takeoff,#pane-summary,#pane-library,#pane-assemblies,#pane-settings{display:none!important} ';
-    css += '.print-header{display:block!important} ';
-    // Make sure print-header is visible
-    const ph = $('print-header');
-    if(ph){ ph.style.display = ''; }
+    // Print CSS: show only bom-print-area
+    css += `
+      body > *:not(#bom-print-area) { display: none !important; }
+      #bom-print-area { display: block !important; position: static !important; left: 0 !important; width: 100% !important; }
+    `;
   }
 
   if(!inclFields.taxLines) css += '#pane-summary #grand-total-body tr:nth-child(2),#pane-summary #grand-total-body tr:nth-child(3){display:none} ';
@@ -2796,11 +3202,11 @@ function confirmExportPDF(){
   setTimeout(()=>{
     window.print();
     setTimeout(()=>{
-      if(styleEl) styleEl.textContent='';
+      if(styleEl) styleEl.textContent = '';
       const pd = document.getElementById('bom-print-area');
       if(pd) pd.remove();
-    }, 500);
-  }, 150);
+    }, 1000);
+  }, 200);
 }
 
 // Close dropdowns on outside click
