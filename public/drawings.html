@@ -8,147 +8,154 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f4f0;color:#1a1a18;font-size:14px;line-height:1.5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-:root{--border:#d8d6ce;--bg:#fff;--bg2:#f5f4f0;--bg3:#eeecea;--text:#1a1a18;--muted:#6b6a66;--green:#2d6b1f;--green-bg:#eaf3de;--amber:#b87a10;--amber-bg:#faeeda;--danger:#a32d2d;--danger-bg:#fcebeb;--blue:#1a4f8a;--blue-bg:#e8f0f9;--radius:8px}
+:root{--border:#d8d6ce;--bg:#fff;--bg2:#f5f4f0;--bg3:#eeecea;--text:#1a1a18;--muted:#6b6a66;--green:#2d6b1f;--green-bg:#eaf3de;--amber:#b87a10;--amber-bg:#faeeda;--danger:#a32d2d;--danger-bg:#fcebeb;--radius:8px}
 
-/* TOP BAR */
-.topbar{background:#fff;border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:16px;flex-shrink:0;z-index:50}
-.logo{font-size:15px;font-weight:600;letter-spacing:-0.3px;white-space:nowrap}
+/* ── TOP BAR ── */
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50}
+.logo{font-size:15px;font-weight:600;letter-spacing:-0.3px;white-space:nowrap;margin-right:4px}
 .logo span{font-weight:400;color:var(--muted)}
+.proj-fields{display:flex;gap:6px;flex:1}
+.proj-fields input{flex:1;min-width:80px;max-width:180px;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text)}
+.proj-fields input:focus{outline:none;border-color:#888;background:#fff}
 .topbar-right{display:flex;gap:6px;align-items:center;margin-left:auto}
-.proj-badge{font-size:12px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;white-space:nowrap}
+.proj-badge{font-size:11px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap}
 .proj-badge.linked{color:var(--green);border-color:#b3d9a0;background:var(--green-bg)}
 
-/* MAIN TABS */
-.main-tabs{display:flex;border-bottom:1px solid var(--border);background:#fff;padding:0 20px;flex-shrink:0}
-.main-tab{padding:9px 18px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);user-select:none;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}
+/* ── MAIN TABS ── */
+.main-tabs{display:flex;border-bottom:1px solid var(--border);background:#fff;padding:0 16px;flex-shrink:0}
+.main-tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);user-select:none;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;transition:color .12s}
 .main-tab:hover{color:var(--text)}
 .main-tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
 
-/* BUTTONS */
-.btn{font-size:12px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap;transition:background .1s;font-family:inherit}
+/* ── BUTTONS ── */
+.btn{font-size:12px;padding:5px 11px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;color:var(--text);cursor:pointer;white-space:nowrap;transition:background .1s;font-family:inherit}
 .btn:hover{background:var(--bg2)}
 .btn.primary{background:var(--text);color:#fff;border-color:var(--text)}
 .btn.primary:hover{opacity:.85}
-.btn.sm{font-size:11px;padding:3px 8px}
+.btn.success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.success:hover{opacity:.85}
+.btn.sm{font-size:11px;padding:3px 7px}
 .btn.danger{color:var(--danger)}
 .btn.danger:hover{background:var(--danger-bg)}
 
-/* PANES */
+/* ── PANES ── */
 .pane{display:none;flex:1;overflow:hidden;flex-direction:column}
 .pane.active{display:flex}
 
-/* ═══ DRAWINGS PANE ═══ */
+/* ════════════════════════════════
+   DRAWINGS PANE
+════════════════════════════════ */
 .draw-layout{display:flex;flex:1;overflow:hidden}
 
-/* left pages */
-.draw-left{width:190px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.draw-left-top{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+/* LEFT: takeoff items */
+.draw-left{width:260px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.dl-header{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:6px}
 .panel-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
-.upload-zone{margin:8px;border:1px dashed var(--border);border-radius:var(--radius);padding:14px 8px;text-align:center;cursor:pointer;color:var(--muted);font-size:12px;transition:all .15s}
-.upload-zone:hover,.upload-zone.drag{border-color:var(--text);color:var(--text);background:var(--bg3)}
-.pages-list{flex:1;overflow-y:auto;padding:6px}
-.page-thumb{border:1px solid var(--border);border-radius:5px;overflow:hidden;cursor:pointer;background:var(--bg2);position:relative;margin-bottom:5px;transition:border-color .12s}
-.page-thumb:hover{border-color:#888}
-.page-thumb.active{border-color:var(--text);border-width:2px}
-.page-thumb canvas{width:100%;display:block}
-.page-thumb .pn{position:absolute;bottom:3px;right:5px;font-size:9px;color:var(--muted);background:rgba(255,255,255,.85);padding:1px 4px;border-radius:3px}
 
-/* center canvas */
-.draw-center{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2);position:relative}
-.draw-toolbar{height:38px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:3px;flex-shrink:0;overflow-x:auto}
-.tsep{width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0}
-.tbtn{height:26px;padding:0 8px;border-radius:5px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:3px}
+/* library search */
+.lsw{padding:7px 10px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
+.lsi{width:100%;font-size:12px;padding:5px 8px 5px 22px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);font-family:inherit}
+.lsi:focus{outline:none;border-color:#888;background:#fff}
+.lsicon{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px;pointer-events:none}
+.lsr{position:absolute;top:calc(100% - 1px);left:0;right:0;background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);z-index:300;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.lri{padding:6px 10px;cursor:pointer;border-bottom:1px solid #f0efeb}
+.lri:last-child{border-bottom:none}
+.lri:hover{background:var(--bg2)}
+.lrc{font-weight:600;font-size:11px;margin-right:5px}
+.lrd{font-size:11px;color:var(--muted)}
+.lrcat{float:right;font-size:10px;color:#aaa;background:var(--bg3);padding:1px 5px;border-radius:3px}
+
+/* groups */
+.to-scroll{flex:1;overflow-y:auto;padding:5px}
+.tog{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:4px;overflow:hidden}
+.tog-hdr{padding:6px 9px;display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;background:var(--bg2);transition:background .1s}
+.tog-hdr:hover{background:var(--bg3)}
+.tog-hdr.selected{background:var(--amber-bg);border-left:3px solid var(--amber)}
+.tog-arr{font-size:8px;color:var(--muted);transition:transform .18s;flex-shrink:0}
+.tog-arr.open{transform:rotate(90deg)}
+.tog-color{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tog-name{font-size:11px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tog-cnt{font-size:10px;color:var(--muted);background:var(--bg3);padding:1px 5px;border-radius:10px;white-space:nowrap;flex-shrink:0}
+.tog-vis{background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px;flex-shrink:0;opacity:.6}
+.tog-vis:hover{opacity:1;color:var(--text)}
+.tog-body{display:none;border-top:1px solid var(--border)}
+.tog-body.open{display:block}
+.toi{padding:4px 9px;border-bottom:1px solid #f0efeb;display:flex;align-items:center;gap:5px}
+.toi:last-child{border-bottom:none}
+.toi:hover{background:#fafaf8}
+.toi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.toi-info{flex:1;min-width:0}
+.toi-n{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toi-s{font-size:10px;color:var(--muted)}
+.toi-v{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--text)}
+.toi-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:10px;padding:0 2px;opacity:0}
+.toi:hover .toi-del{opacity:1}
+.toi-del:hover{color:var(--danger)}
+.empty-to{text-align:center;padding:18px 10px;color:var(--muted);font-size:12px;font-style:italic;line-height:1.6}
+
+/* push bar */
+.push-bar{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:4px}
+.push-btn{width:100%;padding:6px;background:var(--text);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.push-btn:hover{opacity:.85}
+.push-btn:disabled{opacity:.35;cursor:not-allowed}
+.push-sum{font-size:10px;color:var(--muted);text-align:center}
+
+/* CENTER: canvas */
+.draw-center{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#e8e7e3;position:relative}
+
+/* toolbar */
+.draw-toolbar{height:36px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto}
+.tsep{width:1px;height:16px;background:var(--border);margin:0 3px;flex-shrink:0}
+.tbtn{height:24px;padding:0 7px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-family:inherit;white-space:nowrap;transition:all .1s;display:flex;align-items:center;gap:3px}
 .tbtn:hover{background:var(--bg2);color:var(--text);border-color:var(--border)}
 .tbtn.active{background:var(--text);color:#fff}
 .tbtn.active:hover{opacity:.85}
-.scale-sel{font-size:11px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:5px;height:26px;font-family:inherit;cursor:pointer}
+.scale-sel{font-size:11px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:2px 5px;border-radius:4px;height:24px;font-family:inherit;cursor:pointer}
 .scale-sel:focus{outline:none;border-color:#888}
-.zdsp{font-size:11px;color:var(--muted);min-width:36px;text-align:center;font-variant-numeric:tabular-nums}
+.custom-scale-wrap{display:none;align-items:center;gap:3px}
+.custom-scale-wrap.show{display:flex}
+.csi{font-size:11px;width:42px;padding:2px 5px;border:1px solid var(--border);border-radius:4px;background:var(--bg2);font-family:inherit;text-align:center}
+.csi:focus{outline:none;border-color:var(--amber);background:var(--amber-bg)}
+.zdsp{font-size:11px;color:var(--muted);min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.scale-ind{font-size:10px;color:var(--green);background:var(--green-bg);padding:2px 6px;border-radius:4px;white-space:nowrap;border:1px solid #b3d9a0}
+.scale-ind.unset{color:var(--muted);background:var(--bg2);border-color:var(--border)}
 
-/* canvas viewport - overflow hidden, pan via transform */
-.cv-wrap{flex:1;overflow:hidden;position:relative;cursor:grab}
-.cv-wrap.tmeasure,.cv-wrap.tcount,.cv-wrap.tcal{cursor:crosshair}
-#pdf-canvas{position:absolute;top:0;left:0;transform-origin:0 0;display:block}
-#ov-canvas{position:absolute;top:0;left:0;transform-origin:0 0;pointer-events:none;display:block}
+/* canvas viewport — scroll-based, no transform pan */
+.cv-wrap{flex:1;overflow:auto;position:relative;cursor:grab}
+.cv-wrap.tool-measure,.cv-wrap.tool-count,.cv-wrap.tool-cal{cursor:crosshair}
+.cv-inner{position:relative;display:inline-block;min-width:100%;min-height:100%}
+#pc{display:block}
+#oc{position:absolute;top:0;left:0;pointer-events:none}
+
 .cv-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:8px;pointer-events:none}
-.cv-empty .big{font-size:40px;opacity:.35}
+.cv-empty .big{font-size:36px;opacity:.3}
 
-/* right panel */
-.draw-right{width:255px;flex-shrink:0;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.dr-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
-.dr-tab{flex:1;padding:7px 4px;font-size:11px;font-weight:500;text-align:center;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;user-select:none}
-.dr-tab.active{color:var(--text);border-bottom-color:var(--text)}
-.dr-pane{display:none;flex:1;flex-direction:column;overflow:hidden}
-.dr-pane.active{display:flex}
-.rsec{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
-.scale-status{font-size:11px;padding:4px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);color:var(--muted);margin-top:5px}
-.scale-status.set{color:var(--green);border-color:#b3d9a0;background:var(--green-bg)}
-.cal-row{display:flex;gap:5px;margin-bottom:5px}
-.ci{flex:1;font-size:12px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:4px 7px;border-radius:5px;font-family:inherit}
-.ci:focus{outline:none;border-color:#888;background:#fff}
+/* RIGHT: pages */
+.draw-right{width:160px;flex-shrink:0;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.dr-top{padding:7px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.upload-zone{margin:6px;border:1px dashed var(--border);border-radius:var(--radius);padding:10px 6px;text-align:center;cursor:pointer;color:var(--muted);font-size:11px;transition:all .15s;line-height:1.4}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--text);color:var(--text);background:var(--bg3)}
+.pages-list{flex:1;overflow-y:auto;padding:5px}
+.page-thumb{border:1px solid var(--border);border-radius:5px;overflow:hidden;cursor:pointer;background:var(--bg2);position:relative;margin-bottom:4px;transition:border-color .12s}
+.page-thumb:hover{border-color:#888}
+.page-thumb.active{border-color:var(--text);border-width:2px}
+.page-thumb.marked::after{content:'';position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--amber);border:1px solid #fff}
+.page-thumb canvas{width:100%;display:block}
+.page-thumb .pn{position:absolute;bottom:3px;right:4px;font-size:9px;color:var(--muted);background:rgba(255,255,255,.85);padding:1px 3px;border-radius:2px}
 
-/* library search */
-.lsw{padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
-.lsi{width:100%;font-size:12px;padding:5px 8px 5px 24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);font-family:inherit}
-.lsi:focus{outline:none;border-color:#888;background:#fff}
-.lsicon{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
-.lsr{position:absolute;top:calc(100% - 1px);left:0;right:0;background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);z-index:300;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)}
-.lri{padding:6px 10px;cursor:pointer;border-bottom:1px solid #f0efeb;font-size:12px}
-.lri:last-child{border-bottom:none}
-.lri:hover{background:var(--bg2)}
-.lri .lrc{font-weight:600;font-size:11px;margin-right:6px}
-.lri .lrd{font-size:11px;color:var(--muted)}
-.lri .lrcat{float:right;font-size:10px;color:#aaa;background:var(--bg3);padding:1px 5px;border-radius:3px}
-
-/* active item bar */
-.aib{padding:8px 10px;background:var(--amber-bg);border-bottom:1px solid #e8d5a0;flex-shrink:0;display:none}
-.aib.show{display:block}
-.aib-lbl{font-size:10px;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:1px}
-.aib-name{font-size:12px;font-weight:500}
-.aib-sub{font-size:11px;color:var(--muted)}
-
-/* takeoff groups */
-.to-scroll{flex:1;overflow-y:auto;padding:6px}
-.tog{background:#fff;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px;overflow:hidden}
-.tog-hdr{padding:7px 10px;display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;background:var(--bg2)}
-.tog-hdr:hover{background:var(--bg3)}
-.tog-arr{font-size:9px;color:var(--muted);transition:transform .2s;flex-shrink:0}
-.tog-arr.open{transform:rotate(90deg)}
-.tog-name{font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tog-cnt{font-size:10px;color:var(--muted);background:var(--bg3);padding:1px 6px;border-radius:10px;white-space:nowrap}
-.tog-body{display:none;border-top:1px solid var(--border)}
-.tog-body.open{display:block}
-.toi{padding:5px 10px;border-bottom:1px solid #f0efeb;display:flex;align-items:center;gap:6px}
-.toi:last-child{border-bottom:none}
-.toi:hover{background:#fafaf8}
-.toi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.toi-info{flex:1;min-width:0}
-.toi-n{font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.toi-s{font-size:10px;color:var(--muted)}
-.toi-v{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.toi-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:11px;padding:0 2px;opacity:0}
-.toi:hover .toi-del{opacity:1}
-.toi-del:hover{color:var(--danger)}
-.empty-to{text-align:center;padding:20px 12px;color:var(--muted);font-size:12px;font-style:italic;line-height:1.6}
-
-/* push bar */
-.push-bar{padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0}
-.push-btn{width:100%;padding:7px;background:var(--text);color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s}
-.push-btn:hover{opacity:.85}
-.push-btn:disabled{opacity:.35;cursor:not-allowed}
-.push-sum{font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
-
-/* ═══ TAKEOFF PANE ═══ */
-.to-page{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.sheet-tabs{display:flex;gap:6px;flex-wrap:wrap}
-.stab{font-size:12px;padding:4px 12px;border:1px solid var(--border);border-radius:20px;cursor:pointer;background:#fff;color:var(--muted);user-select:none}
+/* ════════════════════════════════
+   TAKEOFF PANE
+════════════════════════════════ */
+.to-page{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.sheet-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.stab{font-size:12px;padding:4px 11px;border:1px solid var(--border);border-radius:20px;cursor:pointer;background:#fff;color:var(--muted);user-select:none}
 .stab.active{background:var(--text);color:#fff;border-color:var(--text)}
-.add-stab{font-size:12px;padding:4px 10px;border:1px dashed var(--border);border-radius:20px;cursor:pointer;color:var(--muted);background:transparent}
+.add-stab{font-size:12px;padding:4px 9px;border:1px dashed var(--border);border-radius:20px;cursor:pointer;color:var(--muted);background:transparent}
 .add-stab:hover{color:var(--text);border-color:var(--text)}
 .to-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--border);font-weight:500;font-size:11px;color:var(--muted);white-space:nowrap}
+th{text-align:left;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--border);font-weight:500;font-size:11px;color:var(--muted);white-space:nowrap;position:sticky;top:0}
 td{padding:3px 6px;border-bottom:1px solid #f0efeb;vertical-align:middle}
 tr:hover td{background:#fafaf8}
 td.num{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
@@ -157,7 +164,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:v
 .ni{width:100%;font-size:12px;padding:3px 6px;border:1px solid transparent;border-radius:5px;background:transparent;font-family:inherit}
 .ni:focus{outline:none;border-color:var(--border);background:#fff}
 .ubadge{font-size:10px;color:var(--muted);background:var(--bg3);padding:1px 5px;border-radius:4px}
-.dbtn{background:none;border:none;cursor:pointer;font-size:13px;color:#ccc;padding:0 4px;opacity:0}
+.dbtn{background:none;border:none;cursor:pointer;font-size:12px;color:#ccc;padding:0 3px;opacity:0}
 tr:hover .dbtn{opacity:1}
 .dbtn:hover{color:var(--danger)}
 .rn{font-size:11px;color:#bbb;min-width:22px;text-align:right}
@@ -167,26 +174,30 @@ tr:hover .dbtn{opacity:1}
 .metric .val.green{color:var(--green)}
 .metric .val.amber{color:var(--amber)}
 
-/* ═══ DETAILS PANE ═══ */
-.det-page{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-.sg{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* ════════════════════════════════
+   PROJECT DETAILS PANE
+════════════════════════════════ */
+.det-page{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:680px){.sg{grid-template-columns:1fr}}
-.ssec{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-.ssec h3{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
-.fr{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ssec{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.ssec h3{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.fr{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .fr label{font-size:12px;color:var(--muted);min-width:130px}
 .fr input,.fr select{flex:1;font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit}
 .fr input:focus,.fr select:focus{outline:none;border-color:#888;background:#fff}
 
-/* MODALS */
+/* ════════════════════════════════
+   MODALS
+════════════════════════════════ */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center}
-.md{background:#fff;border-radius:12px;padding:24px;width:360px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.15)}
-.md h3{font-size:15px;font-weight:600;margin-bottom:14px}
+.md{background:#fff;border-radius:12px;padding:22px;width:360px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.md h3{font-size:14px;font-weight:600;margin-bottom:14px}
 .md label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
-.md input,.md select{width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;font-family:inherit;background:var(--bg2)}
+.md input,.md select{width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;font-family:inherit;background:var(--bg2)}
 .md input:focus,.md select:focus{outline:none;border-color:#888;background:#fff}
-.md-act{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
-.md p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px}
+.md-act{display:flex;justify-content:flex-end;gap:7px;margin-top:4px}
+.md p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px}
 
 /* live tip */
 .ltip{position:fixed;background:#1a1a18;color:#fff;font-size:11px;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:400;display:none;white-space:nowrap}
@@ -201,10 +212,16 @@ tr:hover .dbtn{opacity:1}
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="logo">OnSite <span>Estimating</span></div>
+  <div class="proj-fields">
+    <input id="pf-name" placeholder="Project name"/>
+    <input id="pf-client" placeholder="Client / GC"/>
+    <input id="pf-num" placeholder="Estimate #"/>
+  </div>
   <div class="topbar-right">
     <div class="proj-badge" id="proj-badge">No estimate linked</div>
-    <button class="btn" onclick="showLinkModal()">&#128279; Link Estimate</button>
-    <button class="btn primary" onclick="window.location.href='/'">&#8592; Back to Estimates</button>
+    <button class="btn" onclick="showLinkModal()">Link Estimate</button>
+    <button class="btn success" onclick="pushLinked()">Save</button>
+    <button class="btn primary" onclick="window.location.href='/'">Back to Estimates</button>
   </div>
 </div>
 
@@ -216,147 +233,150 @@ tr:hover .dbtn{opacity:1}
   <div class="main-tab" id="mtab-details" onclick="switchMain('details')">Project Details</div>
 </div>
 
-<!-- ════ DRAWINGS PANE ════ -->
+<!-- ════════════════════════════════
+     DRAWINGS PANE
+════════════════════════════════ -->
 <div class="pane active" id="pane-drawings">
 <div class="draw-layout">
 
-  <!-- left -->
+  <!-- LEFT: takeoff items panel -->
   <div class="draw-left">
-    <div class="draw-left-top">
+    <div class="dl-header">
+      <span class="panel-label">Takeoff Items</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn sm" onclick="addBlankGroup()" title="Add blank custom item">+ Blank</button>
+        <button class="btn sm danger" onclick="clearAllMarkups()" title="Clear all">Clear</button>
+      </div>
+    </div>
+
+    <!-- library search -->
+    <div class="lsw">
+      <span class="lsicon">&#9906;</span>
+      <input class="lsi" id="lsi" type="text" placeholder="Search library to add item..." oninput="libSearch(this.value)" autocomplete="off"/>
+      <div class="lsr" id="lsr" style="display:none"></div>
+    </div>
+
+    <!-- groups list -->
+    <div class="to-scroll" id="to-scroll">
+      <div class="empty-to">Search the library above or add a blank item,<br>then click the drawing to count or measure.</div>
+    </div>
+
+    <!-- push bar -->
+    <div class="push-bar">
+      <button class="push-btn" id="push-btn" disabled onclick="openPush()">Push to Estimate</button>
+      <div class="push-sum" id="push-sum">Link an estimate to enable</div>
+    </div>
+  </div>
+
+  <!-- CENTER: canvas area -->
+  <div class="draw-center">
+    <!-- toolbar -->
+    <div class="draw-toolbar">
+      <!-- tools -->
+      <button class="tbtn active" id="tbtn-pan" onclick="setTool('pan')">Pan</button>
+      <button class="tbtn" id="tbtn-measure" onclick="setTool('measure')">Measure</button>
+      <button class="tbtn" id="tbtn-count" onclick="setTool('count')">Count</button>
+      <div class="tsep"></div>
+      <!-- scale -->
+      <span style="font-size:10px;color:var(--muted);white-space:nowrap;flex-shrink:0">Scale:</span>
+      <select class="scale-sel" id="scale-sel" onchange="onScaleSel()">
+        <option value="">-- select --</option>
+        <option value="0.125">1/8" = 1'</option>
+        <option value="0.1875">3/16" = 1'</option>
+        <option value="0.25">1/4" = 1'</option>
+        <option value="0.375">3/8" = 1'</option>
+        <option value="0.5">1/2" = 1'</option>
+        <option value="0.75">3/4" = 1'</option>
+        <option value="1.0">1" = 1'</option>
+        <option value="1.5">1-1/2" = 1'</option>
+        <option value="3.0">3" = 1'</option>
+        <option value="m100">1:100 (m)</option>
+        <option value="m50">1:50 (m)</option>
+        <option value="m200">1:200 (m)</option>
+        <option value="custom">Custom...</option>
+        <option value="cal">Calibrate (2-point)</option>
+      </select>
+      <!-- custom scale inputs -->
+      <div class="custom-scale-wrap" id="custom-scale-wrap">
+        <input class="csi" id="csi-draw" type="number" value="1" min="0.001" step="0.01" title="Drawing inches"/>
+        <span style="font-size:10px;color:var(--muted)">"=</span>
+        <input class="csi" id="csi-real" type="number" value="1" min="0.001" step="0.01" title="Real feet"/>
+        <select class="scale-sel" id="csi-unit" style="width:40px;padding:2px 2px">
+          <option value="ft">'</option>
+          <option value="in">"</option>
+          <option value="m">m</option>
+        </select>
+        <button class="tbtn" onclick="applyCustomScale()" style="color:var(--green)">Set</button>
+      </div>
+      <div class="scale-ind unset" id="scale-ind">No scale</div>
+      <div class="tsep"></div>
+      <!-- zoom -->
+      <button class="tbtn" onclick="doZoom(-0.15)">-</button>
+      <div class="zdsp" id="zdsp">100%</div>
+      <button class="tbtn" onclick="doZoom(0.15)">+</button>
+      <button class="tbtn" onclick="fitWin()" title="Fit to window">Fit</button>
+    </div>
+
+    <!-- canvas viewport -->
+    <div class="cv-wrap" id="cvw"
+      onmousedown="cvd(event)"
+      onmousemove="cvm(event)"
+      onmouseup="cvu(event)"
+      ondblclick="cvdb(event)"
+      onwheel="cvwh(event)">
+      <div class="cv-inner" id="cv-inner">
+        <canvas id="pc"></canvas>
+        <canvas id="oc"></canvas>
+      </div>
+      <div class="cv-empty" id="cv-empty">
+        <div class="big">PDF</div>
+        <div style="font-size:12px">Upload a PDF drawing to begin</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: pages panel -->
+  <div class="draw-right">
+    <div class="dr-top">
       <span class="panel-label">Pages</span>
       <button class="btn sm" onclick="document.getElementById('fi').click()">+ PDF</button>
     </div>
     <div class="upload-zone" id="uz" onclick="document.getElementById('fi').click()"
       ondragover="dov(event)" ondragleave="dol()" ondrop="dod(event)">
-      Drop PDF or tap to upload
+      Drop PDF<br>or tap to upload
     </div>
     <input type="file" id="fi" accept=".pdf" style="display:none" onchange="loadPDF(this.files[0])"/>
     <div class="pages-list" id="pages-list">
-      <div style="text-align:center;padding:16px 8px;color:var(--muted);font-size:11px">No PDF loaded</div>
-    </div>
-  </div>
-
-  <!-- center -->
-  <div class="draw-center">
-    <div class="draw-toolbar">
-      <button class="tbtn active" id="tbtn-pan" onclick="setTool('pan')">&#9995; Pan</button>
-      <button class="tbtn" id="tbtn-measure" onclick="setTool('measure')">&#128207; Measure</button>
-      <button class="tbtn" id="tbtn-count" onclick="setTool('count')">&#8226;&#8226; Count</button>
-      <div class="tsep"></div>
-      <span style="font-size:10px;color:var(--muted);white-space:nowrap;flex-shrink:0">Scale:</span>
-      <select class="scale-sel" id="scale-sel" onchange="applyScalePreset()">
-        <option value="">— select —</option>
-        <option value="0.125">1/8" = 1'-0"</option>
-        <option value="0.1875">3/16" = 1'-0"</option>
-        <option value="0.25">1/4" = 1'-0"</option>
-        <option value="0.375">3/8" = 1'-0"</option>
-        <option value="0.5">1/2" = 1'-0"</option>
-        <option value="0.75">3/4" = 1'-0"</option>
-        <option value="1.0">1" = 1'-0"</option>
-        <option value="1.5">1-1/2" = 1'-0"</option>
-        <option value="3.0">3" = 1'-0"</option>
-        <option value="m100">1:100 (metric)</option>
-        <option value="m50">1:50 (metric)</option>
-        <option value="m200">1:200 (metric)</option>
-        <option value="cal">&#8853; Calibrate…</option>
-      </select>
-      <div class="tsep"></div>
-      <button class="tbtn" onclick="doZoom(-0.12)">&#8722;</button>
-      <div class="zdsp" id="zdsp">100%</div>
-      <button class="tbtn" onclick="doZoom(0.12)">&#43;</button>
-      <button class="tbtn" onclick="fitWin()" title="Fit to window">&#8862;</button>
-      <div class="tsep"></div>
-      <button class="tbtn" style="color:var(--danger)" onclick="clearMarkups()">&#10005; Clear</button>
-    </div>
-    <div class="cv-wrap" id="cvw"
-      onmousedown="cvd(event)" onmousemove="cvm(event)" onmouseup="cvu(event)"
-      ondblclick="cvdb(event)" onwheel="cvw2(event)">
-      <canvas id="pc"></canvas>
-      <canvas id="oc"></canvas>
-      <div class="cv-empty" id="cv-empty">
-        <div class="big">&#128196;</div>
-        <div style="font-size:13px">Upload a PDF drawing to begin</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- right -->
-  <div class="draw-right">
-    <div class="dr-tabs">
-      <div class="dr-tab active" id="drt-scale" onclick="switchDr('scale')">Scale</div>
-      <div class="dr-tab" id="drt-items" onclick="switchDr('items')">Items</div>
-    </div>
-
-    <!-- scale pane -->
-    <div class="dr-pane active" id="drp-scale">
-      <div class="rsec">
-        <div class="panel-label" style="margin-bottom:5px">Drawing Scale</div>
-        <div class="scale-status" id="ss">Not set — use toolbar or calibrate below</div>
-      </div>
-      <div class="rsec">
-        <div class="panel-label" style="margin-bottom:5px">Manual Calibration</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:7px;line-height:1.5">Enter a known real-world distance, then click two points on the drawing.</div>
-        <div class="cal-row">
-          <input class="ci" id="cal-dist" type="number" placeholder="Distance" min="0.01" step="0.1" value="10"/>
-          <select class="ci" id="cal-unit" style="flex:0 0 48px;padding:4px 3px">
-            <option value="ft">ft</option>
-            <option value="in">in</option>
-            <option value="m">m</option>
-          </select>
-        </div>
-        <button class="btn" style="width:100%;font-size:12px" onclick="startCal()">&#8853; Pick Two Points</button>
-      </div>
-      <div class="rsec" style="border-bottom:none">
-        <div class="panel-label" style="margin-bottom:5px">Active Tool</div>
-        <div id="tool-desc" style="font-size:12px;color:var(--muted)">Pan / Navigate</div>
-      </div>
-    </div>
-
-    <!-- items pane -->
-    <div class="dr-pane" id="drp-items">
-      <div class="lsw">
-        <span class="lsicon">&#8981;</span>
-        <input class="lsi" id="lsi" type="text" placeholder="Search library item…" oninput="libSearch(this.value)" autocomplete="off"/>
-        <div class="lsr" id="lsr" style="display:none"></div>
-      </div>
-      <div class="aib" id="aib">
-        <div class="aib-lbl" id="aib-lbl">Count active</div>
-        <div class="aib-name" id="aib-name">–</div>
-        <div class="aib-sub" id="aib-sub">–</div>
-      </div>
-      <div class="to-scroll" id="to-scroll">
-        <div class="empty-to">Search the library above,<br>then click the drawing to count or measure.</div>
-      </div>
-      <div class="push-bar">
-        <button class="push-btn" id="push-btn" disabled onclick="openPush()">&#8599; Push to Estimate</button>
-        <div class="push-sum" id="push-sum">Link an estimate to enable</div>
-      </div>
+      <div style="text-align:center;padding:12px 6px;color:var(--muted);font-size:11px">No PDF loaded</div>
     </div>
   </div>
 
 </div>
 </div>
 
-<!-- ════ TAKEOFF PANE ════ -->
+<!-- ════════════════════════════════
+     TAKEOFF PANE
+════════════════════════════════ -->
 <div class="pane" id="pane-takeoff">
 <div class="to-page">
   <div class="toolbar">
     <div class="sheet-tabs" id="stabs"></div>
     <button class="add-stab" onclick="addSheet()">+ sheet</button>
+    <button class="btn sm" onclick="addBlankRowTO()" style="margin-left:4px">+ Blank row</button>
     <button class="btn sm danger" style="margin-left:auto" onclick="clearSheet()">Clear</button>
   </div>
   <div class="to-wrap">
     <table>
       <thead><tr>
         <th style="width:26px">#</th>
-        <th style="min-width:110px">Code</th>
+        <th style="min-width:100px">Code</th>
         <th style="min-width:180px">Description</th>
-        <th style="width:44px">Unit</th>
+        <th style="width:42px">Unit</th>
         <th style="width:76px;text-align:right">QTY</th>
         <th style="width:80px;text-align:right">Mat $/unit</th>
-        <th style="width:88px;text-align:right">Mat total</th>
-        <th style="width:68px;text-align:right">Lab hrs</th>
-        <th style="width:88px;text-align:right">Lab $</th>
+        <th style="width:86px;text-align:right">Mat total</th>
+        <th style="width:66px;text-align:right">Lab hrs</th>
+        <th style="width:86px;text-align:right">Lab $</th>
         <th style="min-width:120px">Notes</th>
         <th style="width:26px"></th>
       </tr></thead>
@@ -367,16 +387,18 @@ tr:hover .dbtn{opacity:1}
 </div>
 </div>
 
-<!-- ════ PROJECT DETAILS PANE ════ -->
+<!-- ════════════════════════════════
+     PROJECT DETAILS PANE
+════════════════════════════════ -->
 <div class="pane" id="pane-details">
 <div class="det-page">
   <div class="sg">
     <div class="ssec">
       <h3>Project Info</h3>
-      <div class="fr"><label>Project name</label><input id="d-name" placeholder="Project name"/></div>
-      <div class="fr"><label>Client / GC</label><input id="d-client" placeholder="Client name"/></div>
+      <div class="fr"><label>Project name</label><input id="d-name" placeholder="Project name" oninput="syncTopFields()"/></div>
+      <div class="fr"><label>Client / GC</label><input id="d-client" placeholder="Client name" oninput="syncTopFields()"/></div>
       <div class="fr"><label>Address</label><input id="d-addr" placeholder="Site address"/></div>
-      <div class="fr"><label>Estimate #</label><input id="d-enum" placeholder="Estimate #"/></div>
+      <div class="fr"><label>Estimate #</label><input id="d-enum" placeholder="Estimate #" oninput="syncTopFields()"/></div>
       <div class="fr"><label>PO / Contract #</label><input id="d-po" placeholder="PO #"/></div>
       <div class="fr"><label>Tender date</label><input id="d-date" type="date"/></div>
     </div>
@@ -389,30 +411,30 @@ tr:hover .dbtn{opacity:1}
     </div>
     <div class="ssec">
       <h3>Labour Rates</h3>
-      <div class="fr"><label>JM rate ($/hr)</label><input type="number" id="d-jm" value="115"/></div>
+      <div class="fr"><label>JM rate ($/hr)</label><input type="number" id="d-jm" value="115" oninput="renderTO()"/></div>
       <div class="fr"><label>Apprentice ($/hr)</label><input type="number" id="d-app" value="72"/></div>
     </div>
     <div class="ssec">
       <h3>Markups &amp; Taxes</h3>
-      <div class="fr"><label>Material markup %</label><input type="number" id="d-matmkp" value="10"/></div>
-      <div class="fr"><label>Overhead %</label><input type="number" id="d-oh" value="15"/></div>
-      <div class="fr"><label>Profit %</label><input type="number" id="d-profit" value="10"/></div>
-      <div class="fr"><label>Contingency %</label><input type="number" id="d-cont" value="0"/></div>
-      <div class="fr"><label>GST %</label><input type="number" id="d-gst" value="5"/></div>
-      <div class="fr"><label>PST %</label><input type="number" id="d-pst" value="7"/></div>
+      <div class="fr"><label>Material markup %</label><input type="number" id="d-matmkp" value="10" oninput="renderTO()"/></div>
+      <div class="fr"><label>Overhead %</label><input type="number" id="d-oh" value="15" oninput="renderTO()"/></div>
+      <div class="fr"><label>Profit %</label><input type="number" id="d-profit" value="10" oninput="renderTO()"/></div>
+      <div class="fr"><label>Contingency %</label><input type="number" id="d-cont" value="0" oninput="renderTO()"/></div>
+      <div class="fr"><label>GST %</label><input type="number" id="d-gst" value="5" oninput="renderTO()"/></div>
+      <div class="fr"><label>PST %</label><input type="number" id="d-pst" value="7" oninput="renderTO()"/></div>
     </div>
   </div>
 </div>
 </div>
 
 <!-- MODALS -->
-<div class="mo" id="link-mo" style="display:none" onclick="if(event.target===this)hideLinkMo()">
+<div class="mo" id="link-mo" style="display:none" onclick="if(event.target===this)closeMo('link-mo')">
   <div class="md">
-    <h3>&#128279; Link Estimate</h3>
+    <h3>Link Estimate</h3>
     <label>Select estimate</label>
     <select id="link-sel"></select>
     <div class="md-act">
-      <button class="btn" onclick="hideLinkMo()">Cancel</button>
+      <button class="btn" onclick="closeMo('link-mo')">Cancel</button>
       <button class="btn primary" onclick="confirmLink()">Link</button>
     </div>
   </div>
@@ -420,8 +442,8 @@ tr:hover .dbtn{opacity:1}
 
 <div class="mo" id="cal-mo" style="display:none">
   <div class="md">
-    <h3>&#8853; Calibrate Scale</h3>
-    <p>Click <strong>OK</strong> then click two points on the drawing that span <strong id="cal-mo-info">the known distance</strong>.</p>
+    <h3>Calibrate Scale</h3>
+    <p>Click OK then click two points on the drawing that span a known distance of <strong id="cal-mo-info">–</strong>.</p>
     <div class="md-act">
       <button class="btn" onclick="cancelCal()">Cancel</button>
       <button class="btn primary" onclick="beginCalPick()">OK — pick points</button>
@@ -429,16 +451,36 @@ tr:hover .dbtn{opacity:1}
   </div>
 </div>
 
-<div class="mo" id="push-mo" style="display:none" onclick="if(event.target===this)closePush()">
+<div class="mo" id="push-mo" style="display:none" onclick="if(event.target===this)closeMo('push-mo')">
   <div class="md">
-    <h3>&#8599; Push to Estimate</h3>
+    <h3>Push to Estimate</h3>
     <label>Target sheet</label>
     <select id="push-sheet"></select>
     <label>Drawing reference (optional)</label>
-    <input id="push-ref" type="text" placeholder="e.g. E1.1 – Electrical Plan"/>
+    <input id="push-ref" type="text" placeholder="e.g. E1.1 Electrical Plan"/>
     <div class="md-act">
-      <button class="btn" onclick="closePush()">Cancel</button>
+      <button class="btn" onclick="closeMo('push-mo')">Cancel</button>
       <button class="btn primary" onclick="confirmPush()">Push</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="blank-mo" style="display:none" onclick="if(event.target===this)closeMo('blank-mo')">
+  <div class="md">
+    <h3>Add Custom Item</h3>
+    <label>Description</label>
+    <input id="blank-desc" type="text" placeholder="Item description"/>
+    <label>Unit</label>
+    <select id="blank-unit">
+      <option value="ea">ea</option>
+      <option value="ft">ft</option>
+      <option value="m">m</option>
+      <option value="ls">ls</option>
+      <option value="hr">hr</option>
+    </select>
+    <div class="md-act">
+      <button class="btn" onclick="closeMo('blank-mo')">Cancel</button>
+      <button class="btn primary" onclick="confirmBlank()">Add</button>
     </div>
   </div>
 </div>
@@ -446,66 +488,104 @@ tr:hover .dbtn{opacity:1}
 <div class="ltip" id="ltip"></div>
 <div class="toast" id="toast"></div>
 
+<!-- ════════════════════════════════
+     LIBRARY
+════════════════════════════════ -->
 <script>
-// ── Library (abbreviated – full version loads from index.html's LIBRARY) ──
-const LIBRARY=[{"code":"EMT-1/2-N","description":"1/2\" EMT Conduit – Normal","unit":"ft","mat_unit":0.5225,"labour_unit":0.045,"category":"Conduit-EMT"},{"code":"EMT-3/4-N","description":"3/4\" EMT Conduit – Normal","unit":"ft","mat_unit":0.8975,"labour_unit":0.05,"category":"Conduit-EMT"},{"code":"EMT-3/4-D","description":"3/4\" EMT Conduit – Difficult","unit":"ft","mat_unit":0.8975,"labour_unit":0.062,"category":"Conduit-EMT"},{"code":"EMT-1-N","description":"1\" EMT Conduit – Normal","unit":"ft","mat_unit":1.4975,"labour_unit":0.055,"category":"Conduit-EMT"},{"code":"EMT-1-D","description":"1\" EMT Conduit – Difficult","unit":"ft","mat_unit":1.4975,"labour_unit":0.068,"category":"Conduit-EMT"},{"code":"EMT-1.5-N","description":"1-1/2\" EMT Conduit – Normal","unit":"ft","mat_unit":2.9975,"labour_unit":0.07,"category":"Conduit-EMT"},{"code":"EMT-2-N","description":"2\" EMT Conduit – Normal","unit":"ft","mat_unit":3.7875,"labour_unit":0.08,"category":"Conduit-EMT"},{"code":"COUP-3/4","description":"3/4\" EMT Coupling","unit":"ea","mat_unit":0.3099,"labour_unit":0.05,"category":"Fittings-EMT"},{"code":"CONN-3/4","description":"3/4\" EMT Connector","unit":"ea","mat_unit":0.3498,"labour_unit":0.1,"category":"Fittings-EMT"},{"code":"STRAP-3/4","description":"3/4\" One Hole Strap","unit":"ea","mat_unit":0.05,"labour_unit":0.015,"category":"Fittings-EMT"},{"code":"BOX-4SQ","description":"4\" Square Box KO","unit":"ea","mat_unit":4.8625,"labour_unit":0.35,"category":"Boxes"},{"code":"BOX-4OCT","description":"4\" Octagon Box KO","unit":"ea","mat_unit":4.2775,"labour_unit":0.3,"category":"Boxes"},{"code":"BOX-SINGLE","description":"1-Gang Device Box","unit":"ea","mat_unit":1.737,"labour_unit":0.2,"category":"Boxes"},{"code":"WIRE-14","description":"#14 RW90 per ft","unit":"ft","mat_unit":0.1577,"labour_unit":0.006,"category":"Wire"},{"code":"WIRE-12","description":"#12 RW90 per ft","unit":"ft","mat_unit":0.242,"labour_unit":0.007,"category":"Wire"},{"code":"WIRE-10","description":"#10 RW90 per ft","unit":"ft","mat_unit":0.455,"labour_unit":0.0085,"category":"Wire"},{"code":"WIRE-8","description":"#8 RW90 per ft","unit":"ft","mat_unit":0.7568,"labour_unit":0.011,"category":"Wire"},{"code":"WIRE-6","description":"#6 RW90 per ft","unit":"ft","mat_unit":1.0966,"labour_unit":0.013,"category":"Wire"},{"code":"REC-DUP","description":"Duplex Receptacle 15A","unit":"ea","mat_unit":8.5,"labour_unit":0.5,"category":"Devices"},{"code":"REC-20A","description":"20A Receptacle","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices"},{"code":"SW-1P","description":"Single Pole Switch","unit":"ea","mat_unit":8.0,"labour_unit":0.4,"category":"Devices"},{"code":"SW-3W","description":"3-Way Switch","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices"},{"code":"REC-15A-COM","description":"15A Commercial Duplex (complete)","unit":"ea","mat_unit":18.5,"labour_unit":0.65,"category":"Receptacles"},{"code":"REC-GFCI-15A","description":"15A GFCI Receptacle (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.75,"category":"Receptacles"},{"code":"REC-GFCI-20A","description":"20A GFCI Receptacle (complete)","unit":"ea","mat_unit":48.0,"labour_unit":0.8,"category":"Receptacles"},{"code":"SW-1P-COM","description":"1-Pole 15A Switch (complete)","unit":"ea","mat_unit":16.5,"labour_unit":0.55,"category":"Switches"},{"code":"SW-3W-COM","description":"3-Way Switch (complete)","unit":"ea","mat_unit":28.0,"labour_unit":0.7,"category":"Switches"},{"code":"LT-2X4-LED","description":"2x4 LED Troffer 40W","unit":"ea","mat_unit":145.0,"labour_unit":1.0,"category":"Lighting"},{"code":"LT-2X2-LED","description":"2x2 LED Troffer 24W","unit":"ea","mat_unit":125.0,"labour_unit":1.0,"category":"Lighting"},{"code":"LT-HB-100W","description":"LED High Bay 100W","unit":"ea","mat_unit":285.0,"labour_unit":1.5,"category":"Lighting"},{"code":"LT-HB-150W","description":"LED High Bay 150W","unit":"ea","mat_unit":380.0,"labour_unit":1.75,"category":"Lighting"},{"code":"LT-POT-4-LED","description":"4\" LED Pot Light","unit":"ea","mat_unit":65.0,"labour_unit":0.65,"category":"Lighting"},{"code":"LT-POT-6-LED","description":"6\" LED Pot Light","unit":"ea","mat_unit":75.0,"labour_unit":0.7,"category":"Lighting"},{"code":"LT-EXIT-LED","description":"LED Exit Sign","unit":"ea","mat_unit":95.0,"labour_unit":1.0,"category":"Lighting-Emergency"},{"code":"LT-EMER-LED","description":"LED Emergency Light Twin Head","unit":"ea","mat_unit":115.0,"labour_unit":1.25,"category":"Lighting-Emergency"},{"code":"PNL-100A","description":"100A Panel","unit":"ea","mat_unit":650.0,"labour_unit":8.0,"category":"Panels"},{"code":"PNL-200A","description":"200A Panel","unit":"ea","mat_unit":1200.0,"labour_unit":12.0,"category":"Panels"},{"code":"PNL-42CKT-225A","description":"225A 42-Circuit Panel","unit":"ea","mat_unit":1850.0,"labour_unit":16.0,"category":"Panels"},{"code":"PNL-BKR-1P-20A","description":"1-Pole 20A Breaker","unit":"ea","mat_unit":18.0,"labour_unit":0.2,"category":"Panels"},{"code":"PNL-BKR-2P-20A","description":"2-Pole 20A Breaker","unit":"ea","mat_unit":42.0,"labour_unit":0.25,"category":"Panels"},{"code":"CAM-IP","description":"IP Camera","unit":"ea","mat_unit":285.0,"labour_unit":2.0,"category":"Security"},{"code":"CR-PROX","description":"Proximity Card Reader","unit":"ea","mat_unit":180.0,"labour_unit":1.5,"category":"Security"},{"code":"PIR-SENS","description":"PIR Motion Sensor","unit":"ea","mat_unit":65.0,"labour_unit":0.75,"category":"Security"},{"code":"FA-PULL","description":"Manual Pull Station","unit":"ea","mat_unit":85.0,"labour_unit":1.0,"category":"Fire Alarm"},{"code":"FA-SMKE-DET","description":"Smoke Detector Addressable","unit":"ea","mat_unit":95.0,"labour_unit":0.75,"category":"Fire Alarm"},{"code":"FA-HORN-STROBE","description":"Horn/Strobe Combo","unit":"ea","mat_unit":145.0,"labour_unit":1.25,"category":"Fire Alarm"},{"code":"BC-20A-3/4-100","description":"20A Branch Circuit 3/4\" EMT (per 100ft)","unit":"ea","mat_unit":186.69,"labour_unit":3.5,"category":"Branch Circuit-EMT"},{"code":"MISC-ALLOW","description":"Miscellaneous Allowance","unit":"ls","mat_unit":0.0,"labour_unit":0.0,"category":"Misc"}];
+const LIBRARY=[{"code":"EMT-1/2-N","description":"1/2\" EMT Conduit - Normal","unit":"ft","mat_unit":0.5225,"labour_unit":0.045,"category":"Conduit-EMT"},{"code":"EMT-3/4-N","description":"3/4\" EMT Conduit - Normal","unit":"ft","mat_unit":0.8975,"labour_unit":0.05,"category":"Conduit-EMT"},{"code":"EMT-3/4-D","description":"3/4\" EMT Conduit - Difficult","unit":"ft","mat_unit":0.8975,"labour_unit":0.062,"category":"Conduit-EMT"},{"code":"EMT-1-N","description":"1\" EMT Conduit - Normal","unit":"ft","mat_unit":1.4975,"labour_unit":0.055,"category":"Conduit-EMT"},{"code":"EMT-1-D","description":"1\" EMT Conduit - Difficult","unit":"ft","mat_unit":1.4975,"labour_unit":0.068,"category":"Conduit-EMT"},{"code":"EMT-1.5-N","description":"1-1/2\" EMT Conduit - Normal","unit":"ft","mat_unit":2.9975,"labour_unit":0.07,"category":"Conduit-EMT"},{"code":"EMT-2-N","description":"2\" EMT Conduit - Normal","unit":"ft","mat_unit":3.7875,"labour_unit":0.08,"category":"Conduit-EMT"},{"code":"EMT-2.5-N","description":"2-1/2\" EMT Conduit - Normal","unit":"ft","mat_unit":6.9975,"labour_unit":0.095,"category":"Conduit-EMT"},{"code":"EMT-3-N","description":"3\" EMT Conduit - Normal","unit":"ft","mat_unit":8.1475,"labour_unit":0.11,"category":"Conduit-EMT"},{"code":"EMT-4-N","description":"4\" EMT Conduit - Normal","unit":"ft","mat_unit":10.8875,"labour_unit":0.16,"category":"Conduit-EMT"},{"code":"COUP-3/4","description":"3/4\" EMT Coupling","unit":"ea","mat_unit":0.3099,"labour_unit":0.05,"category":"Fittings-EMT"},{"code":"COUP-1","description":"1\" EMT Coupling","unit":"ea","mat_unit":0.6515,"labour_unit":0.06,"category":"Fittings-EMT"},{"code":"CONN-3/4","description":"3/4\" EMT Connector","unit":"ea","mat_unit":0.3498,"labour_unit":0.1,"category":"Fittings-EMT"},{"code":"CONN-1","description":"1\" EMT Connector","unit":"ea","mat_unit":0.7223,"labour_unit":0.12,"category":"Fittings-EMT"},{"code":"STRAP-3/4","description":"3/4\" One Hole Strap","unit":"ea","mat_unit":0.05,"labour_unit":0.015,"category":"Fittings-EMT"},{"code":"STRAP-1","description":"1\" One Hole Strap","unit":"ea","mat_unit":0.08,"labour_unit":0.02,"category":"Fittings-EMT"},{"code":"ELB-90-3/4","description":"3/4\" 90 deg EMT Elbow","unit":"ea","mat_unit":4.1652,"labour_unit":0.05,"category":"Fittings-EMT"},{"code":"ELB-90-1","description":"1\" 90 deg EMT Elbow","unit":"ea","mat_unit":6.2891,"labour_unit":0.06,"category":"Fittings-EMT"},{"code":"BOX-4SQ","description":"4\" Square Box KO","unit":"ea","mat_unit":4.8625,"labour_unit":0.35,"category":"Boxes"},{"code":"BOX-4OCT","description":"4\" Octagon Box KO","unit":"ea","mat_unit":4.2775,"labour_unit":0.3,"category":"Boxes"},{"code":"BOX-SINGLE","description":"1-Gang Device Box","unit":"ea","mat_unit":1.737,"labour_unit":0.2,"category":"Boxes"},{"code":"BOX-2G-DEV","description":"2-Gang Device Box","unit":"ea","mat_unit":4.388,"labour_unit":0.25,"category":"Boxes"},{"code":"WIRE-14","description":"#14 RW90 per ft","unit":"ft","mat_unit":0.1577,"labour_unit":0.006,"category":"Wire"},{"code":"WIRE-12","description":"#12 RW90 per ft","unit":"ft","mat_unit":0.242,"labour_unit":0.007,"category":"Wire"},{"code":"WIRE-10","description":"#10 RW90 per ft","unit":"ft","mat_unit":0.455,"labour_unit":0.0085,"category":"Wire"},{"code":"WIRE-8","description":"#8 RW90 per ft","unit":"ft","mat_unit":0.7568,"labour_unit":0.011,"category":"Wire"},{"code":"WIRE-6","description":"#6 RW90 per ft","unit":"ft","mat_unit":1.0966,"labour_unit":0.013,"category":"Wire"},{"code":"WIRE-4","description":"#4 RW90 per ft","unit":"ft","mat_unit":2.1768,"labour_unit":0.015,"category":"Wire"},{"code":"WIRE-2","description":"#2 RW90 per ft","unit":"ft","mat_unit":3.4069,"labour_unit":0.019,"category":"Wire"},{"code":"WIRE-1/0","description":"#1/0 RW90 per ft","unit":"ft","mat_unit":4.4038,"labour_unit":0.024,"category":"Wire"},{"code":"REC-DUP","description":"Duplex Receptacle 15A","unit":"ea","mat_unit":8.5,"labour_unit":0.5,"category":"Devices"},{"code":"REC-20A","description":"20A Receptacle","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices"},{"code":"SW-1P","description":"Single Pole Switch","unit":"ea","mat_unit":8.0,"labour_unit":0.4,"category":"Devices"},{"code":"SW-3W","description":"3-Way Switch","unit":"ea","mat_unit":12.0,"labour_unit":0.5,"category":"Devices"},{"code":"REC-15A-COM","description":"15A Commercial Duplex (complete)","unit":"ea","mat_unit":18.5,"labour_unit":0.65,"category":"Receptacles"},{"code":"REC-20A-COM","description":"20A Commercial Receptacle (complete)","unit":"ea","mat_unit":24.0,"labour_unit":0.7,"category":"Receptacles"},{"code":"REC-GFCI-15A","description":"15A GFCI Receptacle (complete)","unit":"ea","mat_unit":38.0,"labour_unit":0.75,"category":"Receptacles"},{"code":"REC-GFCI-20A","description":"20A GFCI Receptacle (complete)","unit":"ea","mat_unit":48.0,"labour_unit":0.8,"category":"Receptacles"},{"code":"REC-WP-20A","description":"20A WP Receptacle (complete)","unit":"ea","mat_unit":52.0,"labour_unit":0.9,"category":"Receptacles"},{"code":"SW-1P-COM","description":"1-Pole 15A Switch (complete)","unit":"ea","mat_unit":16.5,"labour_unit":0.55,"category":"Switches"},{"code":"SW-3W-COM","description":"3-Way Switch (complete)","unit":"ea","mat_unit":28.0,"labour_unit":0.7,"category":"Switches"},{"code":"LT-2X4-LED","description":"2x4 LED Troffer 40W","unit":"ea","mat_unit":145.0,"labour_unit":1.0,"category":"Lighting"},{"code":"LT-2X2-LED","description":"2x2 LED Troffer 24W","unit":"ea","mat_unit":125.0,"labour_unit":1.0,"category":"Lighting"},{"code":"LT-HB-100W","description":"LED High Bay 100W","unit":"ea","mat_unit":285.0,"labour_unit":1.5,"category":"Lighting"},{"code":"LT-HB-150W","description":"LED High Bay 150W","unit":"ea","mat_unit":380.0,"labour_unit":1.75,"category":"Lighting"},{"code":"LT-POT-4-LED","description":"4\" LED Pot Light","unit":"ea","mat_unit":65.0,"labour_unit":0.65,"category":"Lighting"},{"code":"LT-POT-6-LED","description":"6\" LED Pot Light","unit":"ea","mat_unit":75.0,"labour_unit":0.7,"category":"Lighting"},{"code":"LT-EXIT-LED","description":"LED Exit Sign","unit":"ea","mat_unit":95.0,"labour_unit":1.0,"category":"Lighting-Emergency"},{"code":"LT-EMER-LED","description":"LED Emergency Light Twin Head","unit":"ea","mat_unit":115.0,"labour_unit":1.25,"category":"Lighting-Emergency"},{"code":"LT-COMBO-EXIT-EM","description":"LED Exit/Emergency Combo","unit":"ea","mat_unit":175.0,"labour_unit":1.5,"category":"Lighting-Emergency"},{"code":"PNL-100A","description":"100A Panel","unit":"ea","mat_unit":650.0,"labour_unit":8.0,"category":"Panels"},{"code":"PNL-200A","description":"200A Panel","unit":"ea","mat_unit":1200.0,"labour_unit":12.0,"category":"Panels"},{"code":"PNL-42CKT-225A","description":"225A 42-Circuit Panel","unit":"ea","mat_unit":1850.0,"labour_unit":16.0,"category":"Panels"},{"code":"PNL-BKR-1P-20A","description":"1-Pole 20A Breaker","unit":"ea","mat_unit":18.0,"labour_unit":0.2,"category":"Panels"},{"code":"PNL-BKR-2P-20A","description":"2-Pole 20A Breaker","unit":"ea","mat_unit":42.0,"labour_unit":0.25,"category":"Panels"},{"code":"PNL-BKR-3P-60A","description":"3-Pole 60A Breaker","unit":"ea","mat_unit":125.0,"labour_unit":0.4,"category":"Panels"},{"code":"CAM-IP","description":"IP Camera","unit":"ea","mat_unit":285.0,"labour_unit":2.0,"category":"Security"},{"code":"CR-PROX","description":"Proximity Card Reader","unit":"ea","mat_unit":180.0,"labour_unit":1.5,"category":"Security"},{"code":"PIR-SENS","description":"PIR Motion Sensor","unit":"ea","mat_unit":65.0,"labour_unit":0.75,"category":"Security"},{"code":"MAGLK","description":"Magnetic Door Lock","unit":"ea","mat_unit":320.0,"labour_unit":2.5,"category":"Security"},{"code":"FA-PULL","description":"Manual Pull Station","unit":"ea","mat_unit":85.0,"labour_unit":1.0,"category":"Fire Alarm"},{"code":"FA-SMKE-DET","description":"Smoke Detector Addressable","unit":"ea","mat_unit":95.0,"labour_unit":0.75,"category":"Fire Alarm"},{"code":"FA-HORN-STROBE","description":"Horn/Strobe Combo","unit":"ea","mat_unit":145.0,"labour_unit":1.25,"category":"Fire Alarm"},{"code":"BC-20A-3/4-100","description":"20A Branch Circuit 3/4\" EMT (per 100ft)","unit":"ea","mat_unit":186.69,"labour_unit":3.5,"category":"Branch Circuit-EMT"},{"code":"BC-30A-1-100","description":"30A Branch Circuit 1\" EMT (per 100ft)","unit":"ea","mat_unit":329.2,"labour_unit":4.0,"category":"Branch Circuit-EMT"},{"code":"MISC-ALLOW","description":"Miscellaneous Allowance","unit":"ls","mat_unit":0.0,"labour_unit":0.0,"category":"Misc"}];
+</script>
 
+<!-- ════════════════════════════════
+     APP SCRIPT
+════════════════════════════════ -->
+<script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── State ──
 let pdfDoc=null, curPage=1;
+const PDF_RS=1.5; // render scale
 let zoom=1.0;
-const PDF_RENDER_SCALE=1.5;
-// pan state (CSS transform-based, no scroll)
-let panX=0, panY=0, panOrig=null, panStart=null;
-// scale
-let scaleRaw=null; // px/ft at zoom=1, renderScale=1
-let scaleUnit='ft', scaleLabel='';
-// active
-let activeTool='pan', activeItem=null;
-// drawing
-let isDrawing=false, curPts=[], calPts=[];
-// groups
-let groups=[];
-const GRP_COLORS=['#2d6b1f','#1a4f8a','#b87a10','#a32d2d','#5a3d8a','#1a6b5a','#8a5a1a'];
-let gci=0;
-// linked estimate
-let linked=null;
-// takeoff sheets
-let sheets=[{id:1,name:'Sheet 1',rows:[]}];
-let activeSheet=0, nextSheetId=2;
+let renderTimer=null; // debounce re-render on zoom
 
-// ── Computed scale ──
+// Scale: px per real foot AT zoom=1, renderScale=1
+// scaleRaw is set once; getScale() multiplies by current zoom*PDF_RS
+let scaleRaw=null, scaleUnit='ft', scaleLabel='';
+
+// Tools
+let activeTool='pan';
+let activeGrpIdx=null; // index into groups[] of selected group
+let hiddenGroups=new Set(); // group ids hidden from overlay
+
+// Drawing state
+let isDrawing=false, curPts=[], calPts=[];
+
+// Pan state (scroll-based)
+let panOrig=null, panScroll=null;
+
+// Groups: [{id,name,lib,color,custom,items:[{type,value,unit,pts,page}]}]
+let groups=[];
+const GRP_COLORS=['#2d6b1f','#1a4f8a','#b87a10','#a32d2d','#5a3d8a','#1a6b5a','#7a4510','#1a7a7a'];
+let gci=0;
+
+// Linked estimate
+let linked=null;
+
+// Takeoff sheets
+let sheets=[{id:1,name:'Sheet 1',rows:[]}];
+let activeSheet=0, nextSid=2;
+
+// ── Helpers ──
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtM(n,d=2){return '$'+(n||0).toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtH(n){return (n||0).toFixed(2)+'h';}
+function d2(a,b){return Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2);}
+function totD(pts){let d=0;for(let i=1;i<pts.length;i++)d+=d2(pts[i-1],pts[i]);return d;}
+function fmtDist(v,unit){
+  if(unit==='m') return v.toFixed(2)+'m';
+  if(unit==='in') return v.toFixed(1)+'"';
+  if(unit==='px') return v.toFixed(0)+'px';
+  const ft=Math.floor(v),inch=Math.round((v-ft)*12);
+  return ft+"'-"+inch+'"';
+}
 function getScale(){
   if(!scaleRaw) return null;
-  return scaleRaw * PDF_RENDER_SCALE * zoom;
+  return scaleRaw*PDF_RS*zoom;
 }
+function closeMo(id){$(id).style.display='none';}
+
+// ── Top fields sync ──
+function syncTopFields(){
+  const n=$('d-name').value, c=$('d-client').value, e=$('d-enum').value;
+  $('pf-name').value=n; $('pf-client').value=c; $('pf-num').value=e;
+}
+['pf-name','pf-client','pf-num'].forEach(id=>{
+  const el=$(id);
+  if(el) el.oninput=()=>{
+    $('d-name').value=$('pf-name').value;
+    $('d-client').value=$('pf-client').value;
+    $('d-enum').value=$('pf-num').value;
+  };
+});
 
 // ── Tab switching ──
 function switchMain(name){
   ['drawings','takeoff','details'].forEach(n=>{
-    document.getElementById('mtab-'+n)?.classList.toggle('active',n===name);
-    document.getElementById('pane-'+n)?.classList.toggle('active',n===name);
+    $('mtab-'+n)?.classList.toggle('active',n===name);
+    $('pane-'+n)?.classList.toggle('active',n===name);
   });
   if(name==='takeoff') renderTO();
 }
 
-function switchDr(name){
-  ['scale','items'].forEach(n=>{
-    document.getElementById('drt-'+n).classList.toggle('active',n===name);
-    document.getElementById('drp-'+n).classList.toggle('active',n===name);
-  });
-}
-
-// ── PDF ──
+// ── PDF Load ──
 function loadPDF(file){
   if(!file) return;
   const r=new FileReader();
   r.onload=e=>{
     pdfjsLib.getDocument({data:e.target.result}).promise.then(pdf=>{
       pdfDoc=pdf;
-      document.getElementById('cv-empty').style.display='none';
-      document.getElementById('uz').style.display='none';
+      $('cv-empty').style.display='none';
+      $('uz').style.display='none';
       buildThumbs();
       renderPage(1);
       toast('Loaded: '+file.name+' ('+pdf.numPages+' pg)');
@@ -515,14 +595,15 @@ function loadPDF(file){
 }
 
 async function buildThumbs(){
-  const el=document.getElementById('pages-list');
+  const el=$('pages-list');
   el.innerHTML='';
   for(let i=1;i<=pdfDoc.numPages;i++){
     const pg=await pdfDoc.getPage(i);
-    const vp=pg.getViewport({scale:0.15});
+    const vp=pg.getViewport({scale:0.14});
     const wrap=document.createElement('div');
     wrap.className='page-thumb'+(i===1?' active':'');
     wrap.onclick=()=>renderPage(i);
+    wrap.id='thumb-'+i;
     const c=document.createElement('canvas');
     c.width=vp.width; c.height=vp.height;
     const ctx=c.getContext('2d');
@@ -533,157 +614,192 @@ async function buildThumbs(){
     wrap.appendChild(c); wrap.appendChild(n);
     el.appendChild(wrap);
   }
+  updateThumbMarkers();
 }
 
-async function renderPage(n){
+async function renderPage(n, skipRedraw){
   curPage=n;
   const pg=await pdfDoc.getPage(n);
-  const vp=pg.getViewport({scale:zoom*PDF_RENDER_SCALE});
-  const pc=document.getElementById('pc');
-  const oc=document.getElementById('oc');
+  const vp=pg.getViewport({scale:zoom*PDF_RS});
+  const pc=$('pc'), oc=$('oc');
   pc.width=vp.width; pc.height=vp.height;
   oc.width=vp.width; oc.height=vp.height;
-  // position both via pan transform
-  applyPanTransform();
+  // size the inner container
+  $('cv-inner').style.width=vp.width+'px';
+  $('cv-inner').style.height=vp.height+'px';
   const ctx=pc.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,vp.width,vp.height);
   await pg.render({canvasContext:ctx,viewport:vp}).promise;
-  redraw();
+  if(!skipRedraw) redraw();
   updateThumbActive();
-  document.getElementById('zdsp').textContent=Math.round(zoom*100)+'%';
-}
-
-function applyPanTransform(){
-  const t=`translate(${panX}px,${panY}px)`;
-  document.getElementById('pc').style.transform=t;
-  document.getElementById('oc').style.transform=t;
+  $('zdsp').textContent=Math.round(zoom*100)+'%';
 }
 
 function updateThumbActive(){
   document.querySelectorAll('.page-thumb').forEach((el,i)=>el.classList.toggle('active',i+1===curPage));
 }
 
+function updateThumbMarkers(){
+  // add amber dot to pages that have markups
+  for(let i=1;i<=( pdfDoc?pdfDoc.numPages:0);i++){
+    const el=$('thumb-'+i);
+    if(!el) continue;
+    const hasMarkup=groups.some(g=>g.items.some(it=>it.page===i));
+    el.classList.toggle('marked',hasMarkup);
+  }
+}
+
 // ── Zoom ──
 function doZoom(d){
-  zoom=Math.max(0.15,Math.min(6,zoom+d));
+  zoom=Math.max(0.1,Math.min(6,zoom+d));
   if(pdfDoc) renderPage(curPage);
 }
 
 function fitWin(){
   if(!pdfDoc) return;
-  const wrap=document.getElementById('cvw');
-  const pc=document.getElementById('pc');
+  const wrap=$('cvw');
+  const pc=$('pc');
   if(!pc.width) return;
-  const sx=(wrap.clientWidth-20)/pc.width;
-  const sy=(wrap.clientHeight-20)/pc.height;
-  const factor=Math.min(sx,sy);
-  zoom=zoom*factor;
-  panX=10; panY=10;
+  const sx=(wrap.clientWidth-20)/(pc.width/zoom);
+  const sy=(wrap.clientHeight-20)/(pc.height/zoom);
+  zoom=Math.min(sx,sy)*zoom;
   renderPage(curPage);
 }
 
-// scroll-to-zoom at mouse position
-function cvw2(e){
+// Smooth scroll-to-zoom: CSS scale while scrolling, re-render on stop
+function cvwh(e){
   e.preventDefault();
-  const wrap=document.getElementById('cvw');
+  const wrap=$('cvw');
   const rect=wrap.getBoundingClientRect();
-  // mouse position relative to canvas
-  const mx=e.clientX-rect.left-panX;
-  const my=e.clientY-rect.top-panY;
+  // point under mouse in scroll coords
+  const mx=e.clientX-rect.left+wrap.scrollLeft;
+  const my=e.clientY-rect.top+wrap.scrollTop;
   const oldZoom=zoom;
-  const d=e.deltaY<0?0.1:-0.1;
-  zoom=Math.max(0.15,Math.min(6,zoom+d));
+  const delta=e.deltaY<0?0.1:-0.1;
+  zoom=Math.max(0.1,Math.min(6,zoom+delta));
   const ratio=zoom/oldZoom;
-  // adjust pan so zoom is centred on mouse
-  panX=e.clientX-rect.left-mx*ratio;
-  panY=e.clientY-rect.top-my*ratio;
-  if(pdfDoc) renderPage(curPage);
+
+  // instantly scale canvas elements with CSS for smooth feel
+  const t=`scale(${ratio})`;
+  $('pc').style.transformOrigin='0 0';
+  $('oc').style.transformOrigin='0 0';
+  $('pc').style.transform=t;
+  $('oc').style.transform=t;
+
+  // adjust scroll to keep mouse over same point
+  wrap.scrollLeft=mx*ratio-(e.clientX-rect.left);
+  wrap.scrollTop=my*ratio-(e.clientY-rect.top);
+
+  $('zdsp').textContent=Math.round(zoom*100)+'%';
+
+  // debounce re-render
+  clearTimeout(renderTimer);
+  renderTimer=setTimeout(()=>{
+    $('pc').style.transform='';
+    $('oc').style.transform='';
+    if(pdfDoc) renderPage(curPage);
+  },280);
 }
 
 // ── Tools ──
-function setTool(t){
+function setTool(t, silent){
   activeTool=t;
   ['pan','measure','count'].forEach(n=>{
-    document.getElementById('tbtn-'+n)?.classList.toggle('active',n===t);
+    $('tbtn-'+n)?.classList.toggle('active',n===t);
   });
-  const wrap=document.getElementById('cvw');
-  wrap.className='cv-wrap'+(t==='measure'?' tmeasure':t==='count'?' tcount':t==='cal'?' tcal':'');
-  const descs={pan:'Pan / Navigate',measure:'Linear Measure — click points, double-click to finish',count:'Count — click each item on drawing',cal:'Calibration — click two points'};
-  document.getElementById('tool-desc').textContent=descs[t]||t;
+  const wrap=$('cvw');
+  wrap.className='cv-wrap'+(t==='measure'?' tool-measure':t==='count'?' tool-count':t==='cal'?' tool-cal':'');
   curPts=[]; isDrawing=false;
-  updateAIB();
-  redraw();
+  if(!silent) redraw();
 }
 
 // ── Scale presets ──
-function applyScalePreset(){
-  const v=document.getElementById('scale-sel').value;
-  if(!v) return;
-  if(v==='cal'){document.getElementById('scale-sel').value='';startCal();return;}
+function onScaleSel(){
+  const v=$('scale-sel').value;
+  $('custom-scale-wrap').classList.toggle('show', v==='custom');
+  if(!v||v==='custom') return;
+  if(v==='cal'){$('scale-sel').value='';startCal();return;}
   let inPerFt;
   if(v.startsWith('m')){
     const ratio=parseInt(v.slice(1));
-    inPerFt=12/ratio; // drawing inches per real foot for metric
+    inPerFt=12/ratio;
     scaleLabel='1:'+ratio+' (m)';
+    scaleUnit='ft';
   } else {
     inPerFt=parseFloat(v);
+    scaleUnit='ft';
     const labels={'0.125':'1/8"=1\'','0.1875':'3/16"=1\'','0.25':'1/4"=1\'','0.375':'3/8"=1\'','0.5':'1/2"=1\'','0.75':'3/4"=1\'','1.0':'1"=1\'','1.5':'1-1/2"=1\'','3.0':'3"=1\''};
-    scaleLabel=labels[String(inPerFt)]||inPerFt+'"=1\'';
+    scaleLabel=labels[String(inPerFt)]||inPerFt;
   }
-  // px per ft at zoom=1, renderScale=1:  inPerFt drawing_in/real_ft * 72 px/in
+  // px/ft at zoom=1, renderScale=1
   scaleRaw=inPerFt*72;
+  setScaleInd(scaleLabel);
+}
+
+function applyCustomScale(){
+  const draw=parseFloat($('csi-draw').value)||1;
+  const real=parseFloat($('csi-real').value)||1;
+  const unit=$('csi-unit').value;
+  // draw inches = real [unit]
+  // we need px per real foot
+  let realFt=real;
+  if(unit==='in') realFt=real/12;
+  if(unit==='m') realFt=real/0.3048;
+  // scaleRaw = draw_in/realFt * 72 px/in
+  scaleRaw=(draw/realFt)*72;
   scaleUnit='ft';
-  setScaleStatus('✓ '+scaleLabel);
+  scaleLabel=draw+'"='+real+unit;
+  setScaleInd(scaleLabel);
+  toast('Custom scale set: '+scaleLabel);
 }
 
-function setScaleStatus(txt){
-  const el=document.getElementById('ss');
-  el.className='scale-status set';
-  el.textContent=txt;
+function setScaleInd(label){
+  const el=$('scale-ind');
+  el.className='scale-ind';
+  el.textContent=label;
 }
 
-// ── Manual calibrate ──
+// ── Manual calibration ──
 function startCal(){
-  const d=parseFloat(document.getElementById('cal-dist').value)||10;
-  const u=document.getElementById('cal-unit').value||'ft';
-  document.getElementById('cal-mo-info').textContent=d+' '+u;
-  document.getElementById('cal-mo').style.display='flex';
+  const d=parseFloat($('cal-dist')||{value:10}).value||10;
+  const u=($('cal-unit')||{value:'ft'}).value||'ft';
+  // use custom inputs if visible
+  const draw=parseFloat($('csi-draw').value)||1;
+  const real=parseFloat($('csi-real').value)||10;
+  const unit=$('csi-unit').value||'ft';
+  $('cal-mo-info').textContent=real+' '+unit;
+  $('cal-mo').style.display='flex';
 }
-function cancelCal(){
-  document.getElementById('cal-mo').style.display='none';
-  if(activeTool==='cal') setTool('pan');
-}
+function cancelCal(){closeMo('cal-mo');if(activeTool==='cal')setTool('pan');}
 function beginCalPick(){
-  document.getElementById('cal-mo').style.display='none';
+  closeMo('cal-mo');
   calPts=[];
   activeTool='cal';
-  document.getElementById('cvw').className='cv-wrap tcal';
-  document.getElementById('tool-desc').textContent='Click first calibration point…';
-  toast('Click two points on the drawing');
+  $('cvw').className='cv-wrap tool-cal';
+  toast('Click two points on the drawing to set scale');
 }
 function finishCal(){
   const pxD=d2(calPts[0],calPts[1]);
-  const dist=parseFloat(document.getElementById('cal-dist').value)||10;
-  const unit=document.getElementById('cal-unit').value||'ft';
-  let realFt=dist;
-  if(unit==='in') realFt=dist/12;
-  if(unit==='m') realFt=dist/0.3048;
-  // scaleRaw = px/ft at zoom=1, renderScale=1
-  scaleRaw=pxD/(PDF_RENDER_SCALE*zoom*realFt);
-  scaleUnit=unit==='m'?'m':'ft';
-  scaleLabel=dist+' '+unit+' (cal)';
-  setScaleStatus('✓ '+scaleLabel);
+  const real=parseFloat($('csi-real').value)||10;
+  const unit=$('csi-unit').value||'ft';
+  let realFt=real;
+  if(unit==='in') realFt=real/12;
+  if(unit==='m') realFt=real/0.3048;
+  scaleRaw=pxD/(PDF_RS*zoom*realFt);
+  scaleUnit='ft';
+  scaleLabel=real+unit+' (cal)';
+  setScaleInd(scaleLabel);
   calPts=[];
   setTool('pan');
-  toast('Scale calibrated ✓');
+  toast('Scale calibrated: '+scaleLabel);
 }
 
 // ── Library search ──
 function libSearch(q){
-  const el=document.getElementById('lsr');
+  const el=$('lsr');
   if(!q.trim()){el.style.display='none';return;}
   const lo=q.toLowerCase();
-  const hits=LIBRARY.filter(i=>i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo)||i.category.toLowerCase().includes(lo)).slice(0,12);
+  const hits=LIBRARY.filter(i=>i.code.toLowerCase().includes(lo)||i.description.toLowerCase().includes(lo)||i.category.toLowerCase().includes(lo)).slice(0,14);
   if(!hits.length){el.style.display='none';return;}
   el.innerHTML=hits.map(i=>`<div class="lri" onclick="selectItem('${esc(i.code)}')">
     <span class="lrcat">${esc(i.category)}</span>
@@ -696,30 +812,67 @@ function libSearch(q){
 function selectItem(code){
   const item=LIBRARY.find(x=>x.code===code);
   if(!item) return;
-  activeItem=item;
-  document.getElementById('lsi').value='';
-  document.getElementById('lsr').style.display='none';
+  $('lsi').value='';
+  $('lsr').style.display='none';
+  // check if group already exists for this item
+  const gid='g_'+code;
+  let gi=groups.findIndex(g=>g.id===gid);
+  if(gi===-1){
+    const linearUnits=['ft','m','lf','lin ft'];
+    groups.push({
+      id:gid,
+      name:item.code+' - '+item.description,
+      lib:item,
+      color:GRP_COLORS[gci++%GRP_COLORS.length],
+      custom:false,
+      items:[]
+    });
+    gi=groups.length-1;
+  }
+  setActiveGroup(gi);
   const linearUnits=['ft','m','lf','lin ft'];
   setTool(linearUnits.includes(item.unit.toLowerCase())?'measure':'count');
-  updateAIB();
+  renderGroups();
   toast('Active: '+item.code);
 }
 
-function updateAIB(){
-  const bar=document.getElementById('aib');
-  if(!activeItem){bar.classList.remove('show');return;}
-  bar.classList.add('show');
-  document.getElementById('aib-lbl').textContent=activeTool==='measure'?'Linear Measure active':'Count tool active';
-  document.getElementById('aib-name').textContent=activeItem.code+' — '+activeItem.description;
-  document.getElementById('aib-sub').textContent='Unit: '+activeItem.unit+' | $'+activeItem.mat_unit.toFixed(2)+'/'+activeItem.unit;
+function addBlankGroup(){
+  $('blank-mo').style.display='flex';
+  $('blank-desc').value='';
+  setTimeout(()=>$('blank-desc').focus(),50);
 }
 
-// ── Canvas point helpers ──
+function confirmBlank(){
+  const desc=$('blank-desc').value.trim()||'Custom Item';
+  const unit=$('blank-unit').value;
+  closeMo('blank-mo');
+  const gid='g_custom_'+Date.now();
+  const linearUnits=['ft','m'];
+  const isLinear=linearUnits.includes(unit);
+  groups.push({
+    id:gid,
+    name:desc,
+    lib:{code:'',description:desc,unit:unit,mat_unit:0,labour_unit:0,category:'Custom'},
+    color:GRP_COLORS[gci++%GRP_COLORS.length],
+    custom:true,
+    items:[]
+  });
+  const gi=groups.length-1;
+  setActiveGroup(gi);
+  setTool(isLinear?'measure':'count');
+  renderGroups();
+}
+
+function setActiveGroup(gi){
+  activeGrpIdx=gi;
+  renderGroups();
+}
+
+// ── Canvas point (in canvas coords) ──
 function getCvPt(e){
-  const oc=document.getElementById('oc');
+  const oc=$('oc');
   const rect=oc.getBoundingClientRect();
-  // account for pan transform to get canvas-space coords
-  return {x:e.clientX-rect.left-panX, y:e.clientY-rect.top-panY};
+  return{x:e.clientX-rect.left, y:e.clientY-rect.top};
 }
 
 // ── Mouse events ──
@@ -727,23 +880,23 @@ function cvd(e){
   if(!pdfDoc||e.button!==0) return;
   const pt=getCvPt(e);
 
-  if(activeTool==='pan'){
+  // pan always possible with alt key or when pan tool active
+  if(activeTool==='pan'||e.altKey){
     panOrig={x:e.clientX,y:e.clientY};
-    panStart={x:panX,y:panY};
+    panScroll={x:$('cvw').scrollLeft,y:$('cvw').scrollTop};
     return;
   }
   if(activeTool==='cal'){
     calPts.push(pt);
     if(calPts.length===2) finishCal();
-    redraw();
-    return;
+    redraw(); return;
   }
   if(activeTool==='count'){
-    if(!activeItem){toast('Select a library item first');return;}
+    if(activeGrpIdx===null){toast('Select a library item or add a blank item first');return;}
     addCount(pt); return;
   }
   if(activeTool==='measure'){
-    if(!activeItem){toast('Select a library item first');return;}
+    if(activeGrpIdx===null){toast('Select a library item or add a blank item first');return;}
     if(!isDrawing){isDrawing=true;curPts=[pt];}
     else{curPts.push(pt);}
     redraw();
@@ -753,22 +906,23 @@ function cvd(e){
 function cvm(e){
   if(!pdfDoc) return;
   const pt=getCvPt(e);
-  const tip=document.getElementById('ltip');
+  const tip=$('ltip');
 
-  if(activeTool==='pan'&&panOrig){
-    panX=panStart.x+(e.clientX-panOrig.x);
-    panY=panStart.y+(e.clientY-panOrig.y);
-    applyPanTransform();
+  if((activeTool==='pan'||e.altKey)&&panOrig){
+    const dx=e.clientX-panOrig.x, dy=e.clientY-panOrig.y;
+    $('cvw').scrollLeft=panScroll.x-dx;
+    $('cvw').scrollTop=panScroll.y-dy;
     return;
   }
   if(activeTool==='measure'&&isDrawing&&curPts.length){
     const sc=getScale();
     if(sc){
-      const pxD=d2(curPts[curPts.length-1],pt);
       tip.style.display='block';
       tip.style.left=(e.clientX+14)+'px';
       tip.style.top=(e.clientY-6)+'px';
-      tip.textContent=fmtD(pxD/sc,scaleUnit);
+      const seg=d2(curPts[curPts.length-1],pt);
+      const tot=totD(curPts)+seg;
+      tip.textContent=fmtDist(tot/sc,scaleUnit)+' total';
     }
     redraw(pt); return;
   }
@@ -777,125 +931,171 @@ function cvm(e){
 }
 
 function cvu(e){
-  if(activeTool==='pan') panOrig=null;
+  if(activeTool==='pan'||e.altKey) panOrig=null;
 }
 
 function cvdb(e){
+  // double-click finishes measure
   if(activeTool==='measure'&&isDrawing&&curPts.length>=2) finishMeasure();
 }
 
-// ── Measure ──
+// Escape / Enter keyboard
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(isDrawing){isDrawing=false;curPts=[];redraw();}
+    if(activeTool!=='pan'){setTool('pan');}
+    activeGrpIdx=null;
+    renderGroups();
+  }
+  if(e.key==='Enter'){
+    if(activeTool==='measure'&&isDrawing&&curPts.length>=2) finishMeasure();
+    if(activeTool==='count'&&activeGrpIdx!==null){
+      toast('Count item saved');
+      setTool('pan');
+    }
+  }
+});
+
+// ── Finish measure ──
 function finishMeasure(){
+  if(!curPts.length) return;
   const sc=getScale();
-  const pxD=totalD(curPts);
+  const pxD=totD(curPts);
   const val=sc?pxD/sc:pxD;
   const unit=sc?scaleUnit:'px';
-  addToGroup(activeItem,'linear',val,unit,[...curPts]);
+  const grp=groups[activeGrpIdx];
+  grp.items.push({type:'linear',value:val,unit:unit,pts:[...curPts],page:curPage});
   isDrawing=false; curPts=[];
-  document.getElementById('ltip').style.display='none';
+  $('ltip').style.display='none';
+  renderGroups();
+  updateThumbMarkers();
   redraw();
 }
 
 // ── Count ──
 function addCount(pt){
-  const gid='g_'+activeItem.code;
-  let grp=groups.find(g=>g.id===gid);
-  if(!grp){
-    grp={id:gid,name:activeItem.code+' — '+activeItem.description,lib:activeItem,color:GRP_COLORS[gci++%GRP_COLORS.length],items:[]};
-    groups.push(grp);
-  }
-  let it=grp.items.find(it=>it.type==='count'&&it.page===curPage);
+  const grp=groups[activeGrpIdx];
+  // find existing count item for this page
+  let it=grp.items.find(x=>x.type==='count'&&x.page===curPage);
   if(it){it.pts.push(pt);it.value=it.pts.length;}
-  else{grp.items.push({type:'count',value:1,unit:'ea',pts:[pt],page:curPage,color:grp.color});}
-  renderGroups(); redraw();
-}
-
-function addToGroup(lib,type,value,unit,pts){
-  const gid='g_'+lib.code;
-  let grp=groups.find(g=>g.id===gid);
-  if(!grp){
-    grp={id:gid,name:lib.code+' — '+lib.description,lib:lib,color:GRP_COLORS[gci++%GRP_COLORS.length],items:[]};
-    groups.push(grp);
-  }
-  grp.items.push({type,value,unit,pts,page:curPage,color:grp.color});
+  else{grp.items.push({type:'count',value:1,unit:grp.lib.unit||'ea',pts:[pt],page:curPage});}
   renderGroups();
+  updateThumbMarkers();
+  redraw();
 }
 
-// ── Render groups ──
+// ── Render groups (left panel) ──
 function renderGroups(){
-  const el=document.getElementById('to-scroll');
+  const el=$('to-scroll');
   if(!groups.length){
-    el.innerHTML='<div class="empty-to">Search the library above,<br>then click the drawing to count or measure.</div>';
+    el.innerHTML='<div class="empty-to">Search the library above or add a blank item,<br>then click the drawing to count or measure.</div>';
     updatePushBtn(); return;
   }
   el.innerHTML=groups.map((grp,gi)=>{
     const tot=grpTot(grp);
+    const isActive=gi===activeGrpIdx;
+    const isHidden=hiddenGroups.has(grp.id);
     const rows=grp.items.map((it,ii)=>`
       <div class="toi">
         <span class="toi-dot" style="background:${grp.color}"></span>
         <div class="toi-info">
-          <div class="toi-n">${it.type==='linear'?'Run – pg.'+it.page:'Count – pg.'+it.page}</div>
-          <div class="toi-s">${it.type==='linear'?fmtD(it.value,it.unit):it.value+' ea'}</div>
+          <div class="toi-n">${it.type==='linear'?'Run - pg.'+it.page:'Count - pg.'+it.page}</div>
+          <div class="toi-s">${it.type==='linear'?fmtDist(it.value,it.unit):it.value+' ea'}</div>
         </div>
-        <div class="toi-v">${it.type==='linear'?fmtD(it.value,it.unit):it.value+'×'}</div>
-        <button class="toi-del" onclick="delItem(${gi},${ii})">✕</button>
+        <div class="toi-v">${it.type==='linear'?fmtDist(it.value,it.unit):it.value+'x'}</div>
+        <button class="toi-del" onclick="delItem(${gi},${ii},event)">x</button>
       </div>`).join('');
     return `<div class="tog">
-      <div class="tog-hdr" onclick="togGrp(this)">
-        <span class="tog-arr open">▶</span>
+      <div class="tog-hdr${isActive?' selected':''}" onclick="clickGrpHdr(${gi},event)">
+        <span class="tog-arr open" id="tog-arr-${gi}">&#9654;</span>
+        <span class="tog-color" style="background:${grp.color}"></span>
         <span class="tog-name">${esc(grp.name)}</span>
         <span class="tog-cnt">${tot.display}</span>
+        <button class="tog-vis" onclick="toggleVis(${gi},event)" title="${isHidden?'Show':'Hide'} on drawing">${isHidden?'O':'o'}</button>
       </div>
-      <div class="tog-body open">${rows}</div>
+      <div class="tog-body open" id="tog-body-${gi}">${rows||'<div style="padding:6px 10px;font-size:11px;color:var(--muted);font-style:italic">No items yet - click drawing to add</div>'}</div>
     </div>`;
   }).join('');
   updatePushBtn();
 }
 
 function grpTot(grp){
+  if(!grp.items.length) return{qty:0,display:'0',unit:grp.lib.unit||'ea'};
   if(grp.items[0]?.type==='count'){
     const c=grp.items.reduce((s,it)=>s+it.value,0);
-    return {qty:c,display:c+' ea',unit:'ea'};
+    return{qty:c,display:c+' ea',unit:'ea'};
   }
   const t=grp.items.reduce((s,it)=>s+it.value,0);
   const u=grp.items[0]?.unit||'ft';
-  return {qty:t,display:fmtD(t,u),unit:u};
+  return{qty:t,display:fmtDist(t,u),unit:u};
 }
 
-function togGrp(hdr){
-  hdr.querySelector('.tog-arr').classList.toggle('open');
-  hdr.nextElementSibling.classList.toggle('open');
+function clickGrpHdr(gi,e){
+  // toggle collapse
+  const body=$('tog-body-'+gi);
+  const arr=$('tog-arr-'+gi);
+  if(e.target.classList.contains('tog-vis')) return; // handled by toggleVis
+  if(gi===activeGrpIdx){
+    // already selected: collapse/expand only
+    body.classList.toggle('open');
+    arr.classList.toggle('open');
+  } else {
+    // select this group and activate its tool
+    setActiveGroup(gi);
+    const grp=groups[gi];
+    const linearUnits=['ft','m','lf','lin ft'];
+    setTool(linearUnits.includes((grp.lib.unit||'').toLowerCase())?'measure':'count',true);
+    renderGroups();
+    toast('Active: '+grp.name);
+  }
 }
 
-function delItem(gi,ii){
+function toggleVis(gi,e){
+  e.stopPropagation();
+  const id=groups[gi].id;
+  if(hiddenGroups.has(id)) hiddenGroups.delete(id);
+  else hiddenGroups.add(id);
+  renderGroups();
+  redraw();
+}
+
+function delItem(gi,ii,e){
+  e.stopPropagation();
   groups[gi].items.splice(ii,1);
-  if(!groups[gi].items.length) groups.splice(gi,1);
-  renderGroups(); redraw();
+  renderGroups();
+  updateThumbMarkers();
+  redraw();
 }
 
-function clearMarkups(){
+function clearAllMarkups(){
   if(!groups.length) return;
-  if(!confirm('Clear all markups?')) return;
-  groups=[]; renderGroups(); redraw();
+  if(!confirm('Clear all markups and groups?')) return;
+  groups=[]; activeGrpIdx=null; hiddenGroups.clear();
+  renderGroups(); redraw(); updateThumbMarkers();
 }
 
 // ── Overlay redraw ──
 function redraw(livePt){
-  const oc=document.getElementById('oc');
+  const oc=$('oc');
   if(!oc.width) return;
   const ctx=oc.getContext('2d');
   ctx.clearRect(0,0,oc.width,oc.height);
 
-  groups.forEach(grp=>{
+  // draw saved groups for current page
+  groups.forEach((grp,gi)=>{
+    if(hiddenGroups.has(grp.id)) return;
     grp.items.filter(it=>it.page===curPage).forEach(it=>{
-      if(it.type==='linear') drawLine(ctx,it.pts,grp.color,fmtD(it.value,it.unit));
-      if(it.type==='count') drawDots(ctx,it.pts,grp.color);
+      if(it.type==='linear') drawLine(ctx,it.pts,grp.color,fmtDist(it.value,it.unit),false,gi===activeGrpIdx);
+      if(it.type==='count') drawDots(ctx,it.pts,grp.color,gi===activeGrpIdx);
     });
   });
 
+  // in-progress measure
   if(activeTool==='measure'&&isDrawing&&curPts.length){
-    drawLine(ctx,livePt?[...curPts,livePt]:curPts,'#b87a10',null,true);
+    const pts=livePt?[...curPts,livePt]:curPts;
+    drawLine(ctx,pts,'#b87a10',null,true,true);
   }
+  // calibrate
   if(activeTool==='cal'){
     ctx.fillStyle='#b87a10';
     calPts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();});
@@ -907,25 +1107,31 @@ function redraw(livePt){
   }
 }
 
-function drawLine(ctx,pts,color,label,inProg=false){
+function drawLine(ctx,pts,color,label,inProg,isActive){
   if(!pts||pts.length<1) return;
-  if(pts.length===1){ctx.fillStyle=color;ctx.beginPath();ctx.arc(pts[0].x,pts[0].y,4,0,Math.PI*2);ctx.fill();return;}
-  ctx.strokeStyle=color;ctx.lineWidth=inProg?1.5:2.5;
-  ctx.setLineDash(inProg?[5,4]:[]);ctx.lineCap='round';ctx.lineJoin='round';
+  if(pts.length===1){
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(pts[0].x,pts[0].y,4,0,Math.PI*2);ctx.fill();return;
+  }
+  ctx.strokeStyle=color;
+  ctx.lineWidth=isActive?3:2;
+  ctx.setLineDash(inProg?[5,4]:[]);
+  ctx.lineCap='round';ctx.lineJoin='round';
   ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
   pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
   ctx.stroke();ctx.setLineDash([]);
+  // endpoint dots
   ctx.fillStyle=color;
-  [pts[0],pts[pts.length-1]].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();});
+  [pts[0],pts[pts.length-1]].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,isActive?5:4,0,Math.PI*2);ctx.fill();});
+  // midpoint label
   if(label&&!inProg){
     const mi=Math.floor((pts.length-1)/2);
     const mp=pts[mi];
     ctx.save();
     ctx.font='bold 11px -apple-system,sans-serif';
     const tw=ctx.measureText(label).width;
-    ctx.fillStyle='rgba(255,255,255,0.9)';
+    ctx.fillStyle='rgba(255,255,255,0.92)';
     ctx.strokeStyle=color;ctx.lineWidth=1;
-    const rx=mp.x-tw/2-6,ry=mp.y-17,rw=tw+12,rh=18;
+    const rx=mp.x-tw/2-5,ry=mp.y-17,rw=tw+10,rh=17;
     ctx.fillRect(rx,ry,rw,rh);
     ctx.strokeRect(rx,ry,rw,rh);
     ctx.fillStyle=color;ctx.textAlign='center';
@@ -934,35 +1140,22 @@ function drawLine(ctx,pts,color,label,inProg=false){
   }
 }
 
-function drawDots(ctx,pts,color){
+function drawDots(ctx,pts,color,isActive){
   pts.forEach((p,i)=>{
-    ctx.fillStyle=color;ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#fff';ctx.font='bold 10px -apple-system,sans-serif';
+    const r=isActive?10:8;
+    ctx.fillStyle=color;ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font=`bold ${isActive?10:9}px -apple-system,sans-serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(i+1,p.x,p.y);
   });
 }
 
-// ── Helpers ──
-function d2(a,b){return Math.sqrt((b.x-a.x)**2+(b.y-a.y)**2);}
-function totalD(pts){let d=0;for(let i=1;i<pts.length;i++)d+=d2(pts[i-1],pts[i]);return d;}
-function fmtD(v,unit){
-  if(unit==='m') return v.toFixed(2)+'m';
-  if(unit==='in') return v.toFixed(1)+'"';
-  if(unit==='px') return v.toFixed(0)+'px';
-  const ft=Math.floor(v),inch=Math.round((v-ft)*12);
-  return ft+"'-"+inch+'"';
-}
-function fmtM(n,d=2){return '$'+(n||0).toLocaleString('en-CA',{minimumFractionDigits:d,maximumFractionDigits:d});}
-function fmtH(n){return (n||0).toFixed(2)+'h';}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
 // ── Link estimate ──
 async function showLinkModal(){
-  document.getElementById('link-mo').style.display='flex';
-  const sel=document.getElementById('link-sel');
-  sel.innerHTML='<option>Loading…</option>';
+  $('link-mo').style.display='flex';
+  const sel=$('link-sel');
+  sel.innerHTML='<option>Loading...</option>';
   try{
     const r=await fetch('/api/estimates');
     const list=await r.json();
@@ -970,105 +1163,124 @@ async function showLinkModal(){
     sel.innerHTML=list.map(e=>`<option value="${e.id}">${esc(e.name)}${e.estimateNum?' #'+e.estimateNum:''}</option>`).join('');
   }catch{sel.innerHTML='<option value="">Could not load</option>';}
 }
-function hideLinkMo(){document.getElementById('link-mo').style.display='none';}
+
 async function confirmLink(){
-  const sel=document.getElementById('link-sel');
-  const id=sel.value; if(!id){hideLinkMo();return;}
+  const id=$('link-sel').value; if(!id){closeMo('link-mo');return;}
   try{
     const r=await fetch('/api/estimates/'+id);
     linked=await r.json();
-    const b=document.getElementById('proj-badge');
+    const b=$('proj-badge');
     b.textContent=linked.name||'Linked';
     b.className='proj-badge linked';
-    // populate details
-    if(linked.name) document.getElementById('d-name').value=linked.name;
-    if(linked.client) document.getElementById('d-client').value=linked.client;
-    if(linked.estimateNum) document.getElementById('d-enum').value=linked.estimateNum;
+    // populate fields
+    $('pf-name').value=linked.name||'';
+    $('pf-client').value=linked.client||'';
+    $('pf-num').value=linked.estimateNum||'';
+    $('d-name').value=linked.name||'';
+    $('d-client').value=linked.client||'';
+    $('d-enum').value=linked.estimateNum||'';
     if(linked.settings){
       const s=linked.settings;
-      if(s.jm) document.getElementById('d-jm').value=s.jm;
-      if(s.matMkp) document.getElementById('d-matmkp').value=s.matMkp;
-      if(s.oh) document.getElementById('d-oh').value=s.oh;
-      if(s.profit) document.getElementById('d-profit').value=s.profit;
-      if(s.gst) document.getElementById('d-gst').value=s.gst;
-      if(s.pst) document.getElementById('d-pst').value=s.pst;
+      if(s.jm) $('d-jm').value=s.jm;
+      if(s.matMkp) $('d-matmkp').value=s.matMkp;
+      if(s.oh) $('d-oh').value=s.oh;
+      if(s.profit) $('d-profit').value=s.profit;
+      if(s.gst) $('d-gst').value=s.gst;
+      if(s.pst) $('d-pst').value=s.pst;
     }
-    // copy sheets to our TO
+    // mirror sheets
     if(linked.sheets&&linked.sheets.length){
-      sheets=linked.sheets.map(s=>({...s,rows:[...s.rows]}));
+      sheets=JSON.parse(JSON.stringify(linked.sheets));
       activeSheet=0;
     }
     updatePushBtn();
-    hideLinkMo();
+    closeMo('link-mo');
     toast('Linked: '+linked.name);
   }catch(e){toast('Could not load: '+e.message);}
 }
 
 function updatePushBtn(){
-  const btn=document.getElementById('push-btn');
-  const sum=document.getElementById('push-sum');
-  const ok=linked&&groups.length>0;
+  const btn=$('push-btn'), sum=$('push-sum');
+  const ok=linked&&groups.some(g=>g.items.length>0);
   btn.disabled=!ok;
   if(!linked) sum.textContent='Link an estimate to enable';
-  else if(!groups.length) sum.textContent='No items yet';
+  else if(!groups.some(g=>g.items.length>0)) sum.textContent='No items yet';
   else{
-    const total=groups.reduce((s,g)=>s+g.items.length,0);
-    sum.textContent=groups.length+' group'+(groups.length>1?'s':'')+', '+total+' item'+(total>1?'s':'');
+    const n=groups.filter(g=>g.items.length>0).length;
+    sum.textContent=n+' group'+(n>1?'s':'')+' ready to push';
   }
 }
 
 // ── Push to estimate ──
 function openPush(){
-  if(!linked||!groups.length) return;
-  const sel=document.getElementById('push-sheet');
+  if(!linked) return;
+  const sel=$('push-sheet');
   sel.innerHTML=(linked.sheets||[]).map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join('');
-  document.getElementById('push-mo').style.display='flex';
+  $('push-mo').style.display='flex';
 }
-function closePush(){document.getElementById('push-mo').style.display='none';}
+
 async function confirmPush(){
-  const idx=parseInt(document.getElementById('push-sheet').value);
-  const ref=document.getElementById('push-ref').value.trim();
+  const idx=parseInt($('push-sheet').value);
+  const ref=$('push-ref').value.trim();
   const sheet=linked.sheets[idx];
   if(!sheet){toast('Invalid sheet');return;}
 
-  groups.forEach(grp=>{
+  groups.filter(g=>g.items.length>0).forEach(grp=>{
     const lib=grp.lib;
     const tot=grpTot(grp);
     let qty=tot.qty;
-    // if linear and scaleUnit is m but lib unit is ft, convert
-    if(tot.unit==='m'&&lib.unit.toLowerCase()==='ft') qty=qty/0.3048;
+    if(tot.unit==='m'&&(lib.unit||'').toLowerCase()==='ft') qty=qty/0.3048;
     sheet.rows.push({
-      code:lib.code,
+      code:lib.code||'',
       description:lib.description+(ref?' ['+ref+']':''),
-      unit:lib.unit,
-      mat_unit:lib.mat_unit,
-      labour_unit:lib.labour_unit,
+      unit:lib.unit||tot.unit,
+      mat_unit:lib.mat_unit||0,
+      labour_unit:lib.labour_unit||0,
       qty:parseFloat(qty.toFixed(2)),
-      notes:'From drawing'+(ref?' – '+ref:''),
-      category:lib.category
+      notes:'Drawing takeoff'+(ref?' - '+ref:''),
+      category:lib.category||'Custom'
     });
   });
 
   try{
     linked.updatedAt=new Date().toISOString();
-    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
+    const r=await fetch('/api/estimates',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(linked)
+    });
     if(!r.ok) throw new Error('HTTP '+r.status);
     await r.json();
-    closePush();
-    const n=groups.length;
-    toast('Pushed '+n+' item'+(n>1?'s':'')+' to '+sheet.name+' ✓');
+    // mirror to local sheets
+    sheets=JSON.parse(JSON.stringify(linked.sheets));
+    closeMo('push-mo');
+    toast('Pushed to '+sheet.name+' in Estimates');
   }catch(err){toast('Push failed: '+err.message);}
+}
+
+// quick save linked estimate
+async function pushLinked(){
+  if(!linked){toast('No estimate linked');return;}
+  try{
+    linked.name=$('pf-name').value||linked.name;
+    linked.client=$('pf-client').value||linked.client;
+    linked.estimateNum=$('pf-num').value||linked.estimateNum;
+    linked.updatedAt=new Date().toISOString();
+    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    toast('Saved');
+  }catch(e){toast('Save failed: '+e.message);}
 }
 
 // ── Takeoff tab ──
 function getS(){
   return{
-    jm:parseFloat(document.getElementById('d-jm').value)||115,
-    matMkp:(parseFloat(document.getElementById('d-matmkp').value)||10)/100,
-    oh:(parseFloat(document.getElementById('d-oh').value)||15)/100,
-    profit:(parseFloat(document.getElementById('d-profit').value)||10)/100,
-    gst:(parseFloat(document.getElementById('d-gst').value)||5)/100,
-    pst:(parseFloat(document.getElementById('d-pst').value)||7)/100
+    jm:parseFloat($('d-jm').value)||115,
+    matMkp:(parseFloat($('d-matmkp').value)||10)/100,
+    oh:(parseFloat($('d-oh').value)||15)/100,
+    profit:(parseFloat($('d-profit').value)||10)/100,
+    gst:(parseFloat($('d-gst').value)||5)/100,
+    pst:(parseFloat($('d-pst').value)||7)/100
   };
 }
 function calcR(row){
@@ -1083,33 +1295,32 @@ function shTot(sheet){
   return{rawMat:rm,rawLab:rl,labHrs:lh,matMkp:mm,oh,profit:pr,sub,total:sub+sub*s.gst+sub*s.pst};
 }
 function renderTO(){
-  // sheet tabs
-  document.getElementById('stabs').innerHTML=sheets.map((s,i)=>
+  $('stabs').innerHTML=sheets.map((s,i)=>
     `<div class="stab${i===activeSheet?' active':''}" onclick="switchSheet(${i})">${esc(s.name)}</div>`).join('');
   const sheet=sheets[activeSheet];
-  const body=document.getElementById('to-body');
+  const body=$('to-body');
   if(!sheet.rows.length){
-    body.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--muted);font-style:italic">No items yet. Use the Drawings tab and push items here.</td></tr>`;
+    body.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:22px;color:var(--muted);font-style:italic">No items. Use Drawings tab and push items here, or add a blank row.</td></tr>`;
   } else {
     body.innerHTML=sheet.rows.map((row,i)=>{
       const c=calcR(row);
       return`<tr>
         <td class="rn">${i+1}</td>
-        <td style="font-size:12px;font-weight:500">${esc(row.code||'')}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)" title="${esc(row.description||'')}">${esc(row.description||'–')}</td>
+        <td style="font-size:11px;font-weight:600;color:var(--text)">${esc(row.code||'')}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)" title="${esc(row.description||'')}">${esc(row.description||'-')}</td>
         <td><span class="ubadge">${esc(row.unit||'')}</span></td>
         <td><input class="qi" type="number" value="${row.qty||''}" oninput="updQ(${i},this.value)"/></td>
-        <td class="num">${row.mat_unit?fmtM(row.mat_unit,4):''}</td>
+        <td class="num">${row.mat_unit?fmtM(parseFloat(row.mat_unit),4):''}</td>
         <td class="num">${row.qty?fmtM(c.mat):''}</td>
-        <td class="num">${row.labour_unit?row.labour_unit.toFixed(4):''}</td>
+        <td class="num">${row.labour_unit?parseFloat(row.labour_unit).toFixed(4):''}</td>
         <td class="num">${row.qty?fmtM(c.lab):''}</td>
         <td><input class="ni" type="text" value="${esc(row.notes||'')}" oninput="updN(${i},this.value)" placeholder="notes"/></td>
-        <td><button class="dbtn" onclick="delR(${i})">✕</button></td>
+        <td><button class="dbtn" onclick="delR(${i})">x</button></td>
       </tr>`;
     }).join('');
   }
   const t=shTot(sheet);
-  document.getElementById('totbar').innerHTML=`
+  $('totbar').innerHTML=`
     <div class="metric"><label>Raw mat</label><div class="val">${fmtM(t.rawMat)}</div></div>
     <div class="metric"><label>Labour</label><div class="val">${fmtM(t.rawLab)}</div></div>
     <div class="metric"><label>Lab hrs</label><div class="val amber">${fmtH(t.labHrs)}</div></div>
@@ -1120,28 +1331,32 @@ function renderTO(){
     <div class="metric"><label>Total w/tax</label><div class="val green">${fmtM(t.total)}</div></div>`;
 }
 function switchSheet(i){activeSheet=i;renderTO();}
-function addSheet(){sheets.push({id:nextSheetId++,name:'Sheet '+nextSheetId,rows:[]});activeSheet=sheets.length-1;renderTO();}
-function clearSheet(){if(!confirm('Clear sheet?')) return;sheets[activeSheet].rows=[];renderTO();}
+function addSheet(){sheets.push({id:nextSid++,name:'Sheet '+nextSid,rows:[]});activeSheet=sheets.length-1;renderTO();}
+function clearSheet(){if(!confirm('Clear this sheet?'))return;sheets[activeSheet].rows=[];renderTO();}
+function addBlankRowTO(){sheets[activeSheet].rows.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:'',notes:'',category:''});renderTO();}
 function updQ(i,v){sheets[activeSheet].rows[i].qty=v;renderTO();}
 function updN(i,v){sheets[activeSheet].rows[i].notes=v;}
 function delR(i){sheets[activeSheet].rows.splice(i,1);renderTO();}
 
 // ── Drag & drop ──
-function dov(e){e.preventDefault();document.getElementById('uz').classList.add('drag');}
-function dol(){document.getElementById('uz').classList.remove('drag');}
+function dov(e){e.preventDefault();$('uz').classList.add('drag');}
+function dol(){$('uz').classList.remove('drag');}
 function dod(e){e.preventDefault();dol();const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')loadPDF(f);}
 
-// ── Close dropdowns on outside click ──
+// ── Close lib search on outside click ──
 document.addEventListener('click',e=>{
-  if(!e.target.closest('.lsw')) document.getElementById('lsr').style.display='none';
+  if(!e.target.closest('.lsw'))$('lsr').style.display='none';
 });
 
 // ── Toast ──
 function toast(msg){
-  const t=document.getElementById('toast');
+  const t=$('toast');
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
 }
+
+// init
+renderTO();
 </script>
 </body>
 </html>
