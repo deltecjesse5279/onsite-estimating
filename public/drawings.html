@@ -875,11 +875,18 @@ function focusScale(){
 function recalcAllMeasurements(){
   const sc=getScale();
   if(!sc) return;
+  const oc=$('oc');
   groups.forEach(grp=>{
     grp.items.forEach(it=>{
-      if(it.type==='linear'&&it.pxDist!=null){
-        it.value=it.pxDist/sc;
-        it.unit=scaleUnit;
+      if(it.type==='linear'){
+        // support both old pxDist and new normPxD
+        let pxD=null;
+        if(it.normPxD!=null) pxD=it.normPxD*oc.width;
+        else if(it.pxDist!=null) pxD=it.pxDist;
+        if(pxD!=null){
+          it.value=pxD/sc;
+          it.unit=scaleUnit;
+        }
       }
     });
   });
@@ -903,7 +910,8 @@ function beginCalPick(){
   toast('Click two points on the drawing');
 }
 function finishCal(){
-  const pxD=d2(calPts[0],calPts[1]);
+  const c0=toCanvas(calPts[0]), c1=toCanvas(calPts[1]);
+  const pxD=d2(c0,c1);
   const realVal=parseFloat($('cs-real').value)||10;
   const realUnit=$('cs-real-unit').value||'ft';
   let realFt=realVal;
@@ -973,13 +981,21 @@ function setActiveGroup(gi){
   activeGrpIdx=gi;
 }
 
-// ─── Canvas coordinate helper ───
-// Returns point in canvas space (pixels at current zoom)
+// ─── Canvas coordinate helpers ───
+// Store ALL points as normalised fractions (0-1) relative to canvas size.
+// This means zoom changes never corrupt stored markups.
 function getCvPt(e){
   const oc=$('oc');
   const rect=oc.getBoundingClientRect();
-  return{x:e.clientX-rect.left, y:e.clientY-rect.top};
+  return{x:(e.clientX-rect.left)/oc.width, y:(e.clientY-rect.top)/oc.height};
 }
+// Convert a normalised point to canvas pixels for drawing
+function toCanvas(p){
+  const oc=$('oc');
+  return{x:p.x*oc.width, y:p.y*oc.height};
+}
+// Convert array of norm pts to canvas pts
+function toCvArr(pts){ return pts.map(toCanvas); }
 
 // ─── Mouse events ───
 function cvd(e){
@@ -1035,8 +1051,10 @@ function cvm(e){
   if(activeTool==='measure'&&isDrawing&&curPts.length){
     const sc=getScale();
     if(sc){
-      const seg=d2(curPts[curPts.length-1],pt);
-      const runTotal=totD(curPts)+seg;
+      const cvCur=toCvArr(curPts);
+      const cvPt=toCanvas(pt);
+      const seg=d2(cvCur[cvCur.length-1],cvPt);
+      const runTotal=totD(cvCur)+seg;
       tip.style.display='block';
       tip.style.left=(e.clientX+14)+'px';
       tip.style.top=(e.clientY-6)+'px';
@@ -1097,12 +1115,15 @@ document.addEventListener('keydown',e=>{
 function finishMeasure(){
   if(!curPts.length) return;
   const sc=getScale();
-  const pxD=totD(curPts);
+  const cvPts=toCvArr(curPts);
+  const pxD=totD(cvPts);
   const val=sc?pxD/sc:pxD;
   const unit=sc?scaleUnit:'px';
   const grp=groups[activeGrpIdx];
-  // store pxDist so we can recalculate if scale changes
-  grp.items.push({type:'linear',value:val,unit,pts:[...curPts],page:curPage,pxDist:pxD});
+  // store normalised pts; store pxDist as fraction of canvas width so recalc works across zooms
+  const oc=$('oc');
+  const normPxD=pxD/oc.width; // store as fraction of canvas width at render scale
+  grp.items.push({type:'linear',value:val,unit,pts:[...curPts],page:curPage,normPxD});
   isDrawing=false; curPts=[];
   $('ltip').style.display='none';
   renderGroups();
@@ -1258,20 +1279,24 @@ function redraw(livePt){
     if(hiddenGroups.has(grp.id)) return;
     const isActive=gi===activeGrpIdx;
     grp.items.filter(it=>it.page===curPage).forEach(it=>{
-      if(it.type==='linear') drawLine(ctx,it.pts,grp.color,fmtDist(it.value,it.unit),false,isActive);
-      if(it.type==='count') drawDots(ctx,it.pts,grp.color,isActive);
+      const cvPts=toCvArr(it.pts);
+      if(it.type==='linear') drawLine(ctx,cvPts,grp.color,fmtDist(it.value,it.unit),false,isActive);
+      if(it.type==='count') drawDots(ctx,cvPts,grp.color,isActive);
     });
   });
 
   if(activeTool==='measure'&&isDrawing&&curPts.length){
-    drawLine(ctx,livePt?[...curPts,livePt]:curPts,'#b87a10',null,true,true);
+    const cvCur=toCvArr(curPts);
+    const cvLive=livePt?toCanvas(livePt):null;
+    drawLine(ctx,cvLive?[...cvCur,cvLive]:cvCur,'#b87a10',null,true,true);
   }
   if(activeTool==='cal'){
     ctx.fillStyle='#b87a10';
-    calPts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();});
+    calPts.forEach(p=>{const c=toCanvas(p);ctx.beginPath();ctx.arc(c.x,c.y,5,0,Math.PI*2);ctx.fill();});
     if(calPts.length===1&&livePt){
+      const c0=toCanvas(calPts[0]),lv=toCanvas(livePt);
       ctx.strokeStyle='#b87a10';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.moveTo(calPts[0].x,calPts[0].y);ctx.lineTo(livePt.x,livePt.y);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(c0.x,c0.y);ctx.lineTo(lv.x,lv.y);ctx.stroke();
       ctx.setLineDash([]);
     }
   }
