@@ -232,7 +232,8 @@ tr:hover .dbtn{opacity:1}
 .ltip{position:fixed;background:#1a1a18;color:#fff;font-size:11px;padding:3px 8px;border-radius:4px;pointer-events:none;z-index:400;display:none;white-space:nowrap}
 
 /* no-scale warning */
-.scale-warn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--amber);border-radius:var(--radius);padding:16px 20px;text-align:center;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none}
+.cv-wrap.tool-select{cursor:default}
+.cv-wrap.tool-select canvas{cursor:default};background:#fff;border:1px solid var(--amber);border-radius:var(--radius);padding:16px 20px;text-align:center;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none}
 .scale-warn.show{display:block}
 .scale-warn p{font-size:13px;color:var(--text);margin-bottom:10px}
 
@@ -257,6 +258,7 @@ tr:hover .dbtn{opacity:1}
   </div>
   <div class="topbar-right">
     <div class="proj-badge" id="proj-badge">No estimate linked</div>
+    <button class="btn" onclick="newEstimateFromDrawings()">+ New Estimate</button>
     <button class="btn" onclick="showLinkModal()">Link Estimate</button>
     <button class="btn success" onclick="saveLinked()">Save</button>
   </div>
@@ -306,26 +308,50 @@ tr:hover .dbtn{opacity:1}
     <!-- toolbar -->
     <div class="draw-toolbar">
       <button class="tbtn active" id="tbtn-pan" onclick="setTool('pan')">Pan</button>
-      <button class="tbtn" id="tbtn-measure" onclick="setTool('measure')">Measure</button>
-      <button class="tbtn" id="tbtn-count" onclick="setTool('count')">Count</button>
+      <button class="tbtn" id="tbtn-select" onclick="setTool('select')">Select</button>
       <div class="tsep"></div>
       <span style="font-size:10px;color:var(--muted);white-space:nowrap;flex-shrink:0">Scale:</span>
       <select class="tsel" id="scale-sel" onchange="onScaleSel()">
-        <option value="">-- select --</option>
-        <option value="0.125">1/8" = 1'</option>
-        <option value="0.1875">3/16" = 1'</option>
-        <option value="0.25">1/4" = 1'</option>
-        <option value="0.375">3/8" = 1'</option>
-        <option value="0.5">1/2" = 1'</option>
-        <option value="0.75">3/4" = 1'</option>
-        <option value="1.0">1" = 1'</option>
-        <option value="1.5">1-1/2" = 1'</option>
-        <option value="3.0">3" = 1'</option>
-        <option value="m100">1:100 (m)</option>
-        <option value="m50">1:50 (m)</option>
-        <option value="m200">1:200 (m)</option>
-        <option value="custom">Custom...</option>
-        <option value="cal">Calibrate (2-pt)</option>
+        <option value="">-- scale --</option>
+        <optgroup label="Imperial – Architectural">
+          <option value="0.0625">1/16" = 1'</option>
+          <option value="0.09375">3/32" = 1'</option>
+          <option value="0.125">1/8" = 1'</option>
+          <option value="0.1875">3/16" = 1'</option>
+          <option value="0.25">1/4" = 1'</option>
+          <option value="0.375">3/8" = 1'</option>
+          <option value="0.5">1/2" = 1'</option>
+          <option value="0.75">3/4" = 1'</option>
+          <option value="1.0">1" = 1'</option>
+          <option value="1.5">1-1/2" = 1'</option>
+          <option value="3.0">3" = 1'</option>
+        </optgroup>
+        <optgroup label="Imperial – Engineering">
+          <option value="e10">1" = 10'</option>
+          <option value="e20">1" = 20'</option>
+          <option value="e30">1" = 30'</option>
+          <option value="e40">1" = 40'</option>
+          <option value="e50">1" = 50'</option>
+          <option value="e60">1" = 60'</option>
+          <option value="e100">1" = 100'</option>
+        </optgroup>
+        <optgroup label="Metric">
+          <option value="m10">1:10</option>
+          <option value="m20">1:20</option>
+          <option value="m25">1:25</option>
+          <option value="m50">1:50</option>
+          <option value="m75">1:75</option>
+          <option value="m100">1:100</option>
+          <option value="m125">1:125</option>
+          <option value="m200">1:200</option>
+          <option value="m250">1:250</option>
+          <option value="m500">1:500</option>
+          <option value="m1000">1:1000</option>
+        </optgroup>
+        <optgroup label="Custom">
+          <option value="custom">Custom (x = y)...</option>
+          <option value="cal">Calibrate (2-point)</option>
+        </optgroup>
       </select>
       <!-- custom scale -->
       <div class="cscale-row" id="cscale-row">
@@ -488,15 +514,18 @@ tr:hover .dbtn{opacity:1}
 </div>
 
 <div class="mo" id="push-mo" style="display:none" onclick="if(event.target===this)closeMo('push-mo')">
-  <div class="md">
+  <div class="md" style="max-width:480px;width:95%">
     <h3>Push to Estimate</h3>
-    <label>Target sheet</label>
-    <select id="push-sheet"></select>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Each group below will be pushed as a sheet row into the target estimate sheet. Review before confirming.</p>
     <label>Drawing reference</label>
     <input id="push-ref" type="text" placeholder="e.g. E1.0"/>
+    <label style="margin-top:8px;display:block">Target sheet</label>
+    <select id="push-sheet"></select>
+    <label style="margin-top:10px;display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Items to push</label>
+    <div id="push-review" style="margin-top:6px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
     <div class="md-act">
       <button class="btn" onclick="closeMo('push-mo')">Cancel</button>
-      <button class="btn primary" onclick="confirmPush()">Push</button>
+      <button class="btn primary" onclick="confirmPush()">Push to Estimate</button>
     </div>
   </div>
 </div>
@@ -613,8 +642,19 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 // ─── Constants ───
 const PDF_RS = 1.5;           // PDF.js render scale factor
 const PAN_THRESHOLD = 5;      // px movement before treating as pan vs click
-const GRP_COLORS = ['#2d6b1f','#1a4f8a','#b87a10','#a32d2d','#5a3d8a','#1a6b5a','#7a4510','#1a7a7a','#6b1a5a','#3a5a1a'];
-const ALL_COLORS  = ['#2d6b1f','#1a4f8a','#b87a10','#a32d2d','#5a3d8a','#1a6b5a','#7a4510','#1a7a7a','#6b1a5a','#3a5a1a','#444','#888','#c47f00','#007a7a','#7a0000'];
+const GRP_COLORS = ['#2d6b1f','#1a4f8a','#b87a10','#a32d2d','#5a3d8a','#1a6b5a','#7a4510','#1a7a7a','#6b1a5a','#3a5a1a','#c47f00','#007a7a','#c44000','#005a8a','#7a003a'];
+const ALL_COLORS  = [
+  // Greens
+  '#2d6b1f','#3a8a28','#5aaa40','#a3d47a','#1a6b5a','#2a8a6a',
+  // Blues
+  '#1a4f8a','#1a6aaa','#3a8acf','#005a8a','#1a7a7a','#007a7a',
+  // Ambers / Oranges
+  '#b87a10','#c47f00','#c44000','#e05a00','#7a4510','#a05020',
+  // Reds / Purples
+  '#a32d2d','#c43a3a','#7a003a','#5a3d8a','#6b1a5a','#8a3a8a',
+  // Neutrals
+  '#3a5a1a','#444','#666','#888'
+];
 
 // ─── State ───
 let pdfDoc=null, curPage=1, pdfFilename='';
@@ -631,6 +671,9 @@ let gci=0;
 
 // canvas drawing state
 let isDrawing=false, curPts=[], calPts=[];
+// select tool state: {gi, ii, ptIdx} or null
+let selectedMarker=null;
+let _selectDragging=false, _selectDragStart=null;
 
 // intent detection (pan vs click)
 let mousedownPos=null, mousedownScroll=null, intentDecided=false, isPanning=false;
@@ -784,33 +827,44 @@ function fitPage(){
   });
 }
 
-// Scroll-to-zoom at mouse cursor — pure re-render, no CSS transforms
+// Smooth scroll-to-zoom — accumulate delta, throttle renders
+let _zoomTarget=null, _zoomRAF=null, _zoomMx=0, _zoomMy=0;
 function cvwh(e){
   e.preventDefault();
   const wrap=$('cvw');
   const rect=wrap.getBoundingClientRect();
-  // point under mouse in document coords (relative to spacer)
-  const mx=e.clientX-rect.left+wrap.scrollLeft;
-  const my=e.clientY-rect.top+wrap.scrollTop;
-  const oldZoom=zoom;
-  zoom=Math.max(0.1,Math.min(6,zoom+(e.deltaY<0?0.1:-0.1)));
-  const ratio=zoom/oldZoom;
-  if(pdfDoc){
+  // anchor point under mouse in document coords
+  _zoomMx=e.clientX-rect.left+wrap.scrollLeft;
+  _zoomMy=e.clientY-rect.top+wrap.scrollTop;
+  // accumulate zoom target
+  const delta=e.deltaY<0?0.12:-0.12;
+  if(_zoomTarget===null) _zoomTarget=zoom;
+  _zoomTarget=Math.max(0.1,Math.min(6,_zoomTarget+delta));
+  $('zdsp').textContent=Math.round(_zoomTarget*100)+'%';
+  if(_zoomRAF) return; // already scheduled
+  _zoomRAF=requestAnimationFrame(()=>{
+    _zoomRAF=null;
+    if(!pdfDoc||_zoomTarget===null) return;
+    const oldZoom=zoom;
+    zoom=_zoomTarget;
+    _zoomTarget=null;
+    const ratio=zoom/oldZoom;
+    const wrap2=$('cvw');
     renderPage(curPage).then(()=>{
-      wrap.scrollLeft=mx*ratio-(e.clientX-rect.left);
-      wrap.scrollTop=my*ratio-(e.clientY-rect.top);
+      wrap2.scrollLeft=_zoomMx*ratio-(e.clientX-wrap2.getBoundingClientRect().left);
+      wrap2.scrollTop=_zoomMy*ratio-(e.clientY-wrap2.getBoundingClientRect().top);
     });
-  }
-  $('zdsp').textContent=Math.round(zoom*100)+'%';
+  });
 }
 
 // ─── Tools ───
 function setTool(t, silent){
   activeTool=t;
-  ['pan','measure','count'].forEach(n=>$('tbtn-'+n)?.classList.toggle('active',n===t));
+  ['pan','select'].forEach(n=>$('tbtn-'+n)?.classList.toggle('active',n===t));
   const wrap=$('cvw');
-  wrap.className='cv-wrap'+(t==='measure'?' tool-measure':t==='count'?' tool-count':t==='cal'?' tool-cal':'');
+  wrap.className='cv-wrap'+(t==='measure'?' tool-measure':t==='count'?' tool-count':t==='cal'?' tool-cal':t==='select'?' tool-select':'');
   curPts=[]; isDrawing=false;
+  selectedMarker=null;
   if(!silent) redraw();
 }
 
@@ -826,10 +880,14 @@ function onScaleSel(){
     const ratio=parseInt(v.slice(1));
     inPerFt=12/ratio;
     scaleLabel='1:'+ratio;
+  } else if(v.startsWith('e')){
+    const feetPerInch=parseInt(v.slice(1));
+    inPerFt=1/feetPerInch;
+    scaleLabel='1\"='+feetPerInch+"'";
   } else {
     inPerFt=parseFloat(v);
-    const lbl={'0.125':'1/8"=1\'','0.1875':'3/16"=1\'','0.25':'1/4"=1\'','0.375':'3/8"=1\'','0.5':'1/2"=1\'','0.75':'3/4"=1\'','1.0':'1"=1\'','1.5':'1-1/2"=1\'','3.0':'3"=1\''};
-    scaleLabel=lbl[String(inPerFt)]||inPerFt+'"=1\'';
+    const lbl={'0.0625':"1/16\"=1'",'0.09375':"3/32\"=1'",'0.125':"1/8\"=1'",'0.1875':"3/16\"=1'",'0.25':"1/4\"=1'",'0.375':"3/8\"=1'",'0.5':"1/2\"=1'",'0.75':"3/4\"=1'",'1.0':"1\"=1'",'1.5':"1-1/2\"=1'",'3.0':"3\"=1'"};
+    scaleLabel=lbl[String(inPerFt)]||inPerFt+'\"=1\'';
   }
   scaleRaw=inPerFt*72;
   scaleUnit='ft';
@@ -997,10 +1055,31 @@ function toCanvas(p){
 // Convert array of norm pts to canvas pts
 function toCvArr(pts){ return pts.map(toCanvas); }
 
+// Hit test: find a marker (count dot or line endpoint) near canvas point {x,y}
+// Returns {gi, ii, ptIdx} or null. HIT_R in canvas pixels.
+const HIT_R = 14;
+function hitTest(cvPt){
+  for(let gi=groups.length-1;gi>=0;gi--){
+    if(hiddenGroups.has(groups[gi].id)) continue;
+    const grp=groups[gi];
+    const items=grp.items.filter(it=>it.page===curPage);
+    for(let ii=0;ii<items.length;ii++){
+      const it=items[ii];
+      // find original index in grp.items
+      const origIdx=grp.items.indexOf(it);
+      const cvPts=toCvArr(it.pts);
+      for(let pi=0;pi<cvPts.length;pi++){
+        const dx=cvPts[pi].x-cvPt.x, dy=cvPts[pi].y-cvPt.y;
+        if(Math.sqrt(dx*dx+dy*dy)<=HIT_R) return{gi,ii:origIdx,ptIdx:pi};
+      }
+    }
+  }
+  return null;
+}
+
 // ─── Mouse events ───
 function cvd(e){
   if(!pdfDoc||e.button!==0) return;
-  // record where mouse went down for intent detection
   mousedownPos={x:e.clientX,y:e.clientY};
   mousedownScroll={x:$('cvw').scrollLeft,y:$('cvw').scrollTop};
   intentDecided=false;
@@ -1013,12 +1092,43 @@ function cvd(e){
     redraw();
     return;
   }
-  // pan tool — always pan immediately
   if(activeTool==='pan'){
     isPanning=true; intentDecided=true;
     $('cvw').style.cursor='grabbing';
+    return;
   }
-  // count/measure: wait for mousemove to determine intent
+  if(activeTool==='select'){
+    const pt=getCvPt(e);
+    const cvPt=toCanvas(pt);
+    // check if clicking the × delete badge on selected marker
+    if(selectedMarker){
+      const {gi,ii,ptIdx}=selectedMarker;
+      const grp=groups[gi];
+      const it=grp&&grp.items[ii];
+      if(it&&it.page===curPage&&it.pts[ptIdx]){
+        const cp=toCanvas(it.pts[ptIdx]);
+        const bdx=cvPt.x-(cp.x+9), bdy=cvPt.y-(cp.y-9);
+        if(Math.sqrt(bdx*bdx+bdy*bdy)<=9){
+          // delete this point
+          deleteMarkerPoint(gi,ii,ptIdx);
+          return;
+        }
+      }
+    }
+    const hit=hitTest(cvPt);
+    if(hit){
+      selectedMarker=hit;
+      _selectDragging=true;
+      _selectDragStart=pt;
+      intentDecided=true;
+      redraw();
+    } else {
+      selectedMarker=null;
+      redraw();
+    }
+    return;
+  }
+  // count/measure: wait for mousemove
 }
 
 function cvm(e){
@@ -1026,19 +1136,38 @@ function cvm(e){
   const pt=getCvPt(e);
   const tip=$('ltip');
 
-  // resolve intent if not decided
+  // select tool drag-to-move
+  if(activeTool==='select'&&_selectDragging&&selectedMarker){
+    const {gi,ii,ptIdx}=selectedMarker;
+    const grp=groups[gi];
+    const it=grp&&grp.items[ii];
+    if(it&&it.pts[ptIdx]){
+      it.pts[ptIdx]=pt; // update normalised position
+      // if linear, recalc distance
+      if(it.type==='linear'){
+        const sc=getScale();
+        const oc=$('oc');
+        const cvPts=toCvArr(it.pts);
+        const pxD=totD(cvPts);
+        it.normPxD=pxD/oc.width;
+        if(sc){it.value=pxD/sc;it.unit=scaleUnit;}
+      }
+      redraw();
+    }
+    return;
+  }
+
+  // resolve pan intent
   if(mousedownPos&&!intentDecided){
     const dx=e.clientX-mousedownPos.x;
     const dy=e.clientY-mousedownPos.y;
-    const moved=Math.sqrt(dx*dx+dy*dy);
-    if(moved>PAN_THRESHOLD){
+    if(Math.sqrt(dx*dx+dy*dy)>PAN_THRESHOLD){
       intentDecided=true;
       isPanning=true;
       $('cvw').style.cursor='grabbing';
     }
   }
 
-  // execute pan
   if(isPanning&&mousedownPos){
     const dx=e.clientX-mousedownPos.x;
     const dy=e.clientY-mousedownPos.y;
@@ -1069,12 +1198,18 @@ function cvm(e){
 function cvu(e){
   if(!pdfDoc||e.button!==0) return;
   $('cvw').style.cursor='';
-  if(activeTool==='pan'||activeTool==='cal'){mousedownPos=null;return;}
 
-  // if we panned, don't register a point
+  if(activeTool==='select'){
+    if(_selectDragging) renderGroups();
+    _selectDragging=false;
+    _selectDragStart=null;
+    mousedownPos=null;
+    return;
+  }
+
+  if(activeTool==='pan'||activeTool==='cal'){mousedownPos=null;return;}
   if(isPanning){mousedownPos=null;return;}
 
-  // click intent — register point
   const pt=getCvPt(e);
   if(activeTool==='count'){
     if(activeGrpIdx===null){toast('Select or add an item first');mousedownPos=null;return;}
@@ -1100,6 +1235,7 @@ function cvdb(e){
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(isDrawing){isDrawing=false;curPts=[];redraw();}
+    selectedMarker=null; _selectDragging=false;
     setTool('pan');
     activeGrpIdx=null;
     renderGroups();
@@ -1176,6 +1312,7 @@ function renderGroups(){
         <span class="tog-cnt">${tot.display}</span>
         <button class="tog-vis" onclick="toggleVis(${gi},event)" title="${isHidden?'Show':'Hide'}">${eyeIcon}</button>
         <input type="checkbox" class="tog-chk" ${grp.checked?'checked':''} onclick="toggleCheck(${gi},event)" title="Select for grouping"/>
+        <button class="tog-vis" onclick="deleteGroup(${gi},event)" title="Delete group" style="color:var(--danger);opacity:.5">&#10005;</button>
       </div>
       <div class="tog-body open" id="body-${gi}">${rows||emptyRow}</div>
     </div>`;
@@ -1225,6 +1362,40 @@ function toggleCheck(gi,e){
 function delItem(gi,ii,e){
   e.stopPropagation();
   groups[gi].items.splice(ii,1);
+  renderGroups(); updateThumbMarkers(); redraw();
+}
+
+function deleteGroup(gi,e){
+  e.stopPropagation();
+  groups.splice(gi,1);
+  if(activeGrpIdx>=groups.length) activeGrpIdx=groups.length-1;
+  if(activeGrpIdx<0) activeGrpIdx=null;
+  renderGroups(); updateThumbMarkers(); redraw();
+}
+
+function deleteMarkerPoint(gi,ii,ptIdx){
+  const grp=groups[gi];
+  const it=grp&&grp.items[ii];
+  if(!it) return;
+  if(it.type==='count'){
+    it.pts.splice(ptIdx,1);
+    it.value=it.pts.length;
+    if(!it.pts.length) grp.items.splice(ii,1);
+  } else if(it.type==='linear'){
+    it.pts.splice(ptIdx,1);
+    if(it.pts.length<1){
+      grp.items.splice(ii,1);
+    } else {
+      // recalc distance
+      const sc=getScale();
+      const oc=$('oc');
+      const cvPts=toCvArr(it.pts);
+      const pxD=totD(cvPts);
+      it.normPxD=pxD/oc.width;
+      if(sc){it.value=pxD/sc;it.unit=scaleUnit;}
+    }
+  }
+  selectedMarker=null;
   renderGroups(); updateThumbMarkers(); redraw();
 }
 
@@ -1298,6 +1469,30 @@ function redraw(livePt){
       ctx.strokeStyle='#b87a10';ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
       ctx.beginPath();ctx.moveTo(c0.x,c0.y);ctx.lineTo(lv.x,lv.y);ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  // Highlight selected marker
+  if(selectedMarker){
+    const {gi,ii,ptIdx}=selectedMarker;
+    const grp=groups[gi];
+    if(grp){
+      const it=grp.items[ii];
+      if(it&&it.page===curPage&&it.pts[ptIdx]){
+        const cp=toCanvas(it.pts[ptIdx]);
+        ctx.save();
+        ctx.strokeStyle='#fff'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(cp.x,cp.y,11,0,Math.PI*2); ctx.stroke();
+        ctx.strokeStyle=grp.color; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(cp.x,cp.y,11,0,Math.PI*2); ctx.stroke();
+        // delete hint
+        ctx.fillStyle='#fff'; ctx.strokeStyle=grp.color; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(cp.x+9,cp.y-9,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle=grp.color; ctx.font='bold 10px sans-serif';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('×',cp.x+9,cp.y-9);
+        ctx.restore();
+      }
     }
   }
 }
@@ -1400,6 +1595,17 @@ function openPush(){
   if(!linked) return;
   const sel=$('push-sheet');
   sel.innerHTML=(linked.sheets||[]).map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join('');
+  // Build review list
+  const pushable=groups.filter(g=>g.items.length>0);
+  const ref=$('push-ref').value.trim()||pdfFilename||'Drawing';
+  $('push-review').innerHTML=pushable.length?pushable.map(grp=>{
+    const tot=grpTot(grp);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border)">
+      <span style="width:10px;height:10px;border-radius:50%;background:${grp.color};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;font-weight:500">${esc(grp.name)}</span>
+      <span style="color:var(--muted)">${tot.display}</span>
+    </div>`;
+  }).join(''):'<div style="padding:10px;color:var(--muted);font-style:italic">No items to push</div>';
   $('push-mo').style.display='flex';
 }
 
@@ -1409,7 +1615,10 @@ async function confirmPush(){
   const sheet=linked.sheets[idx];
   if(!sheet){toast('Invalid sheet');return;}
 
-  groups.filter(g=>g.items.length>0).forEach(grp=>{
+  const pushable=groups.filter(g=>g.items.length>0);
+  if(!pushable.length){toast('No items to push');return;}
+
+  pushable.forEach(grp=>{
     const lib=grp.lib;
     const tot=grpTot(grp);
     let qty=tot.qty;
@@ -1433,8 +1642,34 @@ async function confirmPush(){
     await r.json();
     sheets=JSON.parse(JSON.stringify(linked.sheets));
     closeMo('push-mo');
-    toast('Pushed to '+sheet.name+' in Estimates');
+    toast(`Pushed ${pushable.length} item${pushable.length!==1?'s':''} to ${sheet.name}`);
   }catch(err){toast('Push failed: '+err.message);}
+}
+
+async function newEstimateFromDrawings(){
+  const name = $('pf-name').value.trim() || 'New Estimate';
+  const client = $('pf-client').value.trim();
+  const estimateNum = $('pf-num').value.trim();
+  const newEst = {
+    name, client, estimateNum,
+    sheets:[{id:1,name:'Sheet 1',rows:[]}],
+    settings:{jm:115,matMkp:10,oh:15,profit:10,cont:0,gst:5,pst:7},
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+  try{
+    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newEst)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const saved=await r.json();
+    linked=saved;
+    sheets=JSON.parse(JSON.stringify(saved.sheets));
+    activeSheet=0;
+    const b=$('proj-badge');
+    b.textContent=linked.name;
+    b.className='proj-badge linked';
+    updatePushBtn();
+    toast('Created & linked: '+linked.name);
+  }catch(err){toast('Could not create estimate: '+err.message);}
 }
 
 async function saveLinked(){
@@ -1493,7 +1728,7 @@ function renderTO(){
         <td class="num">${row.qty?fmtM(c.mat):''}</td>
         <td class="num">${row.labour_unit?parseFloat(row.labour_unit).toFixed(4):''}</td>
         <td class="num">${row.qty?fmtM(c.lab):''}</td>
-        <td><input class="ni" type="text" value="${esc(row.notes||'')}" oninput="updN(${i},this.value)" placeholder="drawing ref"/></td>
+        <td><input class="ni" type="text" value="${esc(row.notes||pdfFilename||'')}" oninput="updN(${i},this.value)" placeholder="drawing ref"/></td>
         <td><button class="dbtn" onclick="delR(${i})">x</button></td>
       </tr>`;
     }).join('');
