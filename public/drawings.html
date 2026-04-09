@@ -261,7 +261,7 @@ tr:hover .dbtn{opacity:1}
   <div class="topbar-right">
     <div class="proj-badge" id="proj-badge">No estimate linked</div>
     <button class="btn" onclick="newEstimateFromDrawings()">+ New Estimate</button>
-    <button class="btn" onclick="showLinkModal()">Link Estimate</button>
+    <button class="btn" onclick="showLinkModal()">Open Estimate</button>
     <button class="btn success" onclick="saveLinked()">Save</button>
   </div>
 </div>
@@ -297,6 +297,16 @@ tr:hover .dbtn{opacity:1}
     <div class="grp-action" id="grp-action">
       <span style="font-size:11px;color:var(--muted);flex:1">Assign selected to group:</span>
       <button class="btn sm primary" onclick="createGroup()">+ Group</button>
+    </div>
+
+    <div class="grp-action" id="selpts-bar" style="flex-direction:column;gap:4px">
+      <span id="selpts-label" style="font-size:11px;color:var(--muted)">0 points selected</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn sm" onclick="selPtsDuplicate()">Duplicate</button>
+        <button class="btn sm danger" onclick="selPtsDelete()">Delete</button>
+        <button class="btn sm" onclick="selPtsMove()">Move to...</button>
+        <button class="btn sm" onclick="clearSelPts()">Clear</button>
+      </div>
     </div>
     <div class="push-bar">
       <button class="push-btn" id="push-btn" disabled onclick="openPush()">Push to Estimate</button>
@@ -500,7 +510,7 @@ tr:hover .dbtn{opacity:1}
 <!-- MODALS -->
 <div class="mo" id="link-mo" style="display:none" onclick="if(event.target===this)closeMo('link-mo')">
   <div class="md">
-    <h3>Link Estimate</h3>
+    <h3>Open Estimate</h3>
     <label>Select estimate</label>
     <select id="link-sel"></select>
     <div class="md-act">
@@ -711,6 +721,7 @@ let items=[];          // [{id, name, lib, color, groupId, markups:[{type,pts,va
 let userGroups=[];     // [{id, name, color}]
 let activeItemIdx=null;
 let hiddenItems=new Set();   // item ids
+let collapsedItems=new Set(); // item ids that are body-collapsed
 let gci=0;
 
 // ── Legacy compat shim so hit-test / redraw still works ──
@@ -741,6 +752,8 @@ let activeSheet=0, nextSid=2;
 let colorTargetIdx=null;
 // drag-select marquee state
 let _marqStart=null, _marqRect=null, _marqEl=null;
+// selected count points: [{itemIdx, markupIdx, ptIdx}]
+let _selPts=[];
 
 // ─── Helpers ───
 function $(id){return document.getElementById(id);}
@@ -786,13 +799,21 @@ function loadPDF(file){
   $('push-ref').value = pdfFilename;
   const r=new FileReader();
   r.onload=e=>{
-    pdfjsLib.getDocument({data:e.target.result}).promise.then(pdf=>{
+    const arrBuf=e.target.result;
+    pdfjsLib.getDocument({data:arrBuf}).promise.then(pdf=>{
       pdfDoc=pdf;
       $('cv-empty').style.display='none';
       $('uz').style.display='none';
       buildThumbs();
       renderPage(1);
       toast('Loaded: '+file.name);
+      // 27d: store PDF in sessionStorage for restore on platform switch
+      if(linked&&linked.id){
+        try{
+          const b64=btoa(String.fromCharCode(...new Uint8Array(arrBuf)));
+          sessionStorage.setItem('onsite_pdf_'+linked.id,b64);
+        }catch(e){} // may exceed quota on very large PDFs — silent fail
+      }
     }).catch(e=>toast('PDF error: '+e.message));
   };
   r.readAsArrayBuffer(file);
@@ -1285,20 +1306,34 @@ function cvu(e){
   if(activeTool==='drag-sel'){
     if(_marqEl){_marqEl.remove();_marqEl=null;}
     if(_marqRect&&(_marqRect.w>5||_marqRect.h>5)){
-      // Select items whose markups on current page fall within marquee
       const r=_marqRect;
-      items.forEach((item,idx)=>{
+      _selPts=[];
+      items.forEach((item,itemIdx)=>{
         if(hiddenItems.has(item.id)) return;
-        const inMarq=item.markups.filter(m=>m.page===curPage).some(m=>m.pts.some(p=>{
-          const c=toCanvas(p);
-          return c.x>=r.x&&c.x<=r.x+r.w&&c.y>=r.y&&c.y<=r.y+r.h;
-        }));
-        if(inMarq) item.checked=true;
+        if(item.groupId&&hiddenItems.has(item.groupId+'_group')) return;
+        item.markups.forEach((m,mi)=>{
+          if(m.page!==curPage) return;
+          if(m.type==='count'){
+            m.pts.forEach((p,pi)=>{
+              const c=toCanvas(p);
+              if(c.x>=r.x&&c.x<=r.x+r.w&&c.y>=r.y&&c.y<=r.y+r.h)
+                _selPts.push({itemIdx,markupIdx:mi,ptIdx:pi});
+            });
+          } else if(m.type==='linear'){
+            // for linear: select if any endpoint in marquee
+            const anyIn=m.pts.some(p=>{const c=toCanvas(p);return c.x>=r.x&&c.x<=r.x+r.w&&c.y>=r.y&&c.y<=r.y+r.h;});
+            if(anyIn) _selPts.push({itemIdx,markupIdx:mi,ptIdx:-1,isLinear:true});
+          }
+        });
       });
-      renderGroups();
-      toast('Items in selection checked');
+      if(_selPts.length){
+        redraw();
+        showSelPtsBar();
+        toast(_selPts.length+' point'+(_selPts.length!==1?'s':'')+' selected');
+      }
     }
     _marqStart=null; _marqRect=null;
+    setTool('select');
     mousedownPos=null; return;
   }
   if(activeTool==='pan'||activeTool==='cal'){mousedownPos=null;return;}
@@ -1330,6 +1365,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(isDrawing){isDrawing=false;curPts=[];redraw();}
     selectedMarker=null; _selectDragging=false;
+    if(_selPts.length){_selPts=[];$('selpts-bar').style.display='none';redraw();}
     setTool('pan');
     activeItemIdx=null;
     renderGroups();
@@ -1400,7 +1436,7 @@ function renderGroups(){
     const totalMarkups=ugItems.reduce((s,it)=>s+it.markups.filter(m=>m.page===curPage).length,0);
     html+=`<div class="tog" id="ug-${ug.id}">
       <div class="tog-hdr" onclick="toggleUGCollapse('${ug.id}')">
-        <span class="tog-arr open" id="ugarr-${ug.id}">&#9654;</span>
+        <span class="tog-arr${_collapsedGroups.has(ug.id)?'':' open'}" id="ugarr-${ug.id}">&#9654;</span>
         <span class="tog-swatch" style="background:${ug.color}"></span>
         <span class="tog-name">${esc(ug.name)}</span>
         <span class="tog-cnt">${ugItems.length} item${ugItems.length!==1?'s':''}</span>
@@ -1408,7 +1444,7 @@ function renderGroups(){
         <button class="tog-vis" onclick="event.stopPropagation();renameUserGroup('${ug.id}')" title="Rename group" style="opacity:.7">&#9998;</button>
         <button class="tog-vis" onclick="event.stopPropagation();deleteUserGroup('${ug.id}')" title="Delete group" style="color:var(--danger);opacity:.6">&#10005;</button>
       </div>
-      <div class="tog-body open" id="ugbody-${ug.id}">
+      <div class="tog-body${_collapsedGroups.has(ug.id)?'':' open'}" id="ugbody-${ug.id}">
         ${ugItems.length ? ugItems.map(it=>renderItemCard(it, items.indexOf(it))).join('') : '<div style="padding:5px 9px;font-size:11px;color:var(--muted);font-style:italic">No items in group</div>'}
       </div>
     </div>`;
@@ -1423,7 +1459,8 @@ function renderItemCard(it, idx){
   const totalMarkups=it.markups.filter(m=>m.page===curPage).length;
   const allMarkups=it.markups.length;
   const isHidden=hiddenItems.has(it.id);
-  return `<div class="tog${isActive?' active-item':''}">
+  const isCollapsed=collapsedItems.has(it.id);
+  return `<div class="tog${isActive?' active-item':''}" onclick="event.stopPropagation()">
     <div class="tog-hdr${isActive?' selected':''}" onclick="clickItemHdr(${idx},event)">
       <span class="tog-swatch" style="background:${it.color}" onclick="openColorPickerItem(${idx},event)" title="Change color"></span>
       <span class="tog-name" title="${esc(it.name)}">${esc(it.name)}</span>
@@ -1432,7 +1469,7 @@ function renderItemCard(it, idx){
       <button class="tog-vis" onclick="toggleItemVis(${idx},event)" title="${isHidden?'Show':'Hide'}">${isHidden?'&#9651;':'&#9711;'}</button>
       <button class="tog-vis" onclick="deleteItem(${idx},event)" title="Delete item" style="color:var(--danger);opacity:.6">&#10005;</button>
     </div>
-    <div class="tog-body open" id="ibody-${it.id}">
+    <div class="tog-body${isCollapsed?'':' open'}" id="ibody-${it.id}">
       ${it.markups.map((m,mi)=>`
         <div class="toi">
           <span class="toi-dot" style="background:${it.color}"></span>
@@ -1448,14 +1485,20 @@ function renderItemCard(it, idx){
 }
 
 function clickItemHdr(idx,e){
+  e.stopPropagation();
   if(e.target.classList.contains('tog-vis')||e.target.classList.contains('tog-chk')||e.target.classList.contains('tog-swatch')) return;
+  const it=items[idx];
   if(idx===activeItemIdx){
-    const it=items[idx];
-    const body=it?$('ibody-'+it.id):null;
+    // Toggle collapsed state for this item only
+    if(collapsedItems.has(it.id)) collapsedItems.delete(it.id);
+    else collapsedItems.add(it.id);
+    // Direct DOM toggle — no full re-render
+    const body=$('ibody-'+it.id);
     if(body) body.classList.toggle('open');
   } else {
     activeItemIdx=idx;
-    const it=items[idx];
+    // Expand if collapsed, keep others as-is
+    collapsedItems.delete(it.id);
     const isLinear=['ft','m','lf'].includes((it.lib.unit||'').toLowerCase());
     setTool(isLinear?'measure':'count',true);
     renderGroups();
@@ -1491,15 +1534,103 @@ function delMarkup(idx,mi,e){
 }
 
 function toggleUGCollapse(ugId){
-  const body=$('ugbody-'+ugId), arr=$('ugarr-'+ugId);
-  if(body) body.classList.toggle('open');
-  if(arr) arr.classList.toggle('open');
+  if(_collapsedGroups.has(ugId)) _collapsedGroups.delete(ugId);
+  else _collapsedGroups.add(ugId);
+  renderGroups();
 }
 
 function toggleUGVis(ugId){
   const key=ugId+'_group';
   if(hiddenItems.has(key)) hiddenItems.delete(key); else hiddenItems.add(key);
   renderGroups(); redraw();
+}
+
+function showSelPtsBar(){
+  const bar=$('selpts-bar');
+  if(!_selPts.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  $('selpts-label').textContent=_selPts.length+' point'+(_selPts.length!==1?'s':'')+' selected';
+}
+function clearSelPts(){
+  _selPts=[];
+  $('selpts-bar').style.display='none';
+  redraw();
+}
+function selPtsDelete(){
+  // Remove selected points (work backwards to avoid index shift)
+  const sorted=[..._selPts].sort((a,b)=>b.ptIdx-a.ptIdx);
+  sorted.forEach(({itemIdx,markupIdx,ptIdx,isLinear})=>{
+    const item=items[itemIdx];
+    if(!item) return;
+    const m=item.markups[markupIdx];
+    if(!m) return;
+    if(isLinear){
+      item.markups.splice(markupIdx,1);
+    } else {
+      m.pts.splice(ptIdx,1);
+      m.value=m.pts.length;
+      if(!m.pts.length) item.markups.splice(markupIdx,1);
+    }
+  });
+  _selPts=[];
+  $('selpts-bar').style.display='none';
+  renderGroups(); updateThumbMarkers(); redraw();
+  toast('Deleted selected points');
+}
+function selPtsDuplicate(){
+  // Duplicate count points offset slightly
+  const newPts=[];
+  _selPts.forEach(({itemIdx,markupIdx,ptIdx,isLinear})=>{
+    const item=items[itemIdx];
+    if(!item||isLinear) return;
+    const m=item.markups[markupIdx];
+    if(!m) return;
+    const p=m.pts[ptIdx];
+    if(!p) return;
+    newPts.push({itemIdx,pt:{x:p.x+0.01,y:p.y+0.01}});
+  });
+  newPts.forEach(({itemIdx,pt})=>{
+    const item=items[itemIdx];
+    let m=item.markups.find(x=>x.type==='count'&&x.page===curPage);
+    if(m){m.pts.push(pt);m.value=m.pts.length;}
+    else{item.markups.push({type:'count',value:1,unit:item.lib.unit||'ea',pts:[pt],page:curPage});}
+  });
+  _selPts=[];
+  $('selpts-bar').style.display='none';
+  renderGroups(); updateThumbMarkers(); redraw();
+  toast('Duplicated '+newPts.length+' point'+(newPts.length!==1?'s':''));
+}
+function selPtsMove(){
+  if(!_selPts.length) return;
+  const listStr=items.map((it,i)=>i+': '+it.name).join(', ');
+  const name=prompt('Move to item (number or name): '+listStr);
+  if(name===null) return;
+  let targetIdx=parseInt(name);
+  if(isNaN(targetIdx)){
+    targetIdx=items.findIndex(it=>it.name.toLowerCase().includes(name.toLowerCase()));
+  }
+  if(targetIdx<0||targetIdx>=items.length){toast('Item not found');return;}
+  _selPts.forEach(({itemIdx,markupIdx,ptIdx,isLinear})=>{
+    if(isLinear) return;
+    const item=items[itemIdx]; if(!item) return;
+    const m=item.markups[markupIdx]; if(!m) return;
+    const p=m.pts[ptIdx]; if(!p) return;
+    const tgtItem=items[targetIdx];
+    let tm=tgtItem.markups.find(x=>x.type==='count'&&x.page===curPage);
+    if(tm){tm.pts.push({...p});tm.value=tm.pts.length;}
+    else{tgtItem.markups.push({type:'count',value:1,unit:tgtItem.lib.unit||'ea',pts:[{...p}],page:curPage});}
+  });
+  const sorted=[..._selPts].filter(x=>!x.isLinear).sort((a,b)=>b.ptIdx-a.ptIdx);
+  sorted.forEach(({itemIdx,markupIdx,ptIdx})=>{
+    const item=items[itemIdx]; if(!item) return;
+    const m=item.markups[markupIdx]; if(!m) return;
+    m.pts.splice(ptIdx,1); m.value=m.pts.length;
+    if(!m.pts.length) item.markups.splice(markupIdx,1);
+  });
+  _selPts=[];
+  $('selpts-bar').style.display='none';
+  renderGroups(); updateThumbMarkers(); redraw();
+  toast('Points moved');
 }
 
 function renameUserGroup(ugId){
@@ -1619,6 +1750,37 @@ function redraw(livePt){
     }
   }
 
+  // Highlight drag-selected points
+  if(_selPts.length){
+    const oc2=$('oc');
+    const ctx2=oc2.getContext('2d');
+    _selPts.forEach(({itemIdx,markupIdx,ptIdx,isLinear})=>{
+      const item=items[itemIdx]; if(!item) return;
+      const m=item.markups[markupIdx]; if(!m||m.page!==curPage) return;
+      if(isLinear) return;
+      const p=m.pts[ptIdx]; if(!p) return;
+      const c=toCanvas(p);
+      ctx2.save();
+      ctx2.strokeStyle='#1a4f8a'; ctx2.lineWidth=2.5;
+      ctx2.beginPath(); ctx2.arc(c.x,c.y,14,0,Math.PI*2); ctx2.stroke();
+      ctx2.restore();
+    });
+  }
+  // Highlight drag-selected points
+  if(_selectedPts.length){
+    const ctx2=oc.getContext('2d');
+    _selectedPts.forEach(({gi,mi,pi})=>{
+      const item=items[gi];
+      const m=item&&item.markups[mi];
+      if(!m||m.page!==curPage||!m.pts[pi]) return;
+      const cp=toCanvas(m.pts[pi]);
+      ctx2.save();
+      ctx2.strokeStyle='#1a4f8a';ctx2.lineWidth=2.5;
+      ctx2.beginPath();ctx2.arc(cp.x,cp.y,14,0,Math.PI*2);ctx2.stroke();
+      ctx2.restore();
+    });
+  }
+
   // Highlight selected marker
   if(selectedMarker){
     const {gi,ii,ptIdx}=selectedMarker;
@@ -1704,6 +1866,7 @@ async function confirmLink(){
     const b=$('proj-badge');
     b.textContent=linked.name||'Linked';
     b.className='proj-badge linked';
+    sessionStorage.setItem('onsite_linked_id', linked.id);
     $('pf-name').value=linked.name||''; $('d-name').value=linked.name||'';
     $('pf-client').value=linked.client||''; $('d-client').value=linked.client||'';
     $('pf-num').value=linked.estimateNum||''; $('d-enum').value=linked.estimateNum||'';
@@ -1720,6 +1883,7 @@ async function confirmLink(){
       sheets=JSON.parse(JSON.stringify(linked.sheets));
       activeSheet=0;
     }
+    sessionStorage.setItem('onsite_linked_id',linked.id);
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
     updatePushBtn();
     closeMo('link-mo');
@@ -1830,7 +1994,11 @@ async function confirmPush(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     await r.json();
     sheets=JSON.parse(JSON.stringify(linked.sheets));
+    // Auto-delete empty groups after push
+    userGroups=userGroups.filter(ug=>items.some(it=>it.groupId===ug.id));
     // Auto-persist drawings state after push
+    // 16h: remove groups that are now empty
+    userGroups=userGroups.filter(ug=>items.some(it=>it.groupId===ug.id));
     linked.drawingsState=getDrawingsState();
     closeMo('push-mo');
     const warn=ungrouped.length?' (warning: ungrouped items in "Ungrouped" sheet)':'';
@@ -1876,12 +2044,13 @@ async function _doCreateEstimate(name, client, estimateNum){
     const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newEst)});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const saved=await r.json();
-    linked=saved;
-    sheets=JSON.parse(JSON.stringify(saved.sheets));
+    linked={...newEst, id:saved.id, updatedAt:saved.updatedAt};
+    sheets=JSON.parse(JSON.stringify(linked.sheets));
     activeSheet=0;
     const b=$('proj-badge');
     b.textContent=linked.name;
     b.className='proj-badge linked';
+    sessionStorage.setItem('onsite_linked_id', linked.id);
     updatePushBtn();
     toast('Created & linked: '+linked.name);
   }catch(err){toast('Could not create estimate: '+err.message);}
@@ -2010,6 +2179,7 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 
+
 // ─── Export marked-up drawing ───
 function exportDrawing(){
   if(!pdfDoc){toast('No drawing loaded');return;}
@@ -2028,8 +2198,42 @@ function exportDrawing(){
   toast('Exported page '+curPage);
 }
 
+
+
 // init
 renderTO();
+// Auto-open last active estimate
+(async function autoOpenEst(){
+  const id=sessionStorage.getItem('onsite_linked_id');
+  if(!id) return;
+  try{
+    const r=await fetch('/api/estimates/'+id);
+    if(!r.ok) return;
+    linked=await r.json();
+    const b=$('proj-badge');
+    b.textContent=linked.name||'Linked';
+    b.className='proj-badge linked';
+    $('pf-name').value=linked.name||''; $('d-name').value=linked.name||'';
+    $('pf-client').value=linked.client||''; $('d-client').value=linked.client||'';
+    $('pf-num').value=linked.estimateNum||''; $('d-enum').value=linked.estimateNum||'';
+    if(linked.settings){
+      const s=linked.settings;
+      if(s.jm)     $('d-jm').value=s.jm;
+      if(s.matMkp) $('d-matmkp').value=s.matMkp;
+      if(s.oh)     $('d-oh').value=s.oh;
+      if(s.profit) $('d-profit').value=s.profit;
+      if(s.gst)    $('d-gst').value=s.gst;
+      if(s.pst)    $('d-pst').value=s.pst;
+    }
+    if(linked.sheets&&linked.sheets.length){
+      sheets=JSON.parse(JSON.stringify(linked.sheets));
+      activeSheet=0;
+    }
+    sessionStorage.setItem('onsite_linked_id',linked.id);
+    if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
+    updatePushBtn();
+  }catch(e){ /* silent fail */ }
+})();
 </script>
 </body>
 </html>
