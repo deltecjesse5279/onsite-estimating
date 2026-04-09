@@ -2989,6 +2989,7 @@ async function loadEstimate(id){
       $('s-gst').value=d.settings.gst||5;
       $('s-pst').value=d.settings.pst||7;
     }
+    localStorage.setItem('onsite_active_id', d.id);
     hideEstimates();
     renderSheetTabs();
     renderTakeoff();
@@ -3817,6 +3818,65 @@ populateCatDatalist();
 renderSheetTabs();
 renderTakeoff();
 renderSummary();
+
+// Auto-load last active estimate on startup (server-first, works from any machine)
+(async function autoLoadActive(){
+  try{
+    const cachedId = localStorage.getItem('onsite_active_id');
+    let estId = cachedId;
+    if(!estId){
+      const listR = await fetch('/api/estimates');
+      if(!listR.ok) return;
+      const list = await listR.json();
+      if(!list.length) return;
+      estId = list[0].id;
+    }
+    let r = await fetch('/api/estimates/'+estId);
+    if(!r.ok){
+      if(cachedId){
+        const listR = await fetch('/api/estimates');
+        if(!listR.ok) return;
+        const list = await listR.json();
+        if(!list.length) return;
+        r = await fetch('/api/estimates/'+list[0].id);
+        if(!r.ok) return;
+      } else return;
+    }
+    const d = await r.json();
+    $('proj-name').value=d.name||'';
+    $('proj-client').value=d.client||'';
+    $('proj-num').value=d.estimateNum||'';
+    state.sheets=d.sheets||[{id:1,name:'Sheet 1',rows:[]}];
+    state.activeSheet=0;
+    state.nextSheetId=d.nextSheetId||state.sheets.length+1;
+    state.id=d.id;
+    if(d.projectDetails){
+      $('s-address').value=d.projectDetails.address||'';
+      $('s-po').value=d.projectDetails.po||'';
+      $('s-tender').value=d.projectDetails.tender||'';
+      $('s-estimator').value=d.projectDetails.estimator||'';
+      $('s-contact').value=d.projectDetails.contact||'';
+      $('s-contactinfo').value=d.projectDetails.contactinfo||'';
+      $('s-description').value=d.projectDetails.description||'';
+    }
+    if(d.settings){
+      $('s-jm').value=d.settings.jm||115;
+      $('s-app').value=d.settings.app||72;
+      $('s-matmkp').value=d.settings.matMkp||10;
+      $('s-oh').value=d.settings.oh||15;
+      $('s-profit').value=(d.settings.profit!=null?d.settings.profit:10);
+      $('s-cont').value=d.settings.cont||0;
+      $('s-gst').value=d.settings.gst||5;
+      $('s-pst').value=d.settings.pst||7;
+    }
+    renderSheetTabs();
+    renderTakeoff();
+    refreshAll();
+    dirty=false;
+    setInd('saved','Loaded ✓');
+    setTimeout(()=>setInd('',''),2000);
+  }catch(e){ /* silent */ }
+})();
 </script>
 </body>
 </html>
