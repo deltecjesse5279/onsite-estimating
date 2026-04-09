@@ -722,6 +722,7 @@ let userGroups=[];     // [{id, name, color}]
 let activeItemIdx=null;
 let hiddenItems=new Set();   // item ids
 let collapsedItems=new Set(); // item ids that are body-collapsed
+let _collapsedGroups=new Set(); // userGroup ids that are body-collapsed
 let gci=0;
 
 // ── Legacy compat shim so hit-test / redraw still works ──
