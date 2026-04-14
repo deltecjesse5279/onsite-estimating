@@ -396,7 +396,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- SUMMARY CUSTOMIZE MODAL -->
-<div class="modal-overlay" id="summary-customize-modal" style="display:none" onclick="if(event.target===this)closeSummaryCustomize()">
+<div class="modal-overlay" id="summary-customize-modal" style="display:none">
   <div class="modal" style="max-width:520px;width:95%;max-height:88vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title">Customize Cost Breakout</span>
@@ -516,7 +516,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ESTIMATES MODAL -->
-<div class="modal-overlay" id="est-modal" style="display:none" onclick="if(event.target===this)hideEstimates()">
+<div class="modal-overlay" id="est-modal" style="display:none">
   <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
     <h3>Saved estimates</h3>
     <div id="est-list-container"><div class="empty-msg">No saved estimates yet.</div></div>
@@ -539,7 +539,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ROW EDIT MODAL -->
-<div class="modal-overlay" id="row-edit-modal" style="display:none" onclick="if(event.target===this)closeRowEditModal()">
+<div class="modal-overlay" id="row-edit-modal" style="display:none">
   <div class="modal" style="width:420px">
     <h3>Edit Row</h3>
     <label class="modal-label">Code</label>
@@ -583,7 +583,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ADD LIBRARY ITEM MODAL -->
-<div class="modal-overlay" id="lib-add-modal" style="display:none" onclick="if(event.target===this)closeLibAddModal()">
+<div class="modal-overlay" id="lib-add-modal" style="display:none">
   <div class="modal" style="width:420px">
     <h3 id="lib-add-title">Add Library Item</h3>
     <label class="modal-label">Code</label>
@@ -626,7 +626,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ASSEMBLY PICKER MODAL (from library) -->
-<div class="modal-overlay" id="asm-picker-modal" style="display:none" onclick="if(event.target===this)closeAsmPicker()">
+<div class="modal-overlay" id="asm-picker-modal" style="display:none">
   <div class="modal" style="width:360px">
     <h3>Add to Assembly</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Add <strong id="asm-picker-code"></strong> to an assembly:</p>
@@ -644,7 +644,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- NEW ASSEMBLY MODAL -->
-<div class="modal-overlay" id="assembly-modal" style="display:none" onclick="if(event.target===this)closeAssemblyModal()">
+<div class="modal-overlay" id="assembly-modal" style="display:none">
   <div class="modal" style="width:500px;max-height:85vh;overflow-y:auto">
     <h3 id="assembly-modal-title">New Assembly</h3>
     <label class="modal-label">Assembly Name</label>
@@ -670,7 +670,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- MOVE/COPY ROW MODAL -->
-<div class="modal-overlay" id="move-row-modal" style="display:none" onclick="if(event.target===this)closeMoveRowModal()">
+<div class="modal-overlay" id="move-row-modal" style="display:none">
   <div class="modal" style="width:340px">
     <h3>Move / Copy Row</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Row: <strong id="move-row-desc"></strong></p>
@@ -685,7 +685,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ASSEMBLY INSERT MODAL -->
-<div class="modal-overlay" id="asm-insert-modal" style="display:none" onclick="if(event.target===this)closeAsmInsertModal()">
+<div class="modal-overlay" id="asm-insert-modal" style="display:none">
   <div class="modal" style="width:360px">
     <h3 id="asm-insert-title">Insert Assembly</h3>
     <label class="modal-label">Add to sheet</label>
@@ -700,7 +700,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- LIBRARY IMPORT PREVIEW MODAL -->
-<div class="modal-overlay" id="lib-import-modal" style="display:none" onclick="if(event.target===this)closeLibImportModal()">
+<div class="modal-overlay" id="lib-import-modal" style="display:none">
   <div class="modal" style="width:700px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column">
     <h3 style="margin-bottom:4px">Import Pricing Update</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px" id="lib-import-summary-line">Review changes before applying.</p>
@@ -764,7 +764,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- LIBRARY CSV EXPORT MODAL -->
-<div class="modal-overlay" id="lib-export-modal" style="display:none" onclick="if(event.target===this)closeLibExportModal()">
+<div class="modal-overlay" id="lib-export-modal" style="display:none">
   <div class="modal" style="width:380px">
     <h3 style="margin-bottom:4px">Export Library as CSV</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Choose which columns to include. Send to your supplier to fill in pricing.</p>
@@ -793,7 +793,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- ASSEMBLY ITEMS EDIT MODAL (edit this instance's items only) -->
-<div class="modal-overlay" id="asm-items-edit-modal" style="display:none" onclick="if(event.target===this)closeAsmItemsEdit()">
+<div class="modal-overlay" id="asm-items-edit-modal" style="display:none">
   <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto">
     <h3 id="asm-items-edit-title">Edit Assembly Items</h3>
     <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Changes apply to this instance only — the saved assembly is not affected.</p>
@@ -824,7 +824,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- QUICK ADD TO SHEET MODAL -->
-<div class="modal-overlay" id="qadd-modal" style="display:none" onclick="if(event.target===this)closeQaddModal()">
+<div class="modal-overlay" id="qadd-modal" style="display:none">
   <div class="modal" style="width:360px">
     <h3>Add to Sheet</h3>
     <div style="background:var(--bg2);border-radius:var(--radius);padding:12px;margin-bottom:14px">
@@ -849,7 +849,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 </div>
 
 <!-- EXPORT MODAL -->
-<div class="modal-overlay" id="pdf-modal" style="display:none" onclick="if(event.target===this)closePdfModal()">
+<div class="modal-overlay" id="pdf-modal" style="display:none">
   <div class="modal" style="width:460px;max-height:90vh;display:flex;flex-direction:column;padding:0">
     <div style="padding:20px 24px 0;flex-shrink:0">
       <h3 style="margin-bottom:4px">Export Estimate</h3>
@@ -2995,6 +2995,7 @@ async function loadEstimate(id){
       $('s-gst').value=d.settings.gst||5;
       $('s-pst').value=d.settings.pst||7;
     }
+    localStorage.setItem('onsite_active_id', String(id));
     hideEstimates();
     renderSheetTabs();
     renderTakeoff();
