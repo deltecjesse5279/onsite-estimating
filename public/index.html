@@ -263,7 +263,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
   </div>
   <div class="app-tabs">
     <div class="app-tab active">Estimating</div>
-    <a class="app-tab" id="drawings-link" href="/drawings.html" target="_blank">Drawings</a>
+    <a class="app-tab" id="drawings-link" href="/drawings.html" onclick="return navToEstApp('/drawings.html')">Drawings</a>
   </div>
   <div class="topbar-right">
     <span class="save-indicator" id="save-ind"></span>
@@ -2940,6 +2940,64 @@ async function doSave(payload){
     showToast('Save failed — check connection');
   }
 }
+
+// Same-tab navigation to other app modules — saves first if dirty
+async function navToEstApp(url){
+  if(dirty && state.id){
+    const payload = collectPayload();
+    if(payload.name && payload.name !== 'Untitled'){
+      try{
+        await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        dirty=false;
+      }catch(e){
+        // fetch failed — beacon as last resort
+        const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+        navigator.sendBeacon('/api/estimates', blob);
+      }
+    }
+  }
+  window.location.href=url;
+  return false;
+}
+
+// Auto-save beacon when user navigates away or closes tab
+window.addEventListener('beforeunload', ()=>{
+  if(dirty && state.id){
+    const payload = collectPayload();
+    if(payload.name && payload.name !== 'Untitled'){
+      const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+      navigator.sendBeacon('/api/estimates', blob);
+    }
+  }
+});
+
+// Auto-load last active estimate on startup
+(async function autoLoadEst(){
+  try{
+    const cachedId = localStorage.getItem('onsite_active_id');
+    let estId = cachedId;
+    if(!estId){
+      const listR = await fetch('/api/estimates');
+      if(!listR.ok) return;
+      const list = await listR.json();
+      if(!list.length) return;
+      estId = list[0].id;
+    }
+    const r = await fetch('/api/estimates/'+estId);
+    if(!r.ok){
+      // Cached ID stale — fall back to most recent
+      if(cachedId){
+        const listR = await fetch('/api/estimates');
+        if(!listR.ok) return;
+        const list = await listR.json();
+        if(!list.length) return;
+        await loadEstimate(list[0].id);
+      }
+      return;
+    }
+    await loadEstimate(estId);
+  }catch(e){ /* silent fail — start with blank estimate */ }
+})();
 
 async function showEstimates(){
   $('est-modal').style.display='flex';
