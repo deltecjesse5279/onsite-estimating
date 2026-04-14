@@ -2245,8 +2245,26 @@ document.addEventListener('click',e=>{
 });
 
 // ─── Toast ───
-function navToApp(url){
-  // Same-tab navigation — no new tab
+async function navToApp(url){
+  // If we have a linked estimate, do a real server save before navigating
+  // so takeoffs and PDF cache are always persisted (beacon is unreliable on fast navigation)
+  if(linked){
+    linked.drawingsState = getDrawingsState();
+    linked.updatedAt = new Date().toISOString();
+    try{
+      await fetch('/api/estimates',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(linked)
+      });
+      // Also keep PDF cache current
+      savePdfToStorage(linked.id);
+    }catch(e){
+      // fetch failed — fall back to beacon as last resort
+      const blob=new Blob([JSON.stringify(linked)],{type:'application/json'});
+      navigator.sendBeacon('/api/estimates', blob);
+    }
+  }
   window.location.href=url;
   return false;
 }
@@ -2338,6 +2356,8 @@ renderTO();
         const binary=atob(pdfData);
         const arr=new Uint8Array(binary.length);
         for(let i=0;i<binary.length;i++) arr[i]=binary.charCodeAt(i);
+        // *** Critical: store raw bytes so savePdfToStorage never wipes the cache ***
+        pdfRawBytes=arr.buffer.slice(0);
         pdfjsLib.getDocument({data:arr.buffer}).promise.then(pdf=>{
           pdfDoc=pdf;
           $('cv-empty').style.display='none';
@@ -2355,7 +2375,7 @@ renderTO();
 })();
 // Auto-save drawings state when user navigates away or closes tab
 window.addEventListener('beforeunload', ()=>{
-  if(linked && items.length > 0){
+  if(linked){
     linked.drawingsState = getDrawingsState();
     linked.updatedAt = new Date().toISOString();
     // Use sendBeacon for reliability on unload
