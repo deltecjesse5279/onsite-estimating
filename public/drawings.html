@@ -817,15 +817,29 @@ function switchMain(name){
 }
 
 // ─── PDF ───
-function savePdfToStorage(estId){
+async function savePdfToServer(estId){
+  if(!pdfRawBytes||!estId) return;
+  try{
+    await fetch('/api/estimates/'+estId+'/pdf',{
+      method:'POST',
+      headers:{'Content-Type':'application/pdf'},
+      body:pdfRawBytes
+    });
+  }catch(e){ console.warn('PDF server upload failed:',e.message); }
+  // Also cache locally as fast fallback
+  savePdfToLocalStorage(estId);
+}
+function savePdfToLocalStorage(estId){
   if(!pdfRawBytes||!estId) return;
   try{
     const bytes=new Uint8Array(pdfRawBytes);
     let b64=''; const chunk=8192;
     for(let i=0;i<bytes.length;i+=chunk) b64+=String.fromCharCode(...bytes.subarray(i,i+chunk));
     localStorage.setItem('onsite_pdf_'+estId, btoa(b64));
-  }catch(e){ console.warn('PDF too large for localStorage:',e.message); }
+  }catch(e){ /* too large for localStorage — server copy is the fallback */ }
 }
+// Keep old name as alias so existing call sites still work
+function savePdfToStorage(estId){ savePdfToLocalStorage(estId); }
 function loadPDF(file){
   if(!file) return;
   pdfFilename = file.name.replace(/\.pdf$/i,'');
@@ -841,7 +855,7 @@ function loadPDF(file){
       buildThumbs();
       renderPage(1);
       toast('Loaded: '+file.name);
-      if(linked&&linked.id){ savePdfToStorage(linked.id); }
+      if(linked&&linked.id){ savePdfToServer(linked.id); }
     }).catch(e=>toast('PDF error: '+e.message));
   };
   r.readAsArrayBuffer(file);
@@ -1954,15 +1968,8 @@ async function confirmLink(){
     }
     localStorage.setItem('onsite_active_id',linked.id);
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
-    // If PDF is already loaded, persist it now under the newly linked estimate
-    if(pdfRawBytes){
-      try{
-        const bytes=new Uint8Array(pdfRawBytes);
-        let b64=''; const ch=8192;
-        for(let i=0;i<bytes.length;i+=ch) b64+=String.fromCharCode(...bytes.subarray(i,i+ch));
-        localStorage.setItem('onsite_pdf_'+linked.id, btoa(b64));
-      }catch(e){ console.warn('PDF too large for localStorage:',e.message); }
-    }
+    // If PDF is already loaded, upload it now under the newly linked estimate
+    if(pdfRawBytes){ savePdfToServer(linked.id); }
     updatePushBtn();
     closeMo('link-mo');
     toast('Linked: '+linked.name);
@@ -2161,7 +2168,7 @@ async function saveLinked(){
   try{
     const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    savePdfToStorage(linked.id);
+    savePdfToServer(linked.id);
     toast('Saved');
   }catch(e){toast('Save failed: '+e.message);}
 }
@@ -2257,8 +2264,8 @@ async function navToApp(url){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(linked)
       });
-      // Also keep PDF cache current
-      savePdfToStorage(linked.id);
+      // Also keep PDF current on server
+      savePdfToServer(linked.id);
     }catch(e){
       // fetch failed — fall back to beacon as last resort
       const blob=new Blob([JSON.stringify(linked)],{type:'application/json'});
@@ -2348,28 +2355,55 @@ renderTO();
     localStorage.setItem('onsite_active_id',linked.id);
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
     updatePushBtn();
-    // Restore PDF from localStorage
+    // Restore PDF — try localStorage first (fast), then server
     const pdfKey='onsite_pdf_'+linked.id;
-    const pdfData=localStorage.getItem(pdfKey);
-    if(pdfData){
+    const pdfDataLocal=localStorage.getItem(pdfKey);
+    async function restorePdfFromBytes(arrayBuf){
+      pdfRawBytes=arrayBuf.slice(0);
       try{
-        const binary=atob(pdfData);
+        const pdf=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+        pdfDoc=pdf;
+        $('cv-empty').style.display='none';
+        $('uz').style.display='none';
+        buildThumbs();
+        const pg=(linked.drawingsState&&linked.drawingsState.curPage)||1;
+        renderPage(pg);
+        toast('Restored: '+linked.name);
+      }catch(e){ toast('Restored: '+linked.name+' (PDF error)'); }
+    }
+    if(pdfDataLocal){
+      try{
+        const binary=atob(pdfDataLocal);
         const arr=new Uint8Array(binary.length);
         for(let i=0;i<binary.length;i++) arr[i]=binary.charCodeAt(i);
-        // *** Critical: store raw bytes so savePdfToStorage never wipes the cache ***
-        pdfRawBytes=arr.buffer.slice(0);
-        pdfjsLib.getDocument({data:arr.buffer}).promise.then(pdf=>{
-          pdfDoc=pdf;
-          $('cv-empty').style.display='none';
-          $('uz').style.display='none';
-          buildThumbs();
-          const pg=(linked.drawingsState&&linked.drawingsState.curPage)||1;
-          renderPage(pg);
-          toast('Restored: '+linked.name);
-        }).catch(()=>{ toast('Restored: '+linked.name+' (re-upload PDF)'); });
-      }catch(e){ toast('Restored: '+linked.name+' (re-upload PDF)'); }
+        await restorePdfFromBytes(arr.buffer);
+      }catch(e){
+        // localStorage corrupt — try server
+        localStorage.removeItem(pdfKey);
+        try{
+          const pr=await fetch('/api/estimates/'+linked.id+'/pdf');
+          if(pr.ok){
+            const buf=await pr.arrayBuffer();
+            savePdfToLocalStorage(linked.id); // refresh cache
+            await restorePdfFromBytes(buf);
+          } else { toast('Restored: '+linked.name+' (re-upload PDF)'); }
+        }catch(fe){ toast('Restored: '+linked.name+' (re-upload PDF)'); }
+      }
     } else {
-      toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
+      // No local cache — try server
+      try{
+        const pr=await fetch('/api/estimates/'+linked.id+'/pdf');
+        if(pr.ok){
+          const buf=await pr.arrayBuffer();
+          pdfRawBytes=buf.slice(0);
+          savePdfToLocalStorage(linked.id); // prime the cache
+          await restorePdfFromBytes(buf);
+        } else {
+          toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
+        }
+      }catch(fe){
+        toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
+      }
     }
   }catch(e){ /* silent fail */ }
 })();
