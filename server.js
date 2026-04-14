@@ -8,161 +8,119 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'estimates.json');
 const APP_PASSWORD = process.env.APP_PASSWORD || 'deltec2024';
 const APP_USER = process.env.APP_USER || 'deltec';
-const DATABASE_URL = process.env.DATABASE_URL || null;
 
-// --- Storage backend: Postgres if DATABASE_URL set, else JSON file ---
-let db = null;
-
-async function initStorage() {
-  if (DATABASE_URL) {
-    const { Client } = require('pg');
-    const MAX_RETRIES = 5;
-    const RETRY_DELAY_MS = 3000;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        db = new Client({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
-        await db.connect();
-        await db.query(`
-          CREATE TABLE IF NOT EXISTS estimates (
-            id TEXT PRIMARY KEY,
-            data JSONB NOT NULL,
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `);
-        console.log('Using PostgreSQL storage');
-        return;
-      } catch (err) {
-        console.warn(`DB connect attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`);
-        db = null;
-        if (attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-        } else {
-          console.warn('All DB connect attempts failed — falling back to file storage');
-        }
-      }
-    }
-  }
-  // File fallback
-  if (!fs.existsSync(path.join(__dirname, 'data'))) {
-    fs.mkdirSync(path.join(__dirname, 'data'));
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({}));
-  }
-  console.log('Using file storage (data/estimates.json)');
+// Ensure data directory exists
+if (!fs.existsSync(path.join(__dirname, 'data'))) {
+  fs.mkdirSync(path.join(__dirname, 'data'));
 }
-
-async function readEstimates() {
-  if (db) {
-    const res = await db.query('SELECT id, data FROM estimates');
-    const out = {};
-    res.rows.forEach(r => { out[r.id] = r.data; });
-    return out;
-  }
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return {}; }
-}
-
-async function writeEstimate(id, est) {
-  if (db) {
-    await db.query(
-      `INSERT INTO estimates (id, data, updated_at) VALUES ($1, $2, NOW())
-       ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
-      [id, JSON.stringify(est)]
-    );
-  } else {
-    const all = await readEstimates();
-    all[id] = est;
-    fs.writeFileSync(DATA_FILE, JSON.stringify(all, null, 2));
-  }
-}
-
-async function deleteEstimate(id) {
-  if (db) {
-    await db.query('DELETE FROM estimates WHERE id = $1', [id]);
-  } else {
-    const all = await readEstimates();
-    delete all[id];
-    fs.writeFileSync(DATA_FILE, JSON.stringify(all, null, 2));
-  }
+if (!fs.existsSync(DATA_FILE)) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify({}));
 }
 
 // Basic auth on everything
 app.use(basicAuth({
   users: { [APP_USER]: APP_PASSWORD },
   challenge: true,
-  realm: 'OnSite Estimating'
+  realm: 'Deltec Estimating'
 }));
 
 app.use(express.json({ limit: '5mb' }));
+app.use('/api/estimates/:id/pdf', express.raw({ type: 'application/pdf', limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+const PDF_DIR = path.join(__dirname, 'data', 'pdfs');
+if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 
 // --- Estimates API ---
 
-// List all estimates
-app.get('/api/estimates', async (req, res) => {
+function readEstimates() {
   try {
-    const data = await readEstimates();
-    const list = Object.entries(data).map(([id, est]) => ({
-      id,
-      name: est.name,
-      client: est.client,
-      estimateNum: est.estimateNum,
-      updatedAt: est.updatedAt,
-      sheetCount: (est.sheets || []).length
-    }));
-    list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    res.json(list);
-  } catch(e) {
-    res.status(500).json({ error: 'Failed to read estimates' });
+    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    return {};
   }
+}
+
+function writeEstimates(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+// List all estimates
+app.get('/api/estimates', (req, res) => {
+  const data = readEstimates();
+  const list = Object.entries(data).map(([id, est]) => ({
+    id,
+    name: est.name,
+    client: est.client,
+    estimateNum: est.estimateNum,
+    updatedAt: est.updatedAt,
+    sheetCount: (est.sheets || []).length
+  }));
+  list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  res.json(list);
 });
 
 // Get single estimate
-app.get('/api/estimates/:id', async (req, res) => {
-  try {
-    const data = await readEstimates();
-    const est = data[req.params.id];
-    if (!est) return res.status(404).json({ error: 'Not found' });
-    res.json(est);
-  } catch(e) {
-    res.status(500).json({ error: 'Failed to read estimate' });
-  }
+app.get('/api/estimates/:id', (req, res) => {
+  const data = readEstimates();
+  const est = data[req.params.id];
+  if (!est) return res.status(404).json({ error: 'Not found' });
+  res.json(est);
 });
 
 // Save estimate (create or update)
-app.post('/api/estimates', async (req, res) => {
+app.post('/api/estimates', (req, res) => {
+  const data = readEstimates();
+  const id = req.body.id || ('est_' + Date.now());
+  data[id] = {
+    ...req.body,
+    id,
+    updatedAt: new Date().toISOString()
+  };
+  writeEstimates(data);
+  res.json({ id, updatedAt: data[id].updatedAt });
+});
+
+// Upload PDF for an estimate
+app.post('/api/estimates/:id/pdf', (req, res) => {
+  const id = req.params.id;
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0)
+    return res.status(400).json({ error: 'No PDF data' });
+  const pdfPath = path.join(PDF_DIR, id + '.pdf');
   try {
-    const id = req.body.id || ('est_' + Date.now());
-    const est = { ...req.body, id, updatedAt: new Date().toISOString() };
-    await writeEstimate(id, est);
-    res.json({ id, updatedAt: est.updatedAt });
+    fs.writeFileSync(pdfPath, req.body);
+    res.json({ ok: true, size: req.body.length });
   } catch(e) {
-    res.status(500).json({ error: 'Failed to save estimate' });
+    res.status(500).json({ error: e.message });
   }
+});
+
+// Download PDF for an estimate
+app.get('/api/estimates/:id/pdf', (req, res) => {
+  const pdfPath = path.join(PDF_DIR, req.params.id + '.pdf');
+  if (!fs.existsSync(pdfPath)) return res.status(404).json({ error: 'No PDF' });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.sendFile(pdfPath);
+});
+
+// Check if PDF exists for an estimate
+app.head('/api/estimates/:id/pdf', (req, res) => {
+  const pdfPath = path.join(PDF_DIR, req.params.id + '.pdf');
+  if (!fs.existsSync(pdfPath)) return res.status(404).end();
+  const stat = fs.statSync(pdfPath);
+  res.setHeader('Content-Length', stat.size);
+  res.end();
 });
 
 // Delete estimate
-app.delete('/api/estimates/:id', async (req, res) => {
-  try {
-    const data = await readEstimates();
-    if (!data[req.params.id]) return res.status(404).json({ error: 'Not found' });
-    await deleteEstimate(req.params.id);
-    res.json({ ok: true });
-  } catch(e) {
-    res.status(500).json({ error: 'Failed to delete estimate' });
-  }
+app.delete('/api/estimates/:id', (req, res) => {
+  const data = readEstimates();
+  if (!data[req.params.id]) return res.status(404).json({ error: 'Not found' });
+  delete data[req.params.id];
+  writeEstimates(data);
+  res.json({ ok: true });
 });
 
-// Boot
-initStorage().then(() => {
-  app.listen(PORT, () => {
-    console.log(`OnSite Estimating running on port ${PORT}`);
-  });
-}).catch(err => {
-  console.error('Unexpected init error:', err);
-  // Start anyway on file storage
-  app.listen(PORT, () => {
-    console.log(`OnSite Estimating running on port ${PORT} (file storage fallback)`);
-  });
+app.listen(PORT, () => {
+  console.log(`Deltec Estimating running on port ${PORT}`);
 });
