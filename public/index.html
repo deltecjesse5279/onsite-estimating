@@ -352,12 +352,12 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
     <button class="btn" onclick="addBlankRow()">+ blank row</button>
     <button class="btn" onclick="openIAModal()" style="background:#e8f0fe;border-color:#4a7fd4;color:#2855a0" title="Add a temporary custom assembly (not saved to Assemblies tab)">+ item assembly</button>
   </div>
+  <div id="row-select-toolbar" style="display:none;position:sticky;top:0;z-index:20;background:#e8f0fe;border:1px solid #4a7fd4;border-radius:6px;padding:6px 12px;margin-bottom:6px;align-items:center;gap:10px;font-size:12px">
+    <span id="row-select-count" style="color:#2855a0;font-weight:500">0 rows selected</span>
+    <button class="btn sm" onclick="createIAFromSelected()" style="background:#4a7fd4;color:#fff;border-color:#3a6bc4">Create Item Assembly from selected</button>
+    <button class="btn sm" onclick="clearRowSelection()">Cancel</button>
+  </div>
   <div class="takeoff-wrap">
-    <div id="row-select-toolbar" style="display:none;background:#e8f0fe;border:1px solid #4a7fd4;border-radius:6px;padding:6px 12px;margin-bottom:6px;display:none;align-items:center;gap:10px;font-size:12px">
-      <span id="row-select-count" style="color:#2855a0;font-weight:500">0 rows selected</span>
-      <button class="btn sm" onclick="createIAFromSelected()" style="background:#4a7fd4;color:#fff;border-color:#3a6bc4">Create Item Assembly from selected</button>
-      <button class="btn sm" onclick="clearRowSelection()">Cancel</button>
-    </div>
     <table>
       <thead>
         <tr>
@@ -691,44 +691,47 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 
 <!-- NEW ASSEMBLY MODAL (IA-style UI) -->
 <div class="modal-overlay" id="assembly-modal" style="display:none">
-  <div class="modal" style="width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h3 id="assembly-modal-title" style="margin:0">New Assembly</h3>
-      <button onclick="closeAssemblyModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;padding:0 4px">&#10005;</button>
+  <div class="ia-modal">
+    <div class="ia-modal-header">
+      <h3><span class="ia-badge">PERM</span> <span id="assembly-modal-title">New Assembly</span></h3>
+      <button onclick="closeAssemblyModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px;line-height:1" title="Close">&times;</button>
     </div>
-    <!-- Meta header: name / desc / (no overall qty for standard assemblies — qty is per-item) -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div><div class="ia-meta-label">Assembly Name</div><input id="asm-name" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="e.g. Typical Office Outlet Circuit"/></div>
-      <div><div class="ia-meta-label">Description (optional)</div><input id="asm-desc" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="Brief description"/></div>
-    </div>
-    <!-- Search bar -->
-    <div class="ia-sdrop" style="position:relative;margin-bottom:10px;display:flex;gap:8px;align-items:center">
-      <input id="asm-item-search" type="text" placeholder="Search library to add items…" oninput="onAsmItemSearch(this.value)" autocomplete="off" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
-      <button class="btn sm" onclick="asmAddBlank()">+ blank item</button>
-      <div id="asm-item-results" style="position:absolute;top:calc(100%+2px);left:0;right:80px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500;display:none"></div>
-    </div>
-    <!-- Items table -->
-    <div class="ia-items-table" style="flex:1;overflow-y:auto;margin-bottom:10px">
-      <table style="width:100%;min-width:660px;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr>
+    <div class="ia-modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div class="ia-meta-label">Assembly Name</div><input id="asm-name" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="e.g. Typical Office Outlet Circuit"/></div>
+        <div><div class="ia-meta-label">Description (optional)</div><input id="asm-desc" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="Brief description"/></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="ia-sdrop">
+          <input id="asm-item-search" type="text" placeholder="Search library to add items…" oninput="onAsmItemSearch(this.value)" autocomplete="off"/>
+          <div class="ia-sdrop-list" id="asm-item-results" style="display:none"></div>
+        </div>
+        <button class="btn sm" onclick="asmAddBlank()">+ blank item</button>
+      </div>
+      <div class="ia-items-table">
+        <table>
+          <thead><tr>
             <th style="width:18px"></th>
             <th style="min-width:80px">Code</th><th style="min-width:120px">Description</th>
             <th class="r" style="width:36px">Unit</th>
-            <th class="r" style="width:56px">Qty</th>
-            <th class="r" style="width:72px">Mat $/unit</th>
-            <th class="r" style="width:64px">Lab hrs</th>
-            <th class="r" style="width:72px">Mat Total</th>
-            <th class="r" style="width:64px">Lab $</th>
-            <th style="width:24px"></th>
-          </tr>
-        </thead>
-        <tbody id="asm-items-body"></tbody>
-        <tfoot id="asm-items-foot"></tfoot>
-      </table>
+            <th style="width:68px">Mode</th>
+            <th class="r" style="width:56px" title="Qty per assembly unit">Qty/unit</th>
+            <th class="r" style="width:48px" title="Multiplier">Mult</th>
+            <th class="r" style="width:48px" title="Divisor">Div</th>
+            <th class="r" style="width:70px">Mat$/unit</th>
+            <th class="r" style="width:60px">Lab hrs</th>
+            <th class="r" style="width:76px">Mat $</th>
+            <th class="r" style="width:76px">Lab $</th>
+            <th style="width:22px"></th>
+          </tr></thead>
+          <tbody id="asm-items-body"></tbody>
+          <tfoot id="asm-items-foot"></tfoot>
+        </table>
+      </div>
+      <div id="asm-totals-row" style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding:2px 0"></div>
     </div>
-    <div id="asm-totals-row" style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding:2px 0;margin-bottom:10px"></div>
-    <div class="modal-actions">
+    <div class="ia-modal-footer">
+      <div style="flex:1;font-size:11px;color:#2a7a2a;background:#e8f5e8;padding:4px 10px;border-radius:4px">Permanent — saved to the Assemblies tab and reusable across all estimates</div>
       <button class="btn" onclick="closeAssemblyModal()">Cancel</button>
       <button class="btn primary" onclick="confirmAssembly()">Save Assembly</button>
     </div>
@@ -879,18 +882,43 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
 
 <!-- ASSEMBLY ITEMS EDIT MODAL (edit this instance's items only) -->
 <div class="modal-overlay" id="asm-items-edit-modal" style="display:none">
-  <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto">
-    <h3 id="asm-items-edit-title">Edit Assembly Items</h3>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Changes apply to this instance only — the saved assembly is not affected.</p>
-    <div id="asm-items-edit-list" style="border:1px solid var(--border);border-radius:var(--radius);min-height:60px;margin-bottom:12px;overflow:hidden"></div>
-    <div id="asm-items-edit-search-wrap" style="display:none;position:relative;margin-bottom:12px">
-      <input type="text" id="asm-items-edit-search" placeholder="Search library to add item…" oninput="onAsmItemsEditSearch(this.value)" autocomplete="off" style="width:100%;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
-      <div id="asm-items-edit-results" style="position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500"></div>
+  <div class="ia-modal">
+    <div class="ia-modal-header">
+      <h3><span class="ia-badge" style="background:#e07d1a">EDIT</span> <span id="asm-items-edit-title">Edit Assembly Items</span></h3>
+      <button onclick="closeAsmItemsEdit()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px;line-height:1" title="Close">&times;</button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <button class="btn sm" onclick="toggleAsmItemsEditSearch()">+ Add item</button>
+    <div class="ia-modal-body">
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="ia-sdrop" id="asm-edit-sdrop">
+          <input id="asm-items-edit-search" type="text" placeholder="Search library to add items…" oninput="onAsmItemsEditSearch(this.value)" autocomplete="off"/>
+          <div class="ia-sdrop-list" id="asm-items-edit-results" style="display:none"></div>
+        </div>
+        <button class="btn sm" onclick="asmEditAddBlank()">+ blank item</button>
+      </div>
+      <div class="ia-items-table">
+        <table>
+          <thead><tr>
+            <th style="width:18px"></th>
+            <th style="min-width:80px">Code</th><th style="min-width:120px">Description</th>
+            <th class="r" style="width:36px">Unit</th>
+            <th style="width:68px">Mode</th>
+            <th class="r" style="width:56px" title="Qty per assembly unit">Qty/unit</th>
+            <th class="r" style="width:48px" title="Multiplier">Mult</th>
+            <th class="r" style="width:48px" title="Divisor">Div</th>
+            <th class="r" style="width:70px">Mat$/unit</th>
+            <th class="r" style="width:60px">Lab hrs</th>
+            <th class="r" style="width:76px">Mat $</th>
+            <th class="r" style="width:76px">Lab $</th>
+            <th style="width:22px"></th>
+          </tr></thead>
+          <tbody id="asm-edit-items-body"></tbody>
+          <tfoot id="asm-edit-items-foot"></tfoot>
+        </table>
+      </div>
+      <div id="asm-edit-totals-row" style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding:2px 0"></div>
     </div>
-    <div class="modal-actions">
+    <div class="ia-modal-footer">
+      <div style="flex:1;font-size:11px;color:#a05000;background:#fff3e0;padding:4px 10px;border-radius:4px">Instance only — changes apply to this takeoff row only, not the saved assembly definition</div>
       <button class="btn" onclick="closeAsmItemsEdit()">Cancel</button>
       <button class="btn primary" onclick="confirmAsmItemsEdit()">Save Changes</button>
     </div>
@@ -1158,7 +1186,7 @@ function calcRow(row){
     const multiplier = parseFloat(row.qty)||1;
     let mat=0, hrs=0;
     (row._items||[]).forEach(it=>{
-      const iqty = (parseFloat(it.qty)||1) * multiplier;
+      const iqty = asmChildEffectiveQty(it, multiplier);
       mat += iqty * (parseFloat(it.mat_unit)||0);
       hrs += iqty * (parseFloat(it.labour_unit)||0);
     });
@@ -1849,6 +1877,24 @@ function iaUpdateItem(ci, field, val){
   iaRefreshTotals();
 }
 
+// Effective qty for a permanent assembly child item — respects unitMode
+function asmChildEffectiveQty(it, multiplier){
+  const qty = Math.max(parseFloat(it.qty)||0, 0);
+  const mode = it.unitMode || 'ea';
+  if(mode === 'single') return qty;                         // fully frozen
+  if(mode === 'abs')    return qty * multiplier;            // ignores mult/div, scales with assembly qty
+  // ea: qty × multiplier × itemMult ÷ itemDiv
+  const rawMult = (it.multiplier === '' || it.multiplier == null) ? 1 : parseFloat(it.multiplier);
+  const rawDiv  = (it.divisor   === '' || it.divisor   == null) ? 1 : parseFloat(it.divisor);
+  const multIsZero = !isNaN(rawMult) && rawMult === 0;
+  const divIsZero  = !isNaN(rawDiv)  && rawDiv  === 0;
+  if(multIsZero || divIsZero) return qty * multiplier;
+  const mult = Math.max(isNaN(rawMult) ? 1 : rawMult, 0);
+  const div  = Math.max(isNaN(rawDiv)  ? 1 : rawDiv, 0.000001);
+  return (qty * mult * multiplier) / div;
+}
+
+
 function iaChildEffectiveQty(ch, overallQty){
   const qty = Math.max(parseFloat(ch.qty) || 0, 0);
   // single mode: completely frozen — only the entered qty, nothing else applies
@@ -1978,7 +2024,10 @@ function iaConvertToPermanent(){
   const asmItems=_iaItems.map(ch=>({
     code:ch.code||'',description:ch.description||'',unit:ch.unit||'ea',
     mat_unit:parseFloat(ch.mat_unit)||0,labour_unit:parseFloat(ch.labour_unit)||0,
-    qty:parseFloat(ch.qty)||1
+    qty:parseFloat(ch.qty)||1,
+    unitMode:ch.unitMode||'ea',
+    multiplier:ch.multiplier===''?1:(parseFloat(ch.multiplier)||1),
+    divisor:ch.divisor===''?1:(parseFloat(ch.divisor)||1)
   }));
   assemblies.push({name,description:desc,items:asmItems});
   renderAssembliesPane();
@@ -2177,13 +2226,14 @@ function updateAsmQty(idx, val){
     (row._items||[]).forEach((it, si)=>{
       const subRow = document.getElementById('asm-sub-'+idx+'-'+si);
       if(!subRow) return;
-      const iqty = (parseFloat(it.qty)||1) * row.qty;
+      const iqty = asmChildEffectiveQty(it, parseFloat(row.qty)||1);
       const imat = iqty*(parseFloat(it.mat_unit)||0);
       const ilabHrs = iqty*(parseFloat(it.labour_unit)||0);
       const ilab = ilabHrs*getSettings().jm;
       const cells = subRow.querySelectorAll('td');
       // col 4=qty, col 6=mat total, col 7=lab hrs, col 8=lab $
-      if(cells[4]) cells[4].textContent = (it.qty||1)+' × '+row.qty;
+      const _softMult = parseFloat(row.qty)||1;
+      if(cells[4]) cells[4].textContent = it.unitMode==='single' ? (it.qty||1)+' (fixed)' : (it.qty||1)+' × '+_softMult;
       if(cells[6]) cells[6].textContent = fmt(imat);
       if(cells[7]) cells[7].textContent = ilabHrs.toFixed(3);
       if(cells[8]) cells[8].textContent = fmt(ilab);
@@ -2214,7 +2264,7 @@ function expandAsmToRows(idx){
   if(!row._assembly) return;
   const multiplier = parseFloat(row.qty)||1;
   const expanded = (row._items||[]).map(it=>({
-    ...it, qty: (parseFloat(it.qty)||1) * multiplier
+    ...it, qty: asmChildEffectiveQty(it, multiplier)
   }));
   state.sheets[state.activeSheet].rows.splice(idx, 1, ...expanded);
   renderTakeoff();
@@ -2247,16 +2297,20 @@ function renderTakeoff(){
       const expanded = row._expanded;
       const itemCount = (row._items||[]).length;
       const subRows = expanded ? (row._items||[]).map((it,si)=>{
-        const iqty = (parseFloat(it.qty)||1)*(parseFloat(row.qty)||1);
+        const _asmMult = parseFloat(row.qty)||1;
+        const iqty = asmChildEffectiveQty(it, _asmMult);
         const imat = iqty*(parseFloat(it.mat_unit)||0);
         const ilabHrs = iqty*(parseFloat(it.labour_unit)||0);
         const ilab = ilabHrs*getSettings().jm;
+        const _qtyLabel = it.unitMode==='single'
+          ? `${it.qty||1} <span style="color:#888;font-size:10px;font-style:italic">(fixed)</span>`
+          : `${it.qty||1} × ${_asmMult}`;
         return `<tr class="asm-sub-row" id="asm-sub-${i}-${si}">
           <td></td>
           <td style="padding-left:22px;font-size:11px;color:var(--muted)">${esc(it.code||'')}</td>
           <td style="font-size:11px;color:var(--muted)">${esc(it.description||'')}</td>
           <td><span class="unit-badge">${esc(it.unit||'')}</span></td>
-          <td class="num" style="font-size:11px">${it.qty||1} × ${parseFloat(row.qty)||1}</td>
+          <td class="num" style="font-size:11px">${_qtyLabel}</td>
           <td class="num" style="font-size:11px">${fmt(it.mat_unit||0,2)}</td>
           <td class="num" style="font-size:11px">${fmt(imat)}</td>
           <td class="num" style="font-size:11px">${ilabHrs.toFixed(3)}</td>
@@ -3370,7 +3424,7 @@ function asmRefreshTotals(){
   });
   const foot = $('asm-items-foot');
   if(foot) foot.innerHTML = `<tr style="background:var(--bg2);font-weight:500;font-size:12px;border-top:2px solid var(--border)">
-    <td colspan="7" style="padding:5px 8px;color:var(--muted)">${asmPendingItems.length} item${asmPendingItems.length!==1?'s':''}</td>
+    <td colspan="10" style="padding:5px 8px;color:var(--muted)">${asmPendingItems.length} item${asmPendingItems.length!==1?'s':''}</td>
     <td class="r" style="padding:5px 8px">${fmt(tMat)}</td>
     <td class="r" style="padding:5px 8px">${fmt(tLab)}</td>
     <td></td>
@@ -3384,15 +3438,18 @@ function renderAsmItemsList(){
   if(!body) return;
   const s = getSettings();
   if(!asmPendingItems.length){
-    body.innerHTML = `<tr><td colspan="10" class="empty-msg" style="padding:12px;font-style:italic">No items yet — search the library or add a blank item.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="13" class="empty-msg" style="padding:12px;font-style:italic">No items yet — search the library or add a blank item.</td></tr>`;
     $('asm-items-foot').innerHTML=''; $('asm-totals-row').innerHTML='';
     return;
   }
   body.innerHTML = asmPendingItems.map((it,i)=>{
+    const mode = it.unitMode||'ea';
     const qty = parseFloat(it.qty)||0;
     const cMat = qty*(parseFloat(it.mat_unit)||0);
     const cHrs = qty*(parseFloat(it.labour_unit)||0);
     const cLab = cHrs*s.jm;
+    const multVal = it.multiplier===''?'':it.multiplier??1;
+    const divVal  = it.divisor===''?'':it.divisor??1;
     return `<tr draggable="true"
       ondragstart="asmDragStart(event,${i})"
       ondragover="asmDragOver(event,${i})"
@@ -3401,16 +3458,32 @@ function renderAsmItemsList(){
       style="cursor:default">
       <td style="width:18px;cursor:grab;color:#bbb;font-size:14px;padding:0 4px;text-align:center" title="Drag to reorder">⠿</td>
       <td><input class="inline-input" style="width:86px;font-size:12px" value="${esc(it.code||'')}" placeholder="code"
-        oninput="asmUpdateItem(${i},'code',this.value)"
-        onblur="renderAsmItemsList()"/></td>
+        oninput="asmUpdateItem(${i},'code',this.value)" onblur="renderAsmItemsList()"/></td>
       <td><input class="inline-input" style="min-width:128px;font-size:12px" value="${esc(it.description||'')}" placeholder="description"
-        oninput="asmUpdateItem(${i},'description',this.value)"
-        onblur="renderAsmItemsList()"/></td>
+        oninput="asmUpdateItem(${i},'description',this.value)" onblur="renderAsmItemsList()"/></td>
       <td class="r"><input class="inline-input" style="width:34px;font-size:11px;text-align:right" value="${esc(it.unit||'ea')}" placeholder="unit"
-        oninput="asmUpdateItem(${i},'unit',this.value)"
-        onblur="renderAsmItemsList()"/></td>
-      <td class="r"><input class="ia-qty-in" type="number" step="any" min="0" value="${it.qty===''?'':it.qty??1}" title="Qty"
+        oninput="asmUpdateItem(${i},'unit',this.value)" onblur="renderAsmItemsList()"/></td>
+      <td style="padding:2px 3px">
+        <select class="inline-input" style="font-size:11px;padding:2px 3px;width:62px"
+          title="ea: scales with qty x mult / div | abs: qty x asm qty (no mult/div) | single: fixed qty always"
+          onchange="asmSetUnitMode(${i},this.value)">
+          <option value="ea"${mode==='ea'?' selected':''}>ea</option>
+          <option value="abs"${mode==='abs'?' selected':''}>abs</option>
+          <option value="single"${mode==='single'?' selected':''}>single</option>
+        </select>
+      </td>
+      <td class="r"><input class="ia-qty-in" type="number" step="any" min="0" value="${it.qty===''?'':it.qty??1}" title="Qty/unit"
         oninput="asmUpdateItem(${i},'qty',this.value)"/></td>
+      <td class="r">${mode==='abs'||mode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 4px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${multVal}" placeholder="1"
+            oninput="asmUpdateItem(${i},'multiplier',this.value)"/>`
+      }</td>
+      <td class="r">${mode==='abs'||mode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 4px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${divVal}" placeholder="1" style="background:#fff8e6"
+            oninput="asmUpdateItem(${i},'divisor',this.value)"/>`
+      }</td>
       <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:66px;text-align:right;font-size:11px" value="${it.mat_unit===''?'':it.mat_unit??0}" placeholder="0.00"
         oninput="asmUpdateItem(${i},'mat_unit',this.value)"/></td>
       <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:58px;text-align:right;font-size:11px" value="${it.labour_unit===''?'':it.labour_unit??0}" placeholder="0.0000"
@@ -3425,8 +3498,14 @@ function renderAsmItemsList(){
   asmRefreshTotals();
 }
 
+function asmSetUnitMode(i, mode){
+  if(!asmPendingItems[i]) return;
+  asmPendingItems[i].unitMode = mode;
+  renderAsmItemsList();
+}
+
 function asmAddBlank(){
-  asmPendingItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1});
+  asmPendingItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1,multiplier:1,divisor:1,unitMode:'ea'});
   renderAsmItemsList();
 }
 
@@ -3792,7 +3871,8 @@ function openAsmItemsEdit(idx){
   _asmEditRowIdx = idx;
   _asmEditItems = JSON.parse(JSON.stringify(row._items || []));
   $('asm-items-edit-title').textContent = 'Edit items: ' + esc(row._asmName || 'Assembly');
-  $('asm-items-edit-search-wrap').style.display = 'none';
+  $('asm-items-edit-search').value = '';
+  const dr=$('asm-items-edit-results'); if(dr){dr.innerHTML='';dr.style.display='none';}
   renderAsmItemsEditList();
   $('asm-items-edit-modal').style.display = 'flex';
 }
@@ -3803,74 +3883,145 @@ function closeAsmItemsEdit(){
   _asmEditItems = [];
 }
 
-function renderAsmItemsEditList(){
-  const list = $('asm-items-edit-list');
-  if(!_asmEditItems.length){
-    list.innerHTML = '<div class="empty-msg">No items. Use "+ Add item" to add from library.</div>';
-    return;
+let _asmEditDragSrc = null;
+
+function asmEditUpdateItem(i, field, val){
+  if(!_asmEditItems[i]) return;
+  if(field==='code'||field==='description'||field==='unit'){
+    _asmEditItems[i][field] = val;
+  } else {
+    let parsed = val===''?'':parseFloat(val);
+    if((field==='multiplier'||field==='divisor') && parsed!=='' && parsed<0) parsed=0;
+    _asmEditItems[i][field] = parsed;
   }
-  list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
-    <thead><tr style="background:var(--bg2)">
-      <th style="padding:5px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Code / Item</th>
-      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:56px">Qty</th>
-      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:70px">Mat$/unit</th>
-      <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:60px">Lab hrs</th>
-      <th style="width:28px;border-bottom:1px solid var(--border)"></th>
-    </tr></thead>
-    <tbody>${_asmEditItems.map((it,i)=>`
-      <tr style="border-bottom:1px solid #f0efeb">
-        <td style="padding:4px 8px">
-          <div style="font-weight:600;font-size:12px">${esc(it.code)}</div>
-          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${esc(it.description||'')}</div>
-        </td>
-        <td style="padding:4px 6px;text-align:right">
-          <input type="number" min="0.01" step="any" value="${it.qty||1}"
-            style="width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-            onchange="_asmEditItems[${i}].qty=parseFloat(this.value)||1"/>
-        </td>
-        <td style="padding:4px 6px;text-align:right">
-          <input type="number" min="0" step="0.01" value="${it.mat_unit||0}"
-            style="width:65px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-            onchange="_asmEditItems[${i}].mat_unit=parseFloat(this.value)||0"/>
-        </td>
-        <td style="padding:4px 6px;text-align:right">
-          <input type="number" min="0" step="0.001" value="${it.labour_unit||0}"
-            style="width:55px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-            onchange="_asmEditItems[${i}].labour_unit=parseFloat(this.value)||0"/>
-        </td>
-        <td style="padding:4px;text-align:center">
-          <button onclick="_asmEditItems.splice(${i},1);renderAsmItemsEditList()"
-            style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0 3px;line-height:1"
-            onmouseover="this.style.color='#a32d2d'" onmouseout="this.style.color='#999'">&#10005;</button>
-        </td>
-      </tr>`).join('')}
-    </tbody></table>`;
+  asmEditRefreshTotals();
 }
 
-function toggleAsmItemsEditSearch(){
-  const w = $('asm-items-edit-search-wrap');
-  w.style.display = w.style.display === 'none' ? 'block' : 'none';
-  if(w.style.display === 'block') setTimeout(()=>$('asm-items-edit-search').focus(), 50);
+function asmEditSetUnitMode(i, mode){
+  if(!_asmEditItems[i]) return;
+  _asmEditItems[i].unitMode = mode;
+  renderAsmItemsEditList();
 }
+
+function asmEditRefreshTotals(){
+  const s = getSettings();
+  let tMat=0, tHrs=0, tLab=0;
+  _asmEditItems.forEach(it=>{
+    const qty = parseFloat(it.qty)||0;
+    tMat += qty*(parseFloat(it.mat_unit)||0);
+    const hrs = qty*(parseFloat(it.labour_unit)||0);
+    tHrs += hrs; tLab += hrs*s.jm;
+  });
+  const foot = $('asm-edit-items-foot');
+  if(foot) foot.innerHTML = `<tr style="background:var(--bg2);font-weight:500;font-size:12px;border-top:2px solid var(--border)">
+    <td colspan="10" style="padding:5px 8px;color:var(--muted)">${_asmEditItems.length} item${_asmEditItems.length!==1?'s':''}</td>
+    <td class="r" style="padding:5px 8px">${fmt(tMat)}</td>
+    <td class="r" style="padding:5px 8px">${fmt(tLab)}</td>
+    <td></td>
+  </tr>`;
+  const tot = $('asm-edit-totals-row');
+  if(tot) tot.innerHTML = `<span>Mat: <strong>${fmt(tMat)}</strong></span><span style="margin-left:12px">Lab: <strong>${fmt(tLab)}</strong></span><span style="margin-left:12px">Hrs: <strong>${fmtH(tHrs)}</strong></span>`;
+}
+
+function renderAsmItemsEditList(){
+  const body = $('asm-edit-items-body');
+  if(!body) return;
+  const s = getSettings();
+  if(!_asmEditItems.length){
+    body.innerHTML = `<tr><td colspan="13" class="empty-msg" style="padding:12px;font-style:italic">No items — search the library or add a blank item.</td></tr>`;
+    const f=$('asm-edit-items-foot'); if(f) f.innerHTML='';
+    const t=$('asm-edit-totals-row'); if(t) t.innerHTML='';
+    return;
+  }
+  body.innerHTML = _asmEditItems.map((it,i)=>{
+    const mode = it.unitMode||'ea';
+    const qty = parseFloat(it.qty)||0;
+    const cMat = qty*(parseFloat(it.mat_unit)||0);
+    const cHrs = qty*(parseFloat(it.labour_unit)||0);
+    const cLab = cHrs*s.jm;
+    const multVal = it.multiplier===''?'':it.multiplier??1;
+    const divVal  = it.divisor===''?'':it.divisor??1;
+    return `<tr draggable="true"
+      ondragstart="asmEditDragStart(event,${i})"
+      ondragover="asmEditDragOver(event,${i})"
+      ondrop="asmEditDrop(event,${i})"
+      ondragend="asmEditDragEnd(event)">
+      <td style="width:18px;cursor:grab;color:#bbb;font-size:14px;padding:0 4px;text-align:center" title="Drag to reorder">⠿</td>
+      <td><input class="inline-input" style="width:86px;font-size:12px" value="${esc(it.code||'')}" placeholder="code"
+        oninput="asmEditUpdateItem(${i},'code',this.value)" onblur="renderAsmItemsEditList()"/></td>
+      <td><input class="inline-input" style="min-width:128px;font-size:12px" value="${esc(it.description||'')}" placeholder="description"
+        oninput="asmEditUpdateItem(${i},'description',this.value)" onblur="renderAsmItemsEditList()"/></td>
+      <td class="r"><input class="inline-input" style="width:34px;font-size:11px;text-align:right" value="${esc(it.unit||'ea')}" placeholder="unit"
+        oninput="asmEditUpdateItem(${i},'unit',this.value)" onblur="renderAsmItemsEditList()"/></td>
+      <td style="padding:2px 3px">
+        <select class="inline-input" style="font-size:11px;padding:2px 3px;width:62px"
+          title="ea: scales with qty x mult / div | abs: qty x asm qty (no mult/div) | single: fixed qty always"
+          onchange="asmEditSetUnitMode(${i},this.value)">
+          <option value="ea"${mode==='ea'?' selected':''}>ea</option>
+          <option value="abs"${mode==='abs'?' selected':''}>abs</option>
+          <option value="single"${mode==='single'?' selected':''}>single</option>
+        </select>
+      </td>
+      <td class="r"><input class="ia-qty-in" type="number" step="any" min="0" value="${it.qty===''?'':it.qty??1}"
+        oninput="asmEditUpdateItem(${i},'qty',this.value)"/></td>
+      <td class="r">${mode==='abs'||mode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 6px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${multVal}" placeholder="1"
+            oninput="asmEditUpdateItem(${i},'multiplier',this.value)"/>`
+      }</td>
+      <td class="r">${mode==='abs'||mode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 6px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${divVal}" placeholder="1" style="background:#fff8e6"
+            oninput="asmEditUpdateItem(${i},'divisor',this.value)"/>`
+      }</td>
+      <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:66px;text-align:right;font-size:11px" value="${it.mat_unit===''?'':it.mat_unit??0}" placeholder="0.00"
+        oninput="asmEditUpdateItem(${i},'mat_unit',this.value)"/></td>
+      <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:58px;text-align:right;font-size:11px" value="${it.labour_unit===''?'':it.labour_unit??0}" placeholder="0.0000"
+        oninput="asmEditUpdateItem(${i},'labour_unit',this.value)"/></td>
+      <td class="r" style="font-size:11px;white-space:nowrap">${fmt(cMat)}</td>
+      <td class="r" style="font-size:11px">${fmt(cLab)}</td>
+      <td><button onclick="_asmEditItems.splice(${i},1);renderAsmItemsEditList()"
+        style="background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:0 3px"
+        onmouseover="this.style.color='#a32d2d'" onmouseout="this.style.color='#ccc'">&#10005;</button></td>
+    </tr>`;
+  }).join('');
+  asmEditRefreshTotals();
+}
+
+function asmEditAddBlank(){
+  _asmEditItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1,multiplier:1,divisor:1,unitMode:'ea'});
+  renderAsmItemsEditList();
+}
+
+function asmEditDragStart(e,i){ _asmEditDragSrc=i; e.dataTransfer.effectAllowed='move'; setTimeout(()=>{if(e.target)e.target.style.opacity='0.4';},0); }
+function asmEditDragOver(e,i){ e.preventDefault(); e.dataTransfer.dropEffect='move'; document.querySelectorAll('#asm-edit-items-body tr').forEach((r,ri)=>{r.style.background=(ri===i&&ri!==_asmEditDragSrc)?'var(--bg2)':'';});}
+function asmEditDrop(e,i){ e.preventDefault(); if(_asmEditDragSrc===null||_asmEditDragSrc===i)return; const m=_asmEditItems.splice(_asmEditDragSrc,1)[0]; _asmEditItems.splice(i,0,m); _asmEditDragSrc=null; renderAsmItemsEditList(); }
+function asmEditDragEnd(e){ _asmEditDragSrc=null; document.querySelectorAll('#asm-edit-items-body tr').forEach(r=>{r.style.opacity='';r.style.background='';}); }
+
+function toggleAsmItemsEditSearch(){ /* stub - search always visible */ }
 
 function onAsmItemsEditSearch(q){
   const el = $('asm-items-edit-results');
-  if(!q.trim()){ el.innerHTML=''; return; }
+  if(!q.trim()){el.style.display='none';el.innerHTML='';return;}
   const res = getAllLibItems().filter(i=>fuzzyMatch(q,i)).sort((a,b)=>fuzzyScore(q,b)-fuzzyScore(q,a)).slice(0,10);
-  el.innerHTML = res.map(i=>`<div class="ir-item" onclick="addAsmItemsEditItem('${i.code.replace(/'/g,"\\'")}')">
-    <span class="ir-code">${i.code}</span><span class="ir-desc">${i.description}</span>
+  if(!res.length){el.style.display='none';return;}
+  el.innerHTML = res.map(i=>`<div class="ia-sdrop-item" onclick="addAsmItemsEditItem('${i.code.replace(/'/g,"\'")}')">
+    <strong>${esc(i.code)}</strong> <span style="color:var(--muted)">${esc(i.description)}</span>
   </div>`).join('');
+  el.style.display='block';
 }
 
 function addAsmItemsEditItem(code){
   const item = getAllLibItems().find(x=>x.code===code);
   if(!item) return;
-  _asmEditItems.push({...item, qty:1});
-  $('asm-items-edit-search').value = '';
-  $('asm-items-edit-results').innerHTML = '';
-  $('asm-items-edit-search-wrap').style.display = 'none';
+  _asmEditItems.push({...item, qty:1, unitMode:'ea', multiplier:1, divisor:1});
+  $('asm-items-edit-search').value='';
+  const el=$('asm-items-edit-results'); el.innerHTML=''; el.style.display='none';
   renderAsmItemsEditList();
 }
+
+// Close edit search dropdown on outside click (uses shared listener via ia-sdrop class)
+
 
 function confirmAsmItemsEdit(){
   if(_asmEditRowIdx === null) return;
