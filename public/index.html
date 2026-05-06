@@ -162,6 +162,7 @@ tr.ia-child td:first-child{border-left:3px solid #4a7fd4}
 .ia-items-table td{padding:3px 4px;border-bottom:1px solid #f0efeb;vertical-align:middle}
 .ia-items-table td.r{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 .ia-qty-in{width:58px;font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;background:var(--amber-bg);text-align:right}
+
 .ia-mlt-in{width:52px;font-size:12px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;background:#f0f8ff;text-align:right}
 .ia-sdrop{position:relative;flex:1}
 .ia-sdrop input{width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
@@ -475,6 +476,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
       <option value="custom">Custom only</option>
     </select>
     <button class="btn primary" onclick="openAddLibItemModal()">+ Add item</button>
+    <button class="btn" onclick="openManageCatsModal()" title="Add, rename or delete categories">&#9881; Categories</button>
     <button class="btn" onclick="openLibExportModal()" title="Export library as CSV for supplier pricing">&#11015; Export CSV</button>
     <button class="btn" onclick="triggerLibImport()" title="Import supplier pricing from CSV">&#11014; Import Pricing</button>
     <input type="file" id="lib-import-input" accept=".csv" style="display:none" onchange="handleLibImportFile(this)"/>
@@ -598,8 +600,9 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
       </div>
       <div>
         <label class="modal-label">Category</label>
-        <input type="text" id="re-cat" placeholder="Category" list="cat-datalist"/>
+        <input type="text" id="re-cat" placeholder="Category" list="cat-datalist" oninput="onCatInput(this.value,'re-cat-suggest')"/>
         <datalist id="cat-datalist"></datalist>
+        <div id="re-cat-suggest" style="display:none;margin-top:4px"></div>
       </div>
     </div>
     <div class="modal-row">
@@ -642,7 +645,8 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
       </div>
       <div>
         <label class="modal-label">Category</label>
-        <input type="text" id="la-cat" placeholder="Category" list="cat-datalist"/>
+        <input type="text" id="la-cat" placeholder="Category" list="cat-datalist" oninput="onCatInput(this.value,'la-cat-suggest')"/>
+        <div id="la-cat-suggest" style="display:none;margin-top:4px"></div>
       </div>
     </div>
     <div class="modal-row">
@@ -685,28 +689,67 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
   </div>
 </div>
 
-<!-- NEW ASSEMBLY MODAL -->
+<!-- NEW ASSEMBLY MODAL (IA-style UI) -->
 <div class="modal-overlay" id="assembly-modal" style="display:none">
-  <div class="modal" style="width:500px;max-height:85vh;overflow-y:auto">
-    <h3 id="assembly-modal-title">New Assembly</h3>
-    <label class="modal-label">Assembly Name</label>
-    <input type="text" id="asm-name" placeholder="e.g. Typical Office Outlet Circuit"/>
-    <label class="modal-label">Description / Notes</label>
-    <textarea id="asm-desc" placeholder="What this assembly covers…" style="margin-bottom:12px"></textarea>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-size:12px;font-weight:600;color:var(--muted)">ITEMS</span>
-      <button class="btn sm" onclick="openAssemblyItemSearch()">+ Add item</button>
+  <div class="modal" style="width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 id="assembly-modal-title" style="margin:0">New Assembly</h3>
+      <button onclick="closeAssemblyModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;padding:0 4px">&#10005;</button>
     </div>
-    <div id="asm-items-list" style="border:1px solid var(--border);border-radius:var(--radius);min-height:60px;margin-bottom:12px;overflow:hidden">
-      <div class="empty-msg" id="asm-items-empty">No items yet. Add items above.</div>
+    <!-- Meta header: name / desc / (no overall qty for standard assemblies — qty is per-item) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><div class="ia-meta-label">Assembly Name</div><input id="asm-name" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="e.g. Typical Office Outlet Circuit"/></div>
+      <div><div class="ia-meta-label">Description (optional)</div><input id="asm-desc" type="text" style="width:100%;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)" placeholder="Brief description"/></div>
     </div>
-    <div id="asm-item-search-wrap" style="display:none;position:relative;margin-bottom:12px">
-      <input type="text" id="asm-item-search" placeholder="Search library to add…" oninput="onAsmItemSearch(this.value)" autocomplete="off" style="width:100%;font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
-      <div id="asm-item-results" style="position:absolute;top:calc(100%+2px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500"></div>
+    <!-- Search bar -->
+    <div class="ia-sdrop" style="position:relative;margin-bottom:10px;display:flex;gap:8px;align-items:center">
+      <input id="asm-item-search" type="text" placeholder="Search library to add items…" oninput="onAsmItemSearch(this.value)" autocomplete="off" style="flex:1;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius)"/>
+      <button class="btn sm" onclick="asmAddBlank()">+ blank item</button>
+      <div id="asm-item-results" style="position:absolute;top:calc(100%+2px);left:0;right:80px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);z-index:500;display:none"></div>
     </div>
+    <!-- Items table -->
+    <div class="ia-items-table" style="flex:1;overflow-y:auto;margin-bottom:10px">
+      <table style="width:100%;min-width:660px;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr>
+            <th style="width:18px"></th>
+            <th style="min-width:80px">Code</th><th style="min-width:120px">Description</th>
+            <th class="r" style="width:36px">Unit</th>
+            <th class="r" style="width:56px">Qty</th>
+            <th class="r" style="width:72px">Mat $/unit</th>
+            <th class="r" style="width:64px">Lab hrs</th>
+            <th class="r" style="width:72px">Mat Total</th>
+            <th class="r" style="width:64px">Lab $</th>
+            <th style="width:24px"></th>
+          </tr>
+        </thead>
+        <tbody id="asm-items-body"></tbody>
+        <tfoot id="asm-items-foot"></tfoot>
+      </table>
+    </div>
+    <div id="asm-totals-row" style="display:flex;gap:16px;font-size:12px;color:var(--muted);padding:2px 0;margin-bottom:10px"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closeAssemblyModal()">Cancel</button>
       <button class="btn primary" onclick="confirmAssembly()">Save Assembly</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE CATEGORIES MODAL -->
+<div class="modal-overlay" id="manage-cats-modal" style="display:none">
+  <div class="modal" style="width:420px;max-height:80vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="margin:0">Manage Categories</h3>
+      <button onclick="closeManageCatsModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);line-height:1;padding:0 4px">&#10005;</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="new-cat-input" type="text" placeholder="New category name…" style="flex:1;font-size:13px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius)"
+        onkeydown="if(event.key==='Enter')addNewCategory()"/>
+      <button class="btn primary sm" onclick="addNewCategory()">+ Add</button>
+    </div>
+    <div id="cat-list-body" style="flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);min-height:80px"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn primary" onclick="closeManageCatsModal()">Done</button>
     </div>
   </div>
 </div>
@@ -984,7 +1027,7 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
         <table>
           <thead><tr>
             <th style="width:18px"></th>
-            <th style="min-width:80px">Code</th><th style="min-width:120px">Description</th><th class="r" style="width:36px">Unit</th>
+            <th style="min-width:80px">Code</th><th style="min-width:120px">Description</th><th class="r" style="width:36px">Unit</th><th style="width:68px">Mode</th>
             <th class="r" style="width:56px" title="Qty per assembly unit">Qty/unit</th>
             <th class="r" style="width:48px" title="Multiplier (0 = absolute)">Mult</th>
             <th class="r" style="width:48px" title="Divisor">Div</th>
@@ -1126,19 +1169,7 @@ function calcRow(row){
     const overallQty = parseFloat(row.qty)||1;
     let mat=0, hrs=0;
     (row._iaChildren||[]).forEach(ch=>{
-      const qty = Math.max(parseFloat(ch.qty)||0, 0);
-      const rawMult = ch.multiplier==='' ? 1 : parseFloat(ch.multiplier);
-      const rawDiv  = ch.divisor===''   ? 1 : parseFloat(ch.divisor);
-      const multIsZero = !isNaN(rawMult) && rawMult===0;
-      const divIsZero  = !isNaN(rawDiv)  && rawDiv===0;
-      let childQty;
-      if(multIsZero || divIsZero){
-        childQty = qty; // absolute
-      } else {
-        const mult = Math.max(isNaN(rawMult)?1:rawMult, 0);
-        const div  = Math.max(isNaN(rawDiv) ?1:rawDiv,  0.000001);
-        childQty = (qty * mult * overallQty) / div;
-      }
+      const childQty = iaChildEffectiveQty(ch, overallQty);
       mat += childQty * (parseFloat(ch.mat_unit)||0);
       hrs += childQty * (parseFloat(ch.labour_unit)||0);
     });
@@ -1758,17 +1789,23 @@ function iaSearch(q){
 }
 
 function iaAddFromLib(item){
-  _iaItems.push({...item, qty:1, multiplier:1});
+  _iaItems.push({...item, qty:1, multiplier:1, unitMode:'ea'});
   $('ia-search').value=''; $('ia-search-drop').style.display='none';
   renderIAItems();
 }
 
 function iaAddBlank(){
-  _iaItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1,multiplier:1});
+  _iaItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1,multiplier:1,unitMode:'ea'});
   renderIAItems();
 }
 
 function iaRemoveItem(ci){ _iaItems.splice(ci,1); renderIAItems(); }
+
+function iaSetUnitMode(ci, mode){
+  if(!_iaItems[ci]) return;
+  _iaItems[ci].unitMode = mode;
+  renderIAItems();
+}
 
 function iaDragStart(e, ci){
   _iaDragSrc = ci;
@@ -1804,7 +1841,9 @@ function iaUpdateItem(ci, field, val){
     _iaItems[ci][field] = val;
   } else {
     // Allow empty string during typing — store as-is, treat as 0 in calcs
-    _iaItems[ci][field] = val === '' ? '' : parseFloat(val);
+    let _parsed = val === '' ? '' : parseFloat(val);
+    if((field==='multiplier'||field==='divisor') && _parsed !== '' && _parsed < 0) _parsed = 0;
+    _iaItems[ci][field] = _parsed;
   }
   // Only refresh totals row — do NOT re-render the table (would steal focus)
   iaRefreshTotals();
@@ -1812,12 +1851,17 @@ function iaUpdateItem(ci, field, val){
 
 function iaChildEffectiveQty(ch, overallQty){
   const qty = Math.max(parseFloat(ch.qty) || 0, 0);
+  // single mode: completely frozen — only the entered qty, nothing else applies
+  if(ch.unitMode === 'single') return qty;
+  // abs mode: ignores mult/div but still scales with overall qty
+  if(ch.unitMode === 'abs') return qty * overallQty;
+  // ea mode (default): qty × overallQty × mult ÷ div
   const rawMult = ch.multiplier === '' ? 1 : parseFloat(ch.multiplier);
   const rawDiv  = ch.divisor   === '' ? 1 : parseFloat(ch.divisor);
-  // If mult=0 OR div=0 → treat qty as absolute (no scaling applied)
+  // If mult=0 OR div=0 → treat as abs (scale by overallQty only)
   const multIsZero = !isNaN(rawMult) && rawMult === 0;
   const divIsZero  = !isNaN(rawDiv)  && rawDiv  === 0;
-  if(multIsZero || divIsZero) return qty;
+  if(multIsZero || divIsZero) return qty * overallQty;
   // Clamp negatives to 0 — no negative multipliers or divisors allowed
   const mult = Math.max(isNaN(rawMult) ? 1 : rawMult, 0);
   const div  = Math.max(isNaN(rawDiv)  ? 1 : rawDiv,  0.000001);
@@ -1837,7 +1881,7 @@ function iaRefreshTotals(){
   });
   const foot = $('ia-items-foot');
   if(foot) foot.innerHTML = `<tr style="background:var(--bg2);font-weight:500;font-size:12px;border-top:2px solid var(--border)">
-    <td colspan="8" style="padding:5px 8px;color:var(--muted)">Totals (overall qty × ${overallQty})</td>
+    <td colspan="9" style="padding:5px 8px;color:var(--muted)">Totals (overall qty × ${overallQty})</td>
     <td class="r" style="padding:5px 8px">${fmt(tMat)}</td>
     <td class="r" style="padding:5px 8px">${fmt(tLab)}</td>
     <td></td>
@@ -1879,12 +1923,27 @@ function renderIAItems(){
       <td class="r"><input class="inline-input" style="width:34px;font-size:11px;text-align:right" value="${esc(ch.unit||'')}" placeholder="unit"
         oninput="iaUpdateItem(${ci},'unit',this.value)"
         onblur="renderIAItems()"/></td>
+      <td style="padding:2px 3px">
+        <select class="inline-input" style="font-size:11px;padding:2px 3px;width:62px"
+          title="ea: scales with qty × overallQty × mult ÷ div&#10;abs: qty × overallQty (mult/div ignored)&#10;single: fixed qty — nothing applies"
+          onchange="iaSetUnitMode(${ci},this.value)">
+          <option value="ea"${!ch.unitMode||ch.unitMode==='ea'?' selected':''}>ea</option>
+          <option value="abs"${ch.unitMode==='abs'?' selected':''}>abs</option>
+          <option value="single"${ch.unitMode==='single'?' selected':''}>single</option>
+        </select>
+      </td>
       <td class="r"><input class="ia-qty-in" type="number" step="any" value="${ch.qty===''?'':ch.qty??1}" title="Qty per assembly unit"
         oninput="iaUpdateItem(${ci},'qty',this.value)"/></td>
-      <td class="r"><input class="ia-mlt-in" type="number" step="any" value="${multVal}" placeholder="1" title="Multiplier (0 = absolute)"
-        oninput="iaUpdateItem(${ci},'multiplier',this.value)"/></td>
-      <td class="r"><input class="ia-mlt-in" type="number" step="any" min="0.0001" value="${divVal}" placeholder="1" title="Divisor"
-        oninput="iaUpdateItem(${ci},'divisor',this.value)" style="background:#fff8e6"/></td>
+      <td class="r">${ch.unitMode==='abs'||ch.unitMode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 6px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${multVal}" placeholder="1" title="Multiplier"
+            oninput="iaUpdateItem(${ci},'multiplier',this.value)"/>`
+      }</td>
+      <td class="r">${ch.unitMode==='abs'||ch.unitMode==='single'
+        ? '<span style="color:#ccc;font-size:11px;padding:0 6px">—</span>'
+        : `<input class="ia-mlt-in" type="number" step="any" min="0" value="${divVal}" placeholder="1" title="Divisor"
+            oninput="iaUpdateItem(${ci},'divisor',this.value)" style="background:#fff8e6"/>`
+      }</td>
       <td class="r"><input class="inline-input" type="number" step="any" style="width:66px;text-align:right;font-size:11px" value="${ch.mat_unit===''?'':ch.mat_unit??''}" placeholder="0.00"
         oninput="iaUpdateItem(${ci},'mat_unit',this.value)"/></td>
       <td class="r"><input class="inline-input" type="number" step="any" style="width:58px;text-align:right;font-size:11px" value="${ch.labour_unit===''?'':ch.labour_unit??''}" placeholder="0.0000"
@@ -1901,7 +1960,7 @@ function iaInsert(){
   const name=$('ia-name').value.trim()||'Item Assembly';
   const desc=$('ia-desc').value.trim();
   const qty=parseFloat($('ia-qty').value)||1;
-  const row={_itemAssembly:true,_iaName:name,_iaDesc:desc,_iaChildren:JSON.parse(JSON.stringify(_iaItems)),_iaExpanded:true,qty,notes:''};
+  const row={_itemAssembly:true,_iaName:name,_iaDesc:desc,_iaChildren:JSON.parse(JSON.stringify(_iaItems)),_iaExpanded:false,qty,notes:''};
   if(_iaEditIdx!==null){
     state.sheets[state.activeSheet].rows[_iaEditIdx]=row;
     showToast('Item assembly updated');
@@ -2248,22 +2307,11 @@ function renderTakeoff(){
     // ---- ITEM ASSEMBLY ROW (temporary, blue) ----
     if(row._itemAssembly){
       const c = calcRow(row);
-      const expanded = row._iaExpanded !== false; // default expanded
+      const expanded = row._iaExpanded === true; // default collapsed
       const childCount = (row._iaChildren||[]).length;
       const subRows = expanded ? (row._iaChildren||[]).map((ch,ci)=>{
         const overallQty = parseFloat(row.qty)||1;
-        const qty = parseFloat(ch.qty)||0;
-        const rawMult = ch.multiplier==='' ? 1 : parseFloat(ch.multiplier);
-        const rawDiv  = ch.divisor===''   ? 1 : parseFloat(ch.divisor);
-        const multIsZero = !isNaN(rawMult) && rawMult===0;
-        const divIsZero  = !isNaN(rawDiv)  && rawDiv===0;
-        let effQty;
-        if(multIsZero||divIsZero){ effQty=qty; }
-        else {
-          const mult=Math.max(isNaN(rawMult)?1:rawMult,0);
-          const div=Math.max(isNaN(rawDiv)?1:rawDiv,0.000001);
-          effQty=(qty*mult*overallQty)/div;
-        }
+        const effQty = iaChildEffectiveQty(ch, overallQty);
         const cMat = effQty*(parseFloat(ch.mat_unit)||0);
         const cHrs = effQty*(parseFloat(ch.labour_unit)||0);
         const cLab = cHrs*getSettings().jm;
@@ -3265,12 +3313,13 @@ function renderAssembliesPane(){
 
 function openNewAssemblyModal(){
   asmEditIdx = null;
-  if(!asmPendingItems.length) asmPendingItems = [];
+  asmPendingItems = [];
   $('assembly-modal-title').textContent = 'New Assembly';
   $('asm-name').value = '';
   $('asm-desc').value = '';
+  $('asm-item-search').value = '';
+  const dr=$('asm-item-results'); if(dr){dr.innerHTML='';dr.style.display='none';}
   renderAsmItemsList();
-  $('asm-item-search-wrap').style.display='none';
   $('assembly-modal').style.display='flex';
   setTimeout(()=>$('asm-name').focus(),50);
 }
@@ -3282,9 +3331,11 @@ function editAssembly(i){
   $('assembly-modal-title').textContent = 'Edit Assembly';
   $('asm-name').value = asm.name;
   $('asm-desc').value = asm.desc||'';
+  $('asm-item-search').value = '';
+  const dr=$('asm-item-results'); if(dr){dr.innerHTML='';dr.style.display='none';}
   renderAsmItemsList();
-  $('asm-item-search-wrap').style.display='none';
   $('assembly-modal').style.display='flex';
+  setTimeout(()=>$('asm-name').focus(),50);
 }
 
 function closeAssemblyModal(){
@@ -3293,71 +3344,111 @@ function closeAssemblyModal(){
   asmEditIdx=null;
 }
 
-function renderAsmItemsList(){
-  const list = $('asm-items-list');
-  if(!asmPendingItems.length){
-    list.innerHTML='<div class="empty-msg" id="asm-items-empty">No items yet. Use "+ Add item" to search the library.</div>';
-    return;
+// ============================================================
+// ASSEMBLY MODAL — IA-style UI (drag, search, inline edit)
+// ============================================================
+let _asmDragSrc = null;
+
+function asmUpdateItem(i, field, val){
+  if(!asmPendingItems[i]) return;
+  if(field === 'code' || field === 'description' || field === 'unit'){
+    asmPendingItems[i][field] = val;
+  } else {
+    asmPendingItems[i][field] = val === '' ? '' : parseFloat(val);
   }
-  list.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead>
-        <tr style="background:var(--bg2)">
-          <th style="padding:5px 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border)">Code / Item</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:56px">Qty</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:70px">Mat$/unit</th>
-          <th style="padding:5px 8px;text-align:right;font-weight:500;color:var(--muted);font-size:11px;border-bottom:1px solid var(--border);width:60px">Lab hrs</th>
-          <th style="width:28px;border-bottom:1px solid var(--border)"></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${asmPendingItems.map((it,i)=>`
-        <tr style="border-bottom:1px solid #f0efeb">
-          <td style="padding:4px 8px">
-            <div style="font-weight:600;font-size:12px">${esc(it.code)}</div>
-            <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${esc(it.description||'')}</div>
-          </td>
-          <td style="padding:4px 6px;text-align:right">
-            <input type="number" min="0.01" step="any" value="${it.qty||1}"
-              style="width:50px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-              onchange="asmPendingItems[${i}].qty=parseFloat(this.value)||1"/>
-          </td>
-          <td style="padding:4px 6px;text-align:right">
-            <input type="number" min="0" step="0.01" value="${it.mat_unit||0}"
-              style="width:65px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-              onchange="asmPendingItems[${i}].mat_unit=parseFloat(this.value)||0"/>
-          </td>
-          <td style="padding:4px 6px;text-align:right">
-            <input type="number" min="0" step="0.001" value="${it.labour_unit||0}"
-              style="width:55px;font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:right;background:var(--amber-bg)"
-              onchange="asmPendingItems[${i}].labour_unit=parseFloat(this.value)||0"/>
-          </td>
-          <td style="padding:4px;text-align:center">
-            <button onclick="asmPendingItems.splice(${i},1);renderAsmItemsList()"
-              style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0 3px;line-height:1"
-              onmouseover="this.style.color='#a32d2d'" onmouseout="this.style.color='#999'">&#10005;</button>
-          </td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
+  asmRefreshTotals();
 }
 
-function openAssemblyItemSearch(){
-  const w = $('asm-item-search-wrap');
-  w.style.display = w.style.display==='none' ? 'block' : 'none';
-  if(w.style.display==='block') setTimeout(()=>$('asm-item-search').focus(),50);
+function asmRefreshTotals(){
+  const s = getSettings();
+  let tMat=0, tHrs=0, tLab=0;
+  asmPendingItems.forEach(it=>{
+    const qty = parseFloat(it.qty)||0;
+    tMat += qty*(parseFloat(it.mat_unit)||0);
+    const hrs = qty*(parseFloat(it.labour_unit)||0);
+    tHrs += hrs; tLab += hrs*s.jm;
+  });
+  const foot = $('asm-items-foot');
+  if(foot) foot.innerHTML = `<tr style="background:var(--bg2);font-weight:500;font-size:12px;border-top:2px solid var(--border)">
+    <td colspan="7" style="padding:5px 8px;color:var(--muted)">${asmPendingItems.length} item${asmPendingItems.length!==1?'s':''}</td>
+    <td class="r" style="padding:5px 8px">${fmt(tMat)}</td>
+    <td class="r" style="padding:5px 8px">${fmt(tLab)}</td>
+    <td></td>
+  </tr>`;
+  const tot = $('asm-totals-row');
+  if(tot) tot.innerHTML = `<span>Mat: <strong>${fmt(tMat)}</strong></span><span style="margin-left:12px">Lab: <strong>${fmt(tLab)}</strong></span><span style="margin-left:12px">Hrs: <strong>${fmtH(tHrs)}</strong></span>`;
 }
+
+function renderAsmItemsList(){
+  const body = $('asm-items-body');
+  if(!body) return;
+  const s = getSettings();
+  if(!asmPendingItems.length){
+    body.innerHTML = `<tr><td colspan="10" class="empty-msg" style="padding:12px;font-style:italic">No items yet — search the library or add a blank item.</td></tr>`;
+    $('asm-items-foot').innerHTML=''; $('asm-totals-row').innerHTML='';
+    return;
+  }
+  body.innerHTML = asmPendingItems.map((it,i)=>{
+    const qty = parseFloat(it.qty)||0;
+    const cMat = qty*(parseFloat(it.mat_unit)||0);
+    const cHrs = qty*(parseFloat(it.labour_unit)||0);
+    const cLab = cHrs*s.jm;
+    return `<tr draggable="true"
+      ondragstart="asmDragStart(event,${i})"
+      ondragover="asmDragOver(event,${i})"
+      ondrop="asmDrop(event,${i})"
+      ondragend="asmDragEnd(event)"
+      style="cursor:default">
+      <td style="width:18px;cursor:grab;color:#bbb;font-size:14px;padding:0 4px;text-align:center" title="Drag to reorder">⠿</td>
+      <td><input class="inline-input" style="width:86px;font-size:12px" value="${esc(it.code||'')}" placeholder="code"
+        oninput="asmUpdateItem(${i},'code',this.value)"
+        onblur="renderAsmItemsList()"/></td>
+      <td><input class="inline-input" style="min-width:128px;font-size:12px" value="${esc(it.description||'')}" placeholder="description"
+        oninput="asmUpdateItem(${i},'description',this.value)"
+        onblur="renderAsmItemsList()"/></td>
+      <td class="r"><input class="inline-input" style="width:34px;font-size:11px;text-align:right" value="${esc(it.unit||'ea')}" placeholder="unit"
+        oninput="asmUpdateItem(${i},'unit',this.value)"
+        onblur="renderAsmItemsList()"/></td>
+      <td class="r"><input class="ia-qty-in" type="number" step="any" min="0" value="${it.qty===''?'':it.qty??1}" title="Qty"
+        oninput="asmUpdateItem(${i},'qty',this.value)"/></td>
+      <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:66px;text-align:right;font-size:11px" value="${it.mat_unit===''?'':it.mat_unit??0}" placeholder="0.00"
+        oninput="asmUpdateItem(${i},'mat_unit',this.value)"/></td>
+      <td class="r"><input class="inline-input" type="number" step="any" min="0" style="width:58px;text-align:right;font-size:11px" value="${it.labour_unit===''?'':it.labour_unit??0}" placeholder="0.0000"
+        oninput="asmUpdateItem(${i},'labour_unit',this.value)"/></td>
+      <td class="r" style="font-size:11px;white-space:nowrap">${fmt(cMat)}</td>
+      <td class="r" style="font-size:11px">${fmt(cLab)}</td>
+      <td><button onclick="asmPendingItems.splice(${i},1);renderAsmItemsList()"
+        style="background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:0 3px"
+        onmouseover="this.style.color='#a32d2d'" onmouseout="this.style.color='#ccc'">&#10005;</button></td>
+    </tr>`;
+  }).join('');
+  asmRefreshTotals();
+}
+
+function asmAddBlank(){
+  asmPendingItems.push({code:'',description:'',unit:'ea',mat_unit:0,labour_unit:0,qty:1});
+  renderAsmItemsList();
+}
+
+function asmDragStart(e, i){ _asmDragSrc=i; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',i); setTimeout(()=>{if(e.target)e.target.style.opacity='0.4';},0); }
+function asmDragOver(e, i){ e.preventDefault(); e.dataTransfer.dropEffect='move'; document.querySelectorAll('#asm-items-body tr').forEach((r,ri)=>{r.style.background=(ri===i&&ri!==_asmDragSrc)?'var(--bg2)':'';});}
+function asmDrop(e, i){ e.preventDefault(); if(_asmDragSrc===null||_asmDragSrc===i)return; const m=asmPendingItems.splice(_asmDragSrc,1)[0]; asmPendingItems.splice(i,0,m); _asmDragSrc=null; renderAsmItemsList(); }
+function asmDragEnd(e){ _asmDragSrc=null; document.querySelectorAll('#asm-items-body tr').forEach(r=>{r.style.opacity='';r.style.background='';}); }
+
+function openAssemblyItemSearch(){ /* legacy stub — search bar always visible now */ }
 
 function onAsmItemSearch(q){
   const el = $('asm-item-results');
-  if(!q.trim()){el.innerHTML='';return;}
+  if(!q.trim()){el.style.display='none';el.innerHTML='';return;}
   const res=getAllLibItems()
     .filter(i=>fuzzyMatch(q,i))
     .sort((a,b)=>fuzzyScore(q,b)-fuzzyScore(q,a))
     .slice(0,10);
-  el.innerHTML=res.map(i=>`<div class="ir-item" onclick="addAsmItem('${i.code.replace(/'/g,"\\'")}')">
-    <span class="ir-code">${i.code}</span><span class="ir-desc">${i.description}</span>
+  if(!res.length){el.style.display='none';return;}
+  el.innerHTML=res.map(i=>`<div class="ia-sdrop-item" onclick="addAsmItem('${i.code.replace(/'/g,"\\'")}')">
+    <strong>${esc(i.code)}</strong> <span style="color:var(--muted)">${esc(i.description)}</span>
   </div>`).join('');
+  el.style.display='block';
 }
 
 function addAsmItem(code){
@@ -3365,11 +3456,17 @@ function addAsmItem(code){
   if(!item) return;
   asmPendingItems.push({...item, qty:1});
   $('asm-item-search').value='';
-  $('asm-item-results').innerHTML='';
-  $('asm-item-search-wrap').style.display='none';
+  const el=$('asm-item-results'); el.innerHTML=''; el.style.display='none';
   renderAsmItemsList();
 }
 
+// Close asm search dropdown on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ia-sdrop')){
+    const d=$('asm-item-results');
+    if(d){d.style.display='none';}
+  }
+});
 function confirmAssembly(){
   const name = $('asm-name').value.trim();
   if(!name){ showToast('Assembly name is required'); return; }
@@ -4757,6 +4854,147 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 function populateCatDatalist(){
   const dl = $('cat-datalist');
   dl.innerHTML = CATS.map(c=>`<option value="${c}">`).join('');
+}
+
+// ============================================================
+// CATEGORY MANAGEMENT
+// ============================================================
+function getAllCats(){
+  // Merge CATS (built-in) with any categories from custom library items
+  const extra = customLibrary.map(x=>x.category).filter(Boolean);
+  return [...new Set([...CATS, ...extra])].sort();
+}
+
+function refreshAllCatDropdowns(){
+  // Rebuild datalist
+  const dl = $('cat-datalist');
+  if(dl) dl.innerHTML = getAllCats().map(c=>`<option value="${c}">`).join('');
+  // Rebuild takeoff cat filter
+  const cf = $('cat-filter');
+  if(cf){
+    const cur = cf.value;
+    cf.innerHTML = '<option value="">All categories</option>'+getAllCats().map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+  }
+  // Rebuild library cat filter
+  const lf = $('lib-cat-filter');
+  if(lf){
+    const cur = lf.value;
+    lf.innerHTML = '<option value="">All categories</option>'+getAllCats().map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+  }
+}
+
+function openManageCatsModal(){
+  renderCatList();
+  $('manage-cats-modal').style.display='flex';
+  setTimeout(()=>$('new-cat-input').focus(),50);
+}
+
+function closeManageCatsModal(){
+  $('manage-cats-modal').style.display='none';
+  $('new-cat-input').value='';
+  refreshAllCatDropdowns();
+}
+
+function renderCatList(){
+  const body = $('cat-list-body');
+  const cats = getAllCats();
+  if(!cats.length){ body.innerHTML='<div class="empty-msg" style="padding:12px">No categories yet.</div>'; return; }
+  body.innerHTML = cats.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0efeb">
+      <span style="flex:1;font-size:13px" id="cat-lbl-${i}">${esc(c)}</span>
+      <button class="btn sm" onclick="startRenameCat(${i},'${c.replace(/'/g,"\'")}')" title="Rename">&#9998;</button>
+      <button class="btn sm danger" onclick="deleteCat('${c.replace(/'/g,"\'")}')">&#10005;</button>
+    </div>`).join('');
+}
+
+function addNewCategory(){
+  const input = $('new-cat-input');
+  const name = input.value.trim();
+  if(!name){ showToast('Enter a category name'); return; }
+  if(getAllCats().some(c=>c.toLowerCase()===name.toLowerCase())){ showToast('Category already exists'); return; }
+  CATS.push(name);
+  CATS.sort();
+  input.value='';
+  renderCatList();
+  showToast('Category added: '+name);
+}
+
+function deleteCat(name){
+  const inUse = getAllLibItems().some(x=>x.category===name);
+  const msg = inUse
+    ? `"${name}" is used by library items. Deleting it won't move those items — they'll keep their category label. Delete anyway?`
+    : `Delete category "${name}"?`;
+  showConfirm(msg, ()=>{
+    const idx = CATS.indexOf(name);
+    if(idx>-1) CATS.splice(idx,1);
+    renderCatList();
+    showToast('Category removed: '+name);
+  });
+}
+
+function startRenameCat(i, oldName){
+  const body = $('cat-list-body');
+  const cats = getAllCats();
+  // Replace row with inline edit
+  const rows = body.querySelectorAll('div[style*="border-bottom"]');
+  if(!rows[i]) return;
+  rows[i].innerHTML = `
+    <input type="text" value="${esc(oldName)}" id="rename-cat-input" style="flex:1;font-size:13px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius)"
+      onkeydown="if(event.key==='Enter')confirmRenameCat('${oldName.replace(/'/g,"\'")}');if(event.key==='Escape')renderCatList()"/>
+    <button class="btn sm primary" onclick="confirmRenameCat('${oldName.replace(/'/g,"\'")}')">Save</button>
+    <button class="btn sm" onclick="renderCatList()">Cancel</button>`;
+  rows[i].style.display='flex';
+  setTimeout(()=>{ const inp=$('rename-cat-input'); if(inp){inp.focus();inp.select();}},30);
+}
+
+function confirmRenameCat(oldName){
+  const input = $('rename-cat-input');
+  if(!input) return;
+  const newName = input.value.trim();
+  if(!newName){ showToast('Name cannot be empty'); return; }
+  if(newName===oldName){ renderCatList(); return; }
+  if(getAllCats().some(c=>c.toLowerCase()===newName.toLowerCase() && c!==oldName)){ showToast('Category already exists'); return; }
+  // Update CATS array
+  const idx = CATS.indexOf(oldName);
+  if(idx>-1) CATS[idx]=newName;
+  else CATS.push(newName);
+  CATS.sort();
+  // Update all custom library items using the old name
+  customLibrary.forEach(x=>{ if(x.category===oldName) x.category=newName; });
+  localStorage.setItem('deltec_custom_lib', JSON.stringify(customLibrary));
+  renderCatList();
+  showToast('Renamed: '+oldName+' → '+newName);
+}
+
+// On-the-fly category suggestion in Add/Edit modals
+function onCatInput(val, suggestId){
+  const suggest = $(suggestId);
+  if(!suggest) return;
+  const v = val.trim();
+  if(!v || getAllCats().some(c=>c.toLowerCase()===v.toLowerCase())){
+    suggest.style.display='none'; suggest.innerHTML=''; return;
+  }
+  suggest.innerHTML = `<div onclick="applyNewCat('${val.replace(/'/g,"\'")}','${suggestId}')"
+    style="cursor:pointer;padding:4px 8px;font-size:12px;background:#e8f0fe;border:1px solid #4a7fd4;border-radius:var(--radius);color:#2855a0;display:inline-block">
+    + Create category "<strong>${esc(v)}</strong>"
+  </div>`;
+  suggest.style.display='block';
+}
+
+function applyNewCat(name, suggestId){
+  const trimmed = name.trim();
+  if(!trimmed) return;
+  if(!getAllCats().some(c=>c.toLowerCase()===trimmed.toLowerCase())){
+    CATS.push(trimmed); CATS.sort();
+    refreshAllCatDropdowns();
+    showToast('Category created: '+trimmed);
+  }
+  // Set the value in the input that triggered this
+  const inputId = suggestId.replace('-suggest','');
+  const inp = $(inputId);
+  if(inp) inp.value = trimmed;
+  const suggest = $(suggestId);
+  if(suggest){ suggest.style.display='none'; suggest.innerHTML=''; }
 }
 
 renderCatFilter();
