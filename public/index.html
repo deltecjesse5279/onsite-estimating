@@ -4757,6 +4757,10 @@ function confirmExportPDF(){
             let rateLabel='';
             if(c.type==='settings') rateLabel=` (${((s[c.key]||0)*100).toFixed(1)}%)`;
             else if(c.type==='pct') rateLabel=` (${(c.rate||0).toFixed(1)}%)`;
+            else if(c.type==='custom_adj'){
+              if(c.adjType==='hrs') rateLabel=` (${(c.adjVal||0).toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`;
+              else if(c.adjType==='pct'){ const _aH=tH2*((c.adjVal||0)/100); rateLabel=` (${(c.adjVal||0).toFixed(1)}% = ${_aH.toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`; }
+            }
             const crow=bkTable.insertRow();
             const cc=crow.insertCell(); cc.style.cssText='padding:3px 8px 3px 20px;font-size:11px;color:#444';
             cc.textContent=c.label+rateLabel;
@@ -4981,6 +4985,10 @@ function confirmExportPDF(){
             let rateLabel='';
             if(c.type==='settings') rateLabel=` (${((s[c.key]||0)*100).toFixed(1)}%)`;
             else if(c.type==='pct') rateLabel=` (${(c.rate||0).toFixed(1)}%)`;
+            else if(c.type==='custom_adj'){
+              if(c.adjType==='hrs') rateLabel=` (${(c.adjVal||0).toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`;
+              else if(c.adjType==='pct'){ const _aH=tH2*((c.adjVal||0)/100); rateLabel=` (${(c.adjVal||0).toFixed(1)}% = ${_aH.toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`; }
+            }
             const crow=bkTable.insertRow();
             const cc=crow.insertCell(); cc.style.cssText='padding:3px 8px 3px 20px;font-size:11px;color:#444';
             cc.textContent=c.label+rateLabel;
