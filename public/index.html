@@ -1377,11 +1377,20 @@ function exportSheetSummaryOnly(){
 
   // Header
   const hdr = document.createElement('div');
-  hdr.style.cssText = 'margin-bottom:16px';
+  hdr.style.cssText = 'margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #1a1a18';
   let hdrHTML = '';
   if($('proj-name').value) hdrHTML += `<h2 style="font-size:16px;font-weight:600;margin-bottom:4px">${esc($('proj-name').value)}</h2>`;
   const meta = [$('proj-client').value, $('proj-num').value ? 'Est. #'+$('proj-num').value : '', new Date().toLocaleDateString('en-CA')].filter(Boolean);
   if(meta.length) hdrHTML += `<p style="font-size:12px;color:#666">${meta.join(' &nbsp;·&nbsp; ')}</p>`;
+  const sDetailParts = [];
+  if($('s-address').value) sDetailParts.push(esc($('s-address').value));
+  if($('s-po').value) sDetailParts.push('PO: '+esc($('s-po').value));
+  if($('s-tender').value) sDetailParts.push('Closing: '+esc($('s-tender').value));
+  if($('s-estimator').value) sDetailParts.push('Est: '+esc($('s-estimator').value));
+  if($('s-contact').value) sDetailParts.push(esc($('s-contact').value));
+  if($('s-contactinfo').value) sDetailParts.push(esc($('s-contactinfo').value));
+  if(sDetailParts.length) hdrHTML += `<p style="font-size:11px;color:#666;margin-top:4px">${sDetailParts.join(' &nbsp;|&nbsp; ')}</p>`;
+  if($('s-description').value) hdrHTML += `<div style="margin-top:8px;padding:7px 10px;background:#f5f4f0;border-left:3px solid #999;font-size:11px;color:#333;line-height:1.5;white-space:pre-wrap">${esc($('s-description').value)}</div>`;
   hdrHTML += `<p style="font-size:13px;font-weight:600;margin-top:8px">Sheet: ${esc(sh.name)}</p>`;
   hdr.innerHTML = hdrHTML;
   printDiv.appendChild(hdr);
@@ -1403,16 +1412,31 @@ function exportSheetSummaryOnly(){
     const c = calcRow(row);
     const trow = tbody.insertRow();
     trow.style.borderBottom = '1px solid #eee';
-    const cells = [
-      ri+1,
-      row._assembly ? (row._asmName||'Assembly') : (row.code||''),
-      row._assembly ? `×${row.qty||1} (${(row._items||[]).length} items)` : (row.description||''),
-      row._assembly ? 'ls' : (row.unit||''),
-      row.qty||'',
-      row.qty ? fmt(c.mat) : '',
-      row.qty ? c.hrs.toFixed(2) : '',
-      row.qty ? fmt(c.lab) : ''
-    ];
+    let cells;
+    if(row._itemAssembly){
+      const iaDesc = [row._iaName||'Item Assembly', row._iaDesc].filter(Boolean).join(' — ');
+      cells = [
+        ri+1,
+        iaDesc,
+        `×${row.qty||1} (${(row._iaChildren||[]).length} items)`,
+        'ls',
+        row.qty||1,
+        fmt(c.mat),
+        c.hrs.toFixed(2),
+        fmt(c.lab)
+      ];
+    } else {
+      cells = [
+        ri+1,
+        row._assembly ? (row._asmName||'Assembly') : (row.code||''),
+        row._assembly ? `×${row.qty||1} (${(row._items||[]).length} items)` : (row.description||''),
+        row._assembly ? 'ls' : (row.unit||''),
+        row.qty||'',
+        row.qty ? fmt(c.mat) : '',
+        row.qty ? c.hrs.toFixed(2) : '',
+        row.qty ? fmt(c.lab) : ''
+      ];
+    }
     cells.forEach((v,ci)=>{
       const td = trow.insertCell();
       td.style.cssText = 'padding:4px 6px;font-size:11px'+(ci>=4?';text-align:right':'');
@@ -2325,6 +2349,7 @@ function renderTakeoff(){
         ondragleave="onRowDragLeave(event)"
         ondrop="onRowDrop(event,${i})"
         ondragend="onRowDragEnd(event)">
+        <td><input type="checkbox" class="row-sel-cb" data-idx="${i}" onchange="onRowSelChange()"/></td>
         <td class="row-num"><span class="drag-handle" title="Drag to reorder">⠿</span>${i+1}</td>
         <td colspan="2">
           <button class="asm-toggle" onclick="toggleAsmRow(${i})">${expanded?'▼':'▶'}</button>
@@ -4545,7 +4570,9 @@ function confirmExportPDF(){
     po: $('s-po')?.value||'',
     tender: $('s-tender')?.value||'',
     estimator: $('s-estimator')?.value||'',
-    contact: $('s-contact')?.value||''
+    contact: $('s-contact')?.value||'',
+    contactinfo: $('s-contactinfo')?.value||'',
+    description: $('s-description')?.value||''
   };
   const parts = [];
   if(inclFields.projectName && $('proj-name').value) parts.push(`<strong>${esc($('proj-name').value)}</strong>`);
@@ -4560,7 +4587,9 @@ function confirmExportPDF(){
   if(pd.tender) detailParts.push('Closing: '+esc(pd.tender));
   if(pd.estimator) detailParts.push('Est: '+esc(pd.estimator));
   if(pd.contact) detailParts.push(esc(pd.contact));
+  if(pd.contactinfo) detailParts.push(esc(pd.contactinfo));
   if(detailParts.length) headerHTML += `<p style="font-size:11px;color:#666;margin-top:4px">${detailParts.join(' &nbsp;|&nbsp; ')}</p>`;
+  if(pd.description) headerHTML += `<div style="margin-top:8px;padding:7px 10px;background:#f5f4f0;border-left:3px solid #999;font-size:11px;color:#333;line-height:1.5;white-space:pre-wrap">${esc(pd.description)}</div>`;
   if(view !== 'client') headerHTML += `<p style="font-size:11px;color:#999;margin-top:2px;font-style:italic">${view.charAt(0).toUpperCase()+view.slice(1)} View &nbsp;·&nbsp; ${exportFmt==='bom'?'Bill of Materials':'Summary'}</p>`;
   $('print-header').innerHTML = headerHTML;
 
@@ -4738,7 +4767,15 @@ function confirmExportPDF(){
           const srow=bkTable.insertRow();
           srow.style.cssText='background:#f8f8f5;-webkit-print-color-adjust:exact;print-color-adjust:exact';
           const sc=srow.insertCell(); sc.style.cssText='padding:3px 8px 3px 20px;font-size:11px;color:#444';
-          sc.textContent=bucket.label+' Total';
+          let subTotalLabel = bucket.label+' Total';
+          if(bucket.id==='LABOUR'){
+            const adjChild=(bucket.children||[]).find(c=>c.id==='lab_adj'&&c.visible);
+            let adjHrs=0;
+            if(adjChild) adjHrs=adjChild.adjType==='hrs'?(adjChild.adjVal||0):tH2*((adjChild.adjVal||0)/100);
+            const adjTotal=tH2+adjHrs;
+            subTotalLabel=`Labour Total (${adjTotal.toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`;
+          }
+          sc.textContent=subTotalLabel;
           const sv=srow.insertCell(); sv.style.cssText='padding:3px 8px;text-align:right;font-size:11px;font-weight:500';
           sv.textContent=fmt(bucketTotal);
         }
@@ -4823,7 +4860,16 @@ function confirmExportPDF(){
         trow.style.borderBottom = '1px solid #e8e8e8';
         const cells = [];
         cells.push(ri + 1);
-        if(row._assembly){
+        if(row._itemAssembly){
+          const iaDesc = [row._iaName||'Item Assembly', row._iaDesc].filter(Boolean).join(' — ');
+          cells.push(iaDesc);
+          cells.push(`×${row.qty||1} (${(row._iaChildren||[]).length} items)`);
+          cells.push('ls');
+          cells.push(row.qty||1);
+          if(showMoney) cells.push(fmt(c.mat));
+          if(showLabour){ cells.push(c.hrs.toFixed(2)); cells.push(fmt(c.lab)); }
+          if(view !== 'client') cells.push(row.notes||'');
+        } else if(row._assembly){
           cells.push(row._asmName || 'Assembly');
           cells.push(`×${row.qty||1} (${(row._items||[]).length} items)`);
           cells.push('ls');
@@ -4944,7 +4990,15 @@ function confirmExportPDF(){
           const srow=bkTable.insertRow();
           srow.style.cssText='background:#f8f8f5;-webkit-print-color-adjust:exact;print-color-adjust:exact';
           const sc=srow.insertCell(); sc.style.cssText='padding:3px 8px 3px 20px;font-size:11px;color:#444';
-          sc.textContent=bucket.label+' Total';
+          let subTotalLabel2 = bucket.label+' Total';
+          if(bucket.id==='LABOUR'){
+            const adjChild2=(bucket.children||[]).find(c=>c.id==='lab_adj'&&c.visible);
+            let adjHrs2=0;
+            if(adjChild2) adjHrs2=adjChild2.adjType==='hrs'?(adjChild2.adjVal||0):tH2*((adjChild2.adjVal||0)/100);
+            const adjTotal2=tH2+adjHrs2;
+            subTotalLabel2=`Labour Total (${adjTotal2.toFixed(2)} hrs @ $${(s.jm||115).toFixed(0)}/hr)`;
+          }
+          sc.textContent=subTotalLabel2;
           const sv=srow.insertCell(); sv.style.cssText='padding:3px 8px;text-align:right;font-size:11px;font-weight:500';
           sv.textContent=fmt(bucketTotal);
         }
