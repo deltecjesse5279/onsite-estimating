@@ -143,10 +143,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cslbl{font-size:11px;color:var(--muted);white-space:nowrap}
 
 /* canvas viewport - CSS transform zoom, no scroll */
-.cv-wrap{flex:1;overflow:hidden;position:relative;cursor:grab;background:#e8e7e3;display:flex;align-items:center;justify-content:center}
+.cv-wrap{flex:1;overflow:hidden;position:relative;cursor:grab;background:#e8e7e3}
 .cv-wrap.tool-measure,.cv-wrap.tool-count,.cv-wrap.tool-cal{cursor:crosshair}
-/* canvas container: centered, transform applied here */
-.cv-stage{position:relative;flex-shrink:0;transform-origin:0 0;will-change:transform}
+/* canvas container: absolutely positioned, transform is the only position */
+.cv-stage{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
 /* canvases stack inside stage */
 #pc,#oc{position:absolute;top:0;left:0;display:block}
 #pc{position:relative}
@@ -975,15 +975,25 @@ function doZoom(delta, cx, cy){
   scheduleRerender();
 }
 
-// Debounced full re-render after zoom settles
+// Debounced full re-render after zoom settles — preserves visual pan position
 let _rerenderTimer=null;
 function scheduleRerender(){
   if(_rerenderTimer) clearTimeout(_rerenderTimer);
-  _rerenderTimer=setTimeout(()=>{
+  _rerenderTimer=setTimeout(async ()=>{
     _rerenderTimer=null;
     if(!pdfDoc) return;
-    renderPage(curPage, true);
-  }, 250);
+    // Before re-render: capture the current visual centre of the stage
+    // so we can restore the same view after rendering at the new resolution.
+    // The stage top-left is at (_panX, _panY) in wrap coords.
+    // displayScale = zoom / _baseZoom
+    const displayScale = zoom / _baseZoom;
+    // Save pan — after renderPage _baseZoom=zoom so displayScale will be 1,
+    // meaning the canvas pixel size = actual rendered size. Pan stays the same.
+    await renderPage(curPage, true);
+    // renderPage set _baseZoom=zoom, canvas re-rendered at zoom*PDF_RS px.
+    // _panX/_panY are unchanged — which is correct because the canvas
+    // physical size is now exactly zoom*PDF_RS, matching the visual size.
+  }, 280);
 }
 
 function fitPage(){
