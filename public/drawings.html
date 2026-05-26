@@ -2104,10 +2104,15 @@ async function confirmPush(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     await r.json();
     sheets=JSON.parse(JSON.stringify(linked.sheets));
+    // Land on the first pushed sheet so rows are visible immediately
+    const firstPushedName=sheetsToCreate[0].name;
+    const firstPushedIdx=sheets.findIndex(s=>s.name===firstPushedName);
+    if(firstPushedIdx>=0) activeSheet=firstPushedIdx;
     // Remove groups that are now empty (items deleted, not just pushed)
     userGroups=userGroups.filter(ug=>items.some(it=>it.groupId===ug.id));
     closeMo('push-mo');
     renderGroups();
+    renderTO();
     const warn=ungrouped.length?' (warning: ungrouped items in "Ungrouped" sheet)':'';
     toast(`Pushed ${sheetsToCreate.length} sheet${sheetsToCreate.length!==1?'s':''}${warn}`);
   }catch(err){toast('Push failed: '+err.message);}
