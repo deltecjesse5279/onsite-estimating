@@ -142,13 +142,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .csi:focus{outline:none;border-color:var(--amber);background:var(--amber-bg)}
 .cslbl{font-size:11px;color:var(--muted);white-space:nowrap}
 
-/* canvas viewport - pure scroll, no CSS transforms */
-.cv-wrap{flex:1;overflow:auto;position:relative;cursor:grab;background:#e8e7e3}
+/* canvas viewport - CSS transform zoom, no scroll */
+.cv-wrap{flex:1;overflow:hidden;position:relative;cursor:grab;background:#e8e7e3;display:flex;align-items:center;justify-content:center}
 .cv-wrap.tool-measure,.cv-wrap.tool-count,.cv-wrap.tool-cal{cursor:crosshair}
-/* spacer div sets scroll extent */
-.cv-spacer{position:absolute;top:0;left:0;background:transparent}
-/* canvases sit inside spacer */
+/* canvas container: centered, transform applied here */
+.cv-stage{position:relative;flex-shrink:0;transform-origin:center center;will-change:transform}
+/* canvases stack inside stage */
 #pc,#oc{position:absolute;top:0;left:0;display:block}
+#pc{position:relative}
 #oc{pointer-events:none}
 .cv-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);gap:8px;pointer-events:none;z-index:2}
 .cv-empty .bigtext{font-size:28px;font-weight:700;letter-spacing:-1px;opacity:.2}
@@ -237,8 +238,8 @@ tr:hover .dbtn{opacity:1}
 .scale-warn.show{display:block}
 .scale-warn p{font-size:13px;color:var(--text);margin-bottom:10px}
 
-/* marquee drag-select */
-.marquee{position:absolute;border:1.5px dashed #1a4f8a;background:rgba(26,79,138,.08);pointer-events:none;z-index:5;}
+/* marquee drag-select - positioned inside cv-stage */
+.marquee{position:absolute;border:1.5px dashed #1a4f8a;background:rgba(26,79,138,.08);pointer-events:none;z-index:5;top:0;left:0}
 /* toast */
 .toast{position:fixed;bottom:18px;right:18px;background:#1a1a18;color:#fff;padding:9px 14px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
@@ -407,10 +408,13 @@ tr:hover .dbtn{opacity:1}
       onmousemove="cvm(event)"
       onmouseup="cvu(event)"
       ondblclick="cvdb(event)"
-      onwheel="cvwh(event)">
-      <div class="cv-spacer" id="cv-spacer">
+      onwheel="cvwh(event)"
+      ontouchstart="cvts(event)"
+      ontouchmove="cvtm(event)"
+      ontouchend="cvte(event)">
+      <div class="cv-stage" id="cv-stage">
         <canvas id="pc"></canvas>
-        <canvas id="oc"></canvas>
+        <canvas id="oc" style="position:absolute;top:0;left:0"></canvas>
       </div>
       <div class="cv-empty" id="cv-empty">
         <div class="bigtext">OnSite Drawings</div>
@@ -729,7 +733,9 @@ const ALL_COLORS  = [
 
 // ─── State ───
 let pdfDoc=null, curPage=1, pdfFilename='', pdfRawBytes=null;
-let zoom=1.0;
+let zoom=1.0;          // logical zoom level (used for scale calculations)
+let _baseZoom=1.0;     // zoom level the canvas was last rendered at
+let _panX=0, _panY=0;  // pan offset in screen pixels
 // scaleRaw = px per real foot at zoom=1, PDF_RS=1
 // actual scale = scaleRaw * PDF_RS * zoom
 let scaleRaw=null, scaleUnit='ft', scaleLabel='';
@@ -859,7 +865,9 @@ function loadPDF(file){
       $('cv-empty').style.display='none';
       $('uz').style.display='none';
       buildThumbs();
-      renderPage(1);
+      // Render at zoom=1 first, then fit — gives correct natural dimensions
+      zoom=1; _panX=0; _panY=0;
+      renderPage(1).then(()=>fitPage());
       toast('Loaded: '+file.name);
       if(linked&&linked.id){ savePdfToServer(linked.id); }
     }).catch(e=>toast('PDF error: '+e.message));
@@ -890,15 +898,26 @@ async function buildThumbs(){
   updateThumbMarkers();
 }
 
-async function renderPage(n){
+// ─── Stage transform ───
+function applyStageTransform(){
+  const stage=$('cv-stage');
+  const displayScale=zoom/_baseZoom;
+  stage.style.transform=`translate(${_panX}px,${_panY}px) scale(${displayScale})`;
+}
+
+async function renderPage(n, keepPan){
   curPage=n;
   const pg=await pdfDoc.getPage(n);
   const vp=pg.getViewport({scale:zoom*PDF_RS});
-  const pc=$('pc'), oc=$('oc'), spacer=$('cv-spacer');
+  const pc=$('pc'), oc=$('oc');
   pc.width=vp.width; pc.height=vp.height;
   oc.width=vp.width; oc.height=vp.height;
-  spacer.style.width=vp.width+'px';
-  spacer.style.height=vp.height+'px';
+  oc.style.width=vp.width+'px'; oc.style.height=vp.height+'px';
+  const stage=$('cv-stage');
+  stage.style.width=vp.width+'px'; stage.style.height=vp.height+'px';
+  _baseZoom=zoom;
+  if(!keepPan){ _panX=0; _panY=0; }
+  applyStageTransform();
   const ctx=pc.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,vp.width,vp.height);
   await pg.render({canvasContext:ctx,viewport:vp}).promise;
@@ -920,20 +939,30 @@ function updateThumbMarkers(){
 }
 
 // ─── Zoom ───
-function doZoom(delta){
+// ─── Zoom via buttons (+/-) ───
+function doZoom(delta, cx, cy){
   const wrap=$('cvw');
-  const cx=wrap.scrollLeft+wrap.clientWidth/2;
-  const cy=wrap.scrollTop+wrap.clientHeight/2;
+  if(cx==null){ cx=wrap.clientWidth/2; cy=wrap.clientHeight/2; }
   const oldZoom=zoom;
   zoom=Math.max(0.1,Math.min(6,zoom+delta));
-  if(pdfDoc){
-    renderPage(curPage).then(()=>{
-      const ratio=zoom/oldZoom;
-      wrap.scrollLeft=cx*ratio-wrap.clientWidth/2;
-      wrap.scrollTop=cy*ratio-wrap.clientHeight/2;
-    });
-  }
+  // Adjust pan so the point under cursor stays fixed
+  const ratio=zoom/oldZoom;
+  _panX=cx+((_panX-cx)*ratio);
+  _panY=cy+((_panY-cy)*ratio);
+  applyStageTransform();
   $('zdsp').textContent=Math.round(zoom*100)+'%';
+  scheduleRerender();
+}
+
+// Debounced full re-render after zoom settles
+let _rerenderTimer=null;
+function scheduleRerender(){
+  if(_rerenderTimer) clearTimeout(_rerenderTimer);
+  _rerenderTimer=setTimeout(()=>{
+    _rerenderTimer=null;
+    if(!pdfDoc) return;
+    renderPage(curPage, true);
+  }, 250);
 }
 
 function fitPage(){
@@ -941,46 +970,76 @@ function fitPage(){
   const wrap=$('cvw');
   const pc=$('pc');
   if(!pc.width) return;
-  // current canvas size is at current zoom — compute natural size at zoom=1
-  const naturalW=pc.width/zoom;
-  const naturalH=pc.height/zoom;
-  const sx=(wrap.clientWidth-16)/naturalW;
-  const sy=(wrap.clientHeight-16)/naturalH;
+  // natural size = canvas px / (current _baseZoom * PDF_RS)
+  const naturalW=pc.width/(_baseZoom*PDF_RS);
+  const naturalH=pc.height/(_baseZoom*PDF_RS);
+  const sx=(wrap.clientWidth-24)/naturalW;
+  const sy=(wrap.clientHeight-24)/naturalH;
   zoom=Math.min(sx,sy);
-  renderPage(curPage).then(()=>{
-    $('cvw').scrollLeft=0;
-    $('cvw').scrollTop=0;
-  });
+  _panX=0; _panY=0;
+  renderPage(curPage, true);
 }
 
-// Smooth scroll-to-zoom — accumulate delta, throttle renders
-let _zoomTarget=null, _zoomRAF=null, _zoomMx=0, _zoomMy=0;
+// ─── Wheel zoom — smooth CSS transform, re-render on settle ───
 function cvwh(e){
   e.preventDefault();
   const wrap=$('cvw');
   const rect=wrap.getBoundingClientRect();
-  // anchor point under mouse in document coords
-  _zoomMx=e.clientX-rect.left+wrap.scrollLeft;
-  _zoomMy=e.clientY-rect.top+wrap.scrollTop;
-  // accumulate zoom target
+  // cursor position relative to wrap center (our transform-origin)
+  const cx=e.clientX-rect.left;
+  const cy=e.clientY-rect.top;
   const delta=e.deltaY<0?0.12:-0.12;
-  if(_zoomTarget===null) _zoomTarget=zoom;
-  _zoomTarget=Math.max(0.1,Math.min(6,_zoomTarget+delta));
-  $('zdsp').textContent=Math.round(_zoomTarget*100)+'%';
-  if(_zoomRAF) return; // already scheduled
-  _zoomRAF=requestAnimationFrame(()=>{
-    _zoomRAF=null;
-    if(!pdfDoc||_zoomTarget===null) return;
-    const oldZoom=zoom;
-    zoom=_zoomTarget;
-    _zoomTarget=null;
-    const ratio=zoom/oldZoom;
-    const wrap2=$('cvw');
-    renderPage(curPage).then(()=>{
-      wrap2.scrollLeft=_zoomMx*ratio-(e.clientX-wrap2.getBoundingClientRect().left);
-      wrap2.scrollTop=_zoomMy*ratio-(e.clientY-wrap2.getBoundingClientRect().top);
-    });
-  });
+  doZoom(delta, cx, cy);
+}
+
+// ─── Touch: pan + pinch-to-zoom ───
+let _touch1=null, _touch2=null, _touchPanStart=null, _touchPinchDist=null, _touchPinchZoom=null;
+function _getTouchDist(a,b){ return Math.sqrt((b.clientX-a.clientX)**2+(b.clientY-a.clientY)**2); }
+function _getTouchMid(a,b,rect){ return{x:(a.clientX+b.clientX)/2-rect.left, y:(a.clientY+b.clientY)/2-rect.top}; }
+function cvts(e){
+  e.preventDefault();
+  const touches=e.touches;
+  if(touches.length===1){
+    _touch1={x:touches[0].clientX,y:touches[0].clientY};
+    _touchPanStart={x:_panX,y:_panY};
+    _touch2=null; _touchPinchDist=null;
+  } else if(touches.length===2){
+    _touchPinchDist=_getTouchDist(touches[0],touches[1]);
+    _touchPinchZoom=zoom;
+    _touch1={x:touches[0].clientX,y:touches[0].clientY};
+    _touch2={x:touches[1].clientX,y:touches[1].clientY};
+    _touchPanStart={x:_panX,y:_panY};
+  }
+}
+function cvtm(e){
+  e.preventDefault();
+  const touches=e.touches;
+  const wrap=$('cvw');
+  const rect=wrap.getBoundingClientRect();
+  if(touches.length===2&&_touchPinchDist!=null){
+    const newDist=_getTouchDist(touches[0],touches[1]);
+    const ratio=newDist/_touchPinchDist;
+    const newZoom=Math.max(0.1,Math.min(6,_touchPinchZoom*ratio));
+    const mid=_getTouchMid(touches[0],touches[1],rect);
+    const zRatio=newZoom/zoom;
+    _panX=mid.x+((_panX-mid.x)*zRatio);
+    _panY=mid.y+((_panY-mid.y)*zRatio);
+    zoom=newZoom;
+    applyStageTransform();
+    $('zdsp').textContent=Math.round(zoom*100)+'%';
+  } else if(touches.length===1&&_touch1&&_touchPanStart){
+    const dx=touches[0].clientX-_touch1.x;
+    const dy=touches[0].clientY-_touch1.y;
+    _panX=_touchPanStart.x+dx;
+    _panY=_touchPanStart.y+dy;
+    applyStageTransform();
+  }
+}
+function cvte(e){
+  if(e.touches.length===0){
+    scheduleRerender();
+    _touch1=null; _touch2=null; _touchPinchDist=null; _touchPinchZoom=null; _touchPanStart=null;
+  }
 }
 
 // ─── Tools ───
@@ -1185,10 +1244,12 @@ function setActiveGroup(gi){ activeItemIdx=gi; } // legacy compat
 // ─── Canvas coordinate helpers ───
 // Store ALL points as normalised fractions (0-1) relative to canvas size.
 // This means zoom changes never corrupt stored markups.
+// getCvPt: use getBoundingClientRect on #oc — this already accounts for CSS transform scale,
+// so dividing by rect.width/height gives correct normalised coords at any zoom level.
 function getCvPt(e){
   const oc=$('oc');
   const rect=oc.getBoundingClientRect();
-  return{x:(e.clientX-rect.left)/oc.width, y:(e.clientY-rect.top)/oc.height};
+  return{x:(e.clientX-rect.left)/rect.width, y:(e.clientY-rect.top)/rect.height};
 }
 // Convert a normalised point to canvas pixels for drawing
 function toCanvas(p){
@@ -1224,7 +1285,7 @@ function hitTest(cvPt){
 function cvd(e){
   if(!pdfDoc||e.button!==0) return;
   mousedownPos={x:e.clientX,y:e.clientY};
-  mousedownScroll={x:$('cvw').scrollLeft,y:$('cvw').scrollTop};
+  mousedownScroll={x:_panX,y:_panY};
   intentDecided=false;
   isPanning=false;
 
@@ -1321,8 +1382,9 @@ function cvm(e){
   if(isPanning&&mousedownPos){
     const dx=e.clientX-mousedownPos.x;
     const dy=e.clientY-mousedownPos.y;
-    $('cvw').scrollLeft=mousedownScroll.x-dx;
-    $('cvw').scrollTop=mousedownScroll.y-dy;
+    _panX=mousedownScroll.x+dx;
+    _panY=mousedownScroll.y+dy;
+    applyStageTransform();
     return;
   }
 
@@ -1347,8 +1409,8 @@ function cvm(e){
     const r={x:Math.min(_marqStart.x,cvPt2.x),y:Math.min(_marqStart.y,cvPt2.y),
               w:Math.abs(cvPt2.x-_marqStart.x),h:Math.abs(cvPt2.y-_marqStart.y)};
     _marqRect=r;
-    // Draw marquee div overlay
-    if(!_marqEl){_marqEl=document.createElement('div');_marqEl.className='marquee';$('cv-spacer').appendChild(_marqEl);}
+    // Draw marquee div overlay inside cv-stage
+    if(!_marqEl){_marqEl=document.createElement('div');_marqEl.className='marquee';$('cv-stage').appendChild(_marqEl);}
     _marqEl.style.left=r.x+'px';_marqEl.style.top=r.y+'px';_marqEl.style.width=r.w+'px';_marqEl.style.height=r.h+'px';
     return;
   }
@@ -2173,7 +2235,7 @@ function getDrawingsState(){
     items: items.map(it=>({...it, markups:it.markups})),
     userGroups,
     scaleRaw, scaleUnit, scaleLabel,
-    curPage, zoom, markerSize,
+    curPage, zoom, panX:_panX, panY:_panY, markerSize,
     pdfFilename
   };
 }
@@ -2185,6 +2247,7 @@ function applyDrawingsState(ds){
   if(ds.scaleLabel) setScaleInd(ds.scaleLabel);
   if(ds.markerSize){ markerSize=ds.markerSize; $('marker-size').value=markerSize; }
   if(ds.pdfFilename) pdfFilename=ds.pdfFilename;
+  if(ds.panX!=null){ _panX=ds.panX; _panY=ds.panY||0; }
   renderGroups(); updatePushBtn();
 }
 async function saveLinked(){
@@ -2395,8 +2458,12 @@ renderTO();
         $('cv-empty').style.display='none';
         $('uz').style.display='none';
         buildThumbs();
-        const pg=(linked.drawingsState&&linked.drawingsState.curPage)||1;
-        renderPage(pg);
+        const ds=linked.drawingsState;
+        const pg=(ds&&ds.curPage)||1;
+        // Restore saved zoom/pan before renderPage so it renders at the right zoom
+        if(ds&&ds.zoom){ zoom=ds.zoom; }
+        if(ds&&ds.panX!=null){ _panX=ds.panX; _panY=ds.panY||0; }
+        await renderPage(pg, !!(ds&&ds.panX!=null));
         toast('Restored: '+linked.name);
       }catch(e){ toast('Restored: '+linked.name+' (PDF error)'); }
     }
