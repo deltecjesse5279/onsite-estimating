@@ -146,7 +146,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cv-wrap{flex:1;overflow:hidden;position:relative;cursor:grab;background:#e8e7e3;display:flex;align-items:center;justify-content:center}
 .cv-wrap.tool-measure,.cv-wrap.tool-count,.cv-wrap.tool-cal{cursor:crosshair}
 /* canvas container: centered, transform applied here */
-.cv-stage{position:relative;flex-shrink:0;transform-origin:center center;will-change:transform}
+.cv-stage{position:relative;flex-shrink:0;transform-origin:0 0;will-change:transform}
 /* canvases stack inside stage */
 #pc,#oc{position:absolute;top:0;left:0;display:block}
 #pc{position:relative}
@@ -234,7 +234,8 @@ tr:hover .dbtn{opacity:1}
 
 /* no-scale warning */
 .cv-wrap.tool-select{cursor:default}
-.cv-wrap.tool-select canvas{cursor:default};background:#fff;border:1px solid var(--amber);border-radius:var(--radius);padding:16px 20px;text-align:center;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none}
+.cv-wrap.tool-select canvas{cursor:default}
+.scale-warn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--amber);border-radius:var(--radius);padding:16px 20px;text-align:center;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none}
 .scale-warn.show{display:block}
 .scale-warn p{font-size:13px;color:var(--text);margin-bottom:10px}
 
@@ -899,10 +900,25 @@ async function buildThumbs(){
 }
 
 // ─── Stage transform ───
+// transform-origin is 0 0. The stage is absolutely positioned inside the wrap.
+// _panX/_panY represent the stage's top-left corner relative to wrap's top-left.
+// Centering is achieved by initialising pan to center the stage in the wrap.
 function applyStageTransform(){
   const stage=$('cv-stage');
   const displayScale=zoom/_baseZoom;
   stage.style.transform=`translate(${_panX}px,${_panY}px) scale(${displayScale})`;
+}
+
+function _centeredPan(){
+  // Compute pan values that center the stage (at current zoom) in the wrap
+  const wrap=$('cvw');
+  const pc=$('pc');
+  const stageW=pc.width*(zoom/_baseZoom);
+  const stageH=pc.height*(zoom/_baseZoom);
+  return{
+    x:Math.max(0,(wrap.clientWidth-stageW)/2),
+    y:Math.max(0,(wrap.clientHeight-stageH)/2)
+  };
 }
 
 async function renderPage(n, keepPan){
@@ -916,7 +932,10 @@ async function renderPage(n, keepPan){
   const stage=$('cv-stage');
   stage.style.width=vp.width+'px'; stage.style.height=vp.height+'px';
   _baseZoom=zoom;
-  if(!keepPan){ _panX=0; _panY=0; }
+  if(!keepPan){
+    const c=_centeredPan();
+    _panX=c.x; _panY=c.y;
+  }
   applyStageTransform();
   const ctx=pc.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,vp.width,vp.height);
@@ -945,10 +964,12 @@ function doZoom(delta, cx, cy){
   if(cx==null){ cx=wrap.clientWidth/2; cy=wrap.clientHeight/2; }
   const oldZoom=zoom;
   zoom=Math.max(0.1,Math.min(6,zoom+delta));
-  // Adjust pan so the point under cursor stays fixed
   const ratio=zoom/oldZoom;
-  _panX=cx+((_panX-cx)*ratio);
-  _panY=cy+((_panY-cy)*ratio);
+  // Keep the point under cursor fixed:
+  // stagePoint = (cx - _panX, cy - _panY) — cursor relative to stage top-left
+  // after zoom: new _panX = cx - stagePoint.x * ratio
+  _panX=cx-((cx-_panX)*ratio);
+  _panY=cy-((cy-_panY)*ratio);
   applyStageTransform();
   $('zdsp').textContent=Math.round(zoom*100)+'%';
   scheduleRerender();
@@ -976,8 +997,7 @@ function fitPage(){
   const sx=(wrap.clientWidth-24)/naturalW;
   const sy=(wrap.clientHeight-24)/naturalH;
   zoom=Math.min(sx,sy);
-  _panX=0; _panY=0;
-  renderPage(curPage, true);
+  renderPage(curPage, false); // false = recompute centered pan
 }
 
 // ─── Wheel zoom — smooth CSS transform, re-render on settle ───
@@ -1022,8 +1042,8 @@ function cvtm(e){
     const newZoom=Math.max(0.1,Math.min(6,_touchPinchZoom*ratio));
     const mid=_getTouchMid(touches[0],touches[1],rect);
     const zRatio=newZoom/zoom;
-    _panX=mid.x+((_panX-mid.x)*zRatio);
-    _panY=mid.y+((_panY-mid.y)*zRatio);
+    _panX=mid.x-((mid.x-_panX)*zRatio);
+    _panY=mid.y-((mid.y-_panY)*zRatio);
     zoom=newZoom;
     applyStageTransform();
     $('zdsp').textContent=Math.round(zoom*100)+'%';
