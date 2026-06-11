@@ -233,20 +233,6 @@ app.head('/api/estimates/:id/pdf', async (req, res) => {
   } catch(e) { res.status(500).end(); }
 });
 
-// test endpoint
-app.get('/api/test-ai', async (req, res) => {
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 64,
-      messages: [{ role: 'user', content: 'Reply with: API connection working.' }]
-    });
-    res.json({ ok: true, reply: response.content[0].text });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`OnSite Estimating running on port ${PORT} [${USE_PG ? 'PostgreSQL' : 'file storage'}]`);
