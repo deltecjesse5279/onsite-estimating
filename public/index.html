@@ -556,16 +556,69 @@ select.filter-active{border-color:var(--amber);background:#fffbf2}
   </div>
 </div>
 
-<!-- ESTIMATES MODAL -->
+<!-- PROJECTS / ESTIMATES MODAL -->
+<style>
+.pj-modal h3{margin:0}
+.pj-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.pj-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.pj-tab{padding:5px 12px;font-size:12px;font-weight:500;border:1px solid var(--border);border-radius:20px;cursor:pointer;color:var(--muted);background:#fff;user-select:none;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.pj-tab:hover:not(.active){background:var(--bg2)}
+.pj-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+.pj-tab-n{font-size:11px;background:var(--bg2);color:var(--muted);border-radius:10px;padding:0 6px;min-width:16px;text-align:center}
+.pj-tab.active .pj-tab-n{background:rgba(255,255,255,.25);color:#fff}
+.pj-search-wrap{margin-bottom:10px}
+.pj-search{width:100%;height:34px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);font-family:inherit}
+.pj-table-wrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--border);border-radius:var(--radius)}
+.pj-table{width:100%;border-collapse:collapse;font-size:13px}
+.pj-table thead th{position:sticky;top:0;background:var(--bg2);text-align:left;padding:8px 10px;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;z-index:1}
+.pj-table th.pj-sortable{cursor:pointer;user-select:none}
+.pj-table th.pj-sortable:hover{color:var(--text)}
+.pj-table th.pj-num,.pj-table td.pj-num{text-align:right}
+.pj-table th.pj-actions-h{text-align:right}
+.pj-table tbody td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.pj-table tbody tr:hover{background:var(--bg2)}
+.pj-table td.pj-name{font-weight:600;color:var(--text)}
+.pj-arch-row{opacity:.6}
+.pj-actions{text-align:right;white-space:nowrap}
+.pj-actions .btn{margin-left:4px}
+.pj-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:12px;cursor:pointer;user-select:none;white-space:nowrap;border:1px solid transparent}
+.pj-pill.st-bidding{background:var(--amber-bg);color:var(--amber);border-color:#e8d3a8}
+.pj-pill.st-current{background:var(--green-bg);color:var(--green);border-color:#bcd9a3}
+.pj-pill.st-completed{background:#e7eef7;color:#2c5d99;border-color:#bcd0e8}
+.pj-pill.st-archived{background:var(--bg3);color:var(--muted);border-color:var(--border);cursor:default}
+.pj-status-menu{position:fixed;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.14);z-index:600;overflow:hidden;min-width:130px}
+.pj-status-opt{padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px}
+.pj-status-opt:hover{background:var(--bg2)}
+.pj-status-opt.active::after{content:'✓';margin-left:auto;color:var(--muted)}
+.pj-status-opt.st-bidding{color:var(--amber)}
+.pj-status-opt.st-current{color:var(--green)}
+.pj-status-opt.st-completed{color:#2c5d99}
+</style>
 <div class="modal-overlay" id="est-modal" style="display:none">
-  <div class="modal" style="width:480px;max-height:80vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <h3 style="margin:0">Saved estimates</h3>
-      <button onclick="hideEstimates()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px;line-height:1" title="Close">&times;</button>
+  <div class="modal pj-modal" style="width:min(1120px,96vw);max-height:88vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+      <h3>Projects</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn primary sm" onclick="pjNew()">＋ New</button>
+        <button onclick="hideEstimates()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px;line-height:1" title="Close">&times;</button>
+      </div>
     </div>
-    <div id="est-list-container"><div class="empty-msg">No saved estimates yet.</div></div>
-    <div style="margin-top:16px;display:flex;justify-content:flex-end">
-      <button class="btn" onclick="hideEstimates()">Close</button>
+    <div id="est-list-container" style="flex:1;min-height:0;display:flex;flex-direction:column"><div class="empty-msg">No saved estimates yet.</div></div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="pj-del-modal" style="display:none">
+  <div class="modal" style="width:400px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="margin:0">Delete project?</h3>
+      <button onclick="pjCancelDelete()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px;line-height:1" title="Close">&times;</button>
+    </div>
+    <p style="margin:0 0 6px;font-size:13px;color:var(--text)">Permanently delete <b id="pj-del-name">this project</b><span id="pj-del-sheets-wrap"> (<span id="pj-del-sheets"></span>)</span>?</p>
+    <p style="margin:0 0 16px;font-size:12px;color:var(--muted)">This cannot be undone. To keep it without losing data, use Archive instead.</p>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="pjCancelDelete()">Cancel</button>
+      <button class="btn danger" onclick="pjDoDelete()">Delete</button>
     </div>
   </div>
 </div>
@@ -1134,6 +1187,7 @@ function saveAssemblies() {
 
 let state = {
   id: null,
+  status: 'bidding',
   sheets: [{id:1, name:'Sheet 1', rows:[]}],
   activeSheet: 0,
   nextSheetId: 2,
@@ -3691,8 +3745,29 @@ function collectPayload(){
       profit:$('s-profit').value, cont:$('s-cont').value,
       gst:$('s-gst').value, pst:$('s-pst').value
     },
-    nextSheetId: state.nextSheetId
+    nextSheetId: state.nextSheetId,
+    status: state.status || 'bidding',
+    total: projectGrandTotal()
   };
+}
+
+// Project-wide final amount across ALL sheets (ignores the session-only
+// "hide sheet from summary" toggle). Mirrors the markup chain in renderBreakout()
+// so the cached total matches the summary's Final Amount.
+function projectGrandTotal(){
+  let tM=0,tL=0;
+  state.sheets.forEach(sh=>{ const t=sheetTotals(sh); tM+=t.rawMat; tL+=t.rawLab; });
+  const s=getSettings(), cfg=getBreakoutConfig(), bt={};
+  cfg.buckets.forEach(b=>{
+    let base=0;
+    if(b.id==='MATERIAL') base=tM;
+    else if(b.id==='LABOUR') base=tL;
+    else if(b.id==='SUBTOTAL') base=(bt['MATERIAL']||0)+(bt['LABOUR']||0);
+    else if(b.id==='TOTAL') base=bt['SUBTOTAL']||0;
+    const childSum=(b.children||[]).reduce((sum,c)=>sum+calcChild(c,base,s),0);
+    bt[b.id]=base+childSum;
+  });
+  return bt['TOTAL']||0;
 }
 
 async function saveEstimate(){
@@ -3788,29 +3863,188 @@ window.addEventListener('beforeunload', ()=>{
   }catch(e){ /* silent fail — start with blank estimate */ }
 })();
 
+// ===== PROJECTS / SAVED ESTIMATES =====
+const PJ_STATUSES = [
+  {key:'bidding',   label:'Bidding'},
+  {key:'current',   label:'Current'},
+  {key:'completed', label:'Completed'}
+];
+const PJ_STATUS_LABEL = {bidding:'Bidding', current:'Current', completed:'Completed', archived:'Archived'};
+let _pjList = [];
+let _pjTab = 'all';
+let _pjSearch = '';
+let _pjSort = {key:'updatedAt', dir:'desc'};
+let _pjPendingDelete = null;
+
 async function showEstimates(){
   $('est-modal').style.display='flex';
-  const container=$('est-list-container');
-  container.innerHTML='<div class="empty-msg">Loading…</div>';
+  $('est-list-container').innerHTML='<div class="empty-msg">Loading…</div>';
   try {
     const r=await fetch('/api/estimates');
-    const list=await r.json();
-    if(!list.length){container.innerHTML='<div class="empty-msg">No saved estimates yet.</div>';return;}
-    container.innerHTML='<div class="est-list">'+list.map(e=>`
-      <div class="est-card">
-        <div>
-          <div class="est-name">${esc(e.name)}</div>
-          <div class="est-meta">${esc(e.client||'')}${e.estimateNum?' · #'+esc(e.estimateNum):''}${e.sheetCount?' · '+e.sheetCount+' sheet'+(e.sheetCount>1?'s':''):''} · ${new Date(e.updatedAt).toLocaleDateString('en-CA')}</div>
-        </div>
-        <div class="est-actions">
-          <button class="btn sm" onclick="loadEstimate('${e.id}')">Open</button>
-          <button class="btn sm danger" onclick="deleteEstimate('${e.id}',this)">Delete</button>
-        </div>
-      </div>`).join('')+'</div>';
-  } catch(e){container.innerHTML='<div class="empty-msg">Could not load estimates.</div>';}
+    _pjList=await r.json();
+    renderProjects();
+  } catch(e){ $('est-list-container').innerHTML='<div class="empty-msg">Could not load estimates.</div>'; }
 }
 
-function hideEstimates(){$('est-modal').style.display='none';}
+function hideEstimates(){ closeStatusMenu(); $('est-modal').style.display='none'; }
+
+function pjCount(status){
+  if(status==='all') return _pjList.length;
+  return _pjList.filter(p=>(p.status||'bidding')===status).length;
+}
+
+function pjFiltered(){
+  let list=_pjList.slice();
+  if(_pjTab!=='all') list=list.filter(p=>(p.status||'bidding')===_pjTab);
+  const q=_pjSearch.trim().toLowerCase();
+  if(q) list=list.filter(p=>
+    (p.name||'').toLowerCase().includes(q) ||
+    (p.client||'').toLowerCase().includes(q) ||
+    (p.estimateNum||'').toString().toLowerCase().includes(q)
+  );
+  const {key,dir}=_pjSort, mul=dir==='asc'?1:-1;
+  list.sort((a,b)=>{
+    if(key==='total')      return ((Number(a.total)||0)-(Number(b.total)||0))*mul;
+    if(key==='sheetCount') return ((Number(a.sheetCount)||0)-(Number(b.sheetCount)||0))*mul;
+    if(key==='updatedAt')  return ((new Date(a.updatedAt).getTime()||0)-(new Date(b.updatedAt).getTime()||0))*mul;
+    const av=(a[key]||'').toString().toLowerCase(), bv=(b[key]||'').toString().toLowerCase();
+    return av.localeCompare(bv)*mul;
+  });
+  return list;
+}
+
+function pjSetTab(t){ _pjTab=t; renderProjects(); }
+function pjSearchInput(v){ _pjSearch=v; renderProjects(); }
+
+function pjSortBy(key){
+  if(_pjSort.key===key){ _pjSort.dir = _pjSort.dir==='asc'?'desc':'asc'; }
+  else { _pjSort.key=key; _pjSort.dir = (key==='name'||key==='client'||key==='estimateNum'||key==='status')?'asc':'desc'; }
+  renderProjects();
+}
+function pjArrow(key){
+  if(_pjSort.key!==key) return '';
+  return _pjSort.dir==='asc'?' ▲':' ▼';
+}
+
+function renderProjects(){
+  const c=$('est-list-container');
+  const tabs=[{key:'all',label:'All'}, ...PJ_STATUSES, {key:'archived',label:'Archived'}];
+  const tabsHtml=tabs.map(t=>
+    `<div class="pj-tab${_pjTab===t.key?' active':''}" onclick="pjSetTab('${t.key}')">${t.label}<span class="pj-tab-n">${pjCount(t.key)}</span></div>`
+  ).join('');
+  const rows=pjFiltered();
+  let body;
+  if(!_pjList.length){
+    body='<div class="empty-msg">No saved estimates yet.</div>';
+  } else if(!rows.length){
+    body='<div class="empty-msg">No projects match this view.</div>';
+  } else {
+    body=`<div class="pj-table-wrap"><table class="pj-table"><thead><tr>
+      <th class="pj-sortable" onclick="pjSortBy('name')">Name${pjArrow('name')}</th>
+      <th class="pj-sortable" onclick="pjSortBy('client')">Client${pjArrow('client')}</th>
+      <th class="pj-sortable" onclick="pjSortBy('estimateNum')">Est #${pjArrow('estimateNum')}</th>
+      <th class="pj-sortable pj-num" onclick="pjSortBy('sheetCount')">Sheets${pjArrow('sheetCount')}</th>
+      <th class="pj-sortable pj-num" onclick="pjSortBy('total')">Total${pjArrow('total')}</th>
+      <th class="pj-sortable" onclick="pjSortBy('updatedAt')">Updated${pjArrow('updatedAt')}</th>
+      <th class="pj-sortable" onclick="pjSortBy('status')">Status${pjArrow('status')}</th>
+      <th class="pj-actions-h">Actions</th>
+    </tr></thead><tbody>${rows.map(pjRow).join('')}</tbody></table></div>`;
+  }
+  c.innerHTML=`
+    <div class="pj-bar"><div class="pj-tabs">${tabsHtml}</div></div>
+    <div class="pj-search-wrap"><input class="pj-search" type="text" placeholder="Search name, client, or estimate #…" value="${esc(_pjSearch)}" oninput="pjSearchInput(this.value)"></div>
+    ${body}`;
+}
+
+function pjRow(p){
+  const st=p.status||'bidding';
+  const archived = st==='archived';
+  const total = (p.total!=null && p.total!=='') ? fmt(Number(p.total)) : '—';
+  const upd = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('en-CA') : '';
+  const pill = archived
+    ? `<span class="pj-pill st-archived">Archived</span>`
+    : `<div class="pj-pill st-${st}" onclick="openStatusMenu(event,'${p.id}')" title="Change status">${PJ_STATUS_LABEL[st]||st} ▾</div>`;
+  const archBtn = archived
+    ? `<button class="btn sm" onclick="pjRestore('${p.id}')">Restore</button>`
+    : `<button class="btn sm" onclick="pjArchive('${p.id}')">Archive</button>`;
+  return `<tr${archived?' class="pj-arch-row"':''}>
+    <td class="pj-name">${esc(p.name||'Untitled')}</td>
+    <td>${esc(p.client||'')}</td>
+    <td>${esc(p.estimateNum||'')}</td>
+    <td class="pj-num">${p.sheetCount||0}</td>
+    <td class="pj-num">${total}</td>
+    <td>${esc(upd)}</td>
+    <td>${pill}</td>
+    <td class="pj-actions">
+      <button class="btn sm" onclick="loadEstimate('${p.id}')">Open</button>
+      ${archBtn}
+      <button class="btn sm danger" onclick="pjConfirmDelete('${p.id}')">Delete</button>
+    </td>
+  </tr>`;
+}
+
+// --- inline status menu (escapes the modal via fixed positioning) ---
+function closeStatusMenu(){ const m=$('pj-status-menu'); if(m) m.remove(); }
+function openStatusMenu(ev, id){
+  ev.stopPropagation();
+  closeStatusMenu();
+  const p=_pjList.find(x=>x.id===id), cur=p?(p.status||'bidding'):'bidding';
+  const m=document.createElement('div');
+  m.id='pj-status-menu'; m.className='pj-status-menu';
+  m.innerHTML=PJ_STATUSES.map(s=>
+    `<div class="pj-status-opt st-${s.key}${s.key===cur?' active':''}" onclick="pjSetStatus('${id}','${s.key}')">${s.label}</div>`
+  ).join('');
+  document.body.appendChild(m);
+  const r=ev.currentTarget.getBoundingClientRect();
+  let top=r.bottom+4, left=r.left;
+  if(top+m.offsetHeight>window.innerHeight) top=r.top-m.offsetHeight-4;
+  if(left+m.offsetWidth>window.innerWidth) left=window.innerWidth-m.offsetWidth-8;
+  m.style.top=top+'px'; m.style.left=left+'px';
+  setTimeout(()=>document.addEventListener('click', closeStatusMenu, {once:true}), 0);
+}
+
+async function pjPatch(id, fields){
+  const r=await fetch('/api/estimates/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+  if(!r.ok) throw new Error('patch failed');
+}
+async function pjSetStatus(id, status){
+  closeStatusMenu();
+  try {
+    await pjPatch(id,{status});
+    const p=_pjList.find(x=>x.id===id); if(p) p.status=status;
+    if(state.id===id) state.status=status;
+    renderProjects();
+    showToast('Status: '+(PJ_STATUS_LABEL[status]||status));
+  } catch(e){ showToast('Status update failed'); }
+}
+function pjArchive(id){ pjSetStatus(id,'archived'); }
+function pjRestore(id){ pjSetStatus(id,'bidding'); }
+
+// --- delete with confirm/cancel ---
+function pjConfirmDelete(id){
+  const p=_pjList.find(x=>x.id===id);
+  _pjPendingDelete=id;
+  $('pj-del-name').textContent = p ? (p.name||'Untitled') : 'this project';
+  const sc = p && p.sheetCount ? (p.sheetCount+' sheet'+(p.sheetCount>1?'s':'')) : '';
+  $('pj-del-sheets').textContent = sc;
+  $('pj-del-sheets-wrap').style.display = sc ? 'inline' : 'none';
+  $('pj-del-modal').style.display='flex';
+}
+function pjCancelDelete(){ _pjPendingDelete=null; $('pj-del-modal').style.display='none'; }
+async function pjDoDelete(){
+  const id=_pjPendingDelete;
+  $('pj-del-modal').style.display='none'; _pjPendingDelete=null;
+  if(!id) return;
+  try {
+    await fetch('/api/estimates/'+id,{method:'DELETE'});
+    _pjList=_pjList.filter(x=>x.id!==id);
+    if(state.id===id){ state.id=null; localStorage.removeItem('onsite_active_id'); }
+    renderProjects();
+    showToast('Deleted');
+  } catch(e){ showToast('Delete failed'); }
+}
+
+function pjNew(){ hideEstimates(); newEstimate(); }
 
 async function loadEstimate(id){
   try {
@@ -3823,6 +4057,7 @@ async function loadEstimate(id){
     state.activeSheet=0;
     state.nextSheetId=d.nextSheetId||state.sheets.length+1;
     state.id=d.id;
+    state.status=d.status||'bidding';
     if(d.projectDetails){
       $('s-address').value=d.projectDetails.address||'';
       $('s-po').value=d.projectDetails.po||'';
@@ -3853,18 +4088,9 @@ async function loadEstimate(id){
   } catch(e){showToast('Could not load estimate');}
 }
 
-async function deleteEstimate(id, btn){
-  if(!confirm('Delete this estimate?')) return;
-  try {
-    await fetch('/api/estimates/'+id,{method:'DELETE'});
-    btn.closest('.est-card').remove();
-    showToast('Deleted');
-  } catch(e){showToast('Delete failed');}
-}
-
 function newEstimate(){
   if(dirty && !confirm('Unsaved changes will be lost. Continue?')) return;
-  state={id:null,sheets:[{id:1,name:'Sheet 1',rows:[]}],activeSheet:0,nextSheetId:2};
+  state={id:null,status:'bidding',sheets:[{id:1,name:'Sheet 1',rows:[]}],activeSheet:0,nextSheetId:2};
   $('proj-name').value='';$('proj-client').value='';$('proj-num').value='';
   $('s-address').value='';$('s-po').value='';$('s-tender').value='';
   $('s-estimator').value='';$('s-contact').value='';$('s-contactinfo').value='';
