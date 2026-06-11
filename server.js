@@ -74,6 +74,8 @@ app.get('/api/estimates', async (req, res) => {
       const result = await pool.query(
         `SELECT id, data->>'name' AS name, data->>'client' AS client,
                 data->>'estimateNum' AS "estimateNum",
+                data->>'status' AS status,
+                data->>'total' AS total,
                 updated_at AS "updatedAt",
                 jsonb_array_length(COALESCE(data->'sheets', '[]'::jsonb)) AS "sheetCount"
          FROM estimates ORDER BY updated_at DESC`
@@ -83,7 +85,8 @@ app.get('/api/estimates', async (req, res) => {
     const data = readEstimatesFile();
     const list = Object.entries(data).map(([id, est]) => ({
       id, name: est.name, client: est.client,
-      estimateNum: est.estimateNum, updatedAt: est.updatedAt,
+      estimateNum: est.estimateNum, status: est.status, total: est.total,
+      updatedAt: est.updatedAt,
       sheetCount: (est.sheets || []).length
     }));
     list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -125,6 +128,29 @@ app.post('/api/estimates', async (req, res) => {
     data[id] = est;
     writeEstimatesFile(data);
     res.json({ id, updatedAt: now });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Patch estimate (partial merge — e.g. status changes from the projects list).
+// Deliberately does NOT bump updated_at, so a quick status flip doesn't
+// reorder the list under the default "most recently updated" sort.
+app.patch('/api/estimates/:id', async (req, res) => {
+  try {
+    const fields = req.body || {};
+    if (USE_PG) {
+      const result = await pool.query(
+        `UPDATE estimates SET data = data || $2::jsonb
+         WHERE id=$1 RETURNING id`,
+        [req.params.id, fields]
+      );
+      if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+      return res.json({ ok: true });
+    }
+    const data = readEstimatesFile();
+    if (!data[req.params.id]) return res.status(404).json({ error: 'Not found' });
+    data[req.params.id] = { ...data[req.params.id], ...fields };
+    writeEstimatesFile(data);
+    res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
