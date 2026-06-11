@@ -1,7 +1,5 @@
 const express = require('express');
 const basicAuth = require('express-basic-auth');
-const Anthropic = require('@anthropic-ai/sdk');
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const fs = require('fs');
 const path = require('path');
 
@@ -39,6 +37,10 @@ if (USE_PG) {
   `).catch(err => console.error('DB init error:', err));
 }
 
+// ── Anthropic client ──────────────────────────────────────────────────────────
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
 // ── File fallback (local dev) ─────────────────────────────────────────────────
 const DATA_FILE = path.join(__dirname, 'data', 'estimates.json');
 const PDF_DIR   = path.join(__dirname, 'data', 'pdfs');
@@ -63,7 +65,7 @@ app.use(basicAuth({
   realm: 'OnSite Estimating'
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
 app.use('/api/estimates/:id/pdf', express.raw({ type: 'application/pdf', limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -231,6 +233,132 @@ app.head('/api/estimates/:id/pdf', async (req, res) => {
     res.setHeader('Content-Length', fs.statSync(pdfPath).size);
     res.end();
   } catch(e) { res.status(500).end(); }
+});
+
+// ── Auto Count API ────────────────────────────────────────────────────────────
+
+// Stage 1: characterize the reference symbol
+// Receives: { refImage: base64 PNG string (no data URL prefix) }
+// Returns:  { ok: true, character: { suggested_name, key_features, ... } }
+app.post('/api/symbols/characterize', async (req, res) => {
+  const { refImage } = req.body;
+  if (!refImage) return res.status(400).json({ error: 'refImage required' });
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: refImage }
+          },
+          {
+            type: 'text',
+            text: `You are a construction drawing symbol analyst.
+
+Examine this symbol carefully and describe its visual structure for use in automated detection.
+
+Return ONLY a valid JSON object — no explanation, no markdown fences:
+{
+  "suggested_name": "standard electrical convention name e.g. Duplex receptacle 15A",
+  "primary_shape": "dominant shape description",
+  "key_features": ["up to 5 specific visual features that define this symbol"],
+  "has_circle": true or false,
+  "has_arc": true or false,
+  "line_count": approximate number of distinct lines as integer,
+  "aspect_ratio": "W:H e.g. 1:1 or 2:1",
+  "is_symmetric": true or false,
+  "do_not_confuse_with": ["2 to 3 visually similar symbols this should NOT match"]
+}`
+          }
+        ]
+      }]
+    });
+
+    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+    const character = JSON.parse(raw);
+    res.json({ ok: true, character });
+
+  } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Stage 2: scan a single tile for symbol matches
+// Receives: { tileImage: base64 PNG, refImage: base64 PNG, character: object }
+// Returns:  { ok: true, matches: [{ x, y, w, h, confidence, partial, rotation }] }
+app.post('/api/symbols/scan-tile', async (req, res) => {
+  const { tileImage, refImage, character } = req.body;
+  if (!tileImage || !refImage || !character) {
+    return res.status(400).json({ error: 'tileImage, refImage, and character are required' });
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'REFERENCE SYMBOL — this is what you are looking for:'
+          },
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: refImage }
+          },
+          {
+            type: 'text',
+            text: `SYMBOL CHARACTERISTICS:\n${JSON.stringify(character, null, 2)}\n\nDRAWING TILE — scan this image for matches:`
+          },
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: tileImage }
+          },
+          {
+            type: 'text',
+            text: `TASK: Find every instance of the reference symbol in the drawing tile.
+
+INCLUDE matches that are:
+- Rotated at any angle
+- Scaled up to 30% larger or smaller than the reference
+- Adjacent to text labels or dimension strings
+- Partially cut off at a tile edge — mark these "partial": true
+
+EXCLUDE anything that:
+- Is a different symbol type even if it shares one feature
+- Is text, a dimension, a north arrow, or a title block element
+- Appears in the do_not_confuse_with list above
+
+Return pixel coordinates relative to this tile image.
+Return ONLY this JSON — no explanation, no markdown fences:
+{
+  "matches": [
+    {
+      "x": left edge in pixels,
+      "y": top edge in pixels,
+      "w": width in pixels,
+      "h": height in pixels,
+      "confidence": 0.0 to 1.0,
+      "partial": false,
+      "rotation": estimated degrees from upright
+    }
+  ]
+}
+
+If no matches found return: {"matches": []}`
+          }
+        ]
+      }]
+    });
+
+    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+    res.json({ ok: true, matches: result.matches || [] });
+
+  } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
