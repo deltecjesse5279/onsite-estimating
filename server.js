@@ -1,5 +1,7 @@
 const express = require('express');
 const basicAuth = require('express-basic-auth');
+const Anthropic = require('@anthropic-ai/sdk');
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const fs = require('fs');
 const path = require('path');
 
@@ -229,6 +231,20 @@ app.head('/api/estimates/:id/pdf', async (req, res) => {
     res.setHeader('Content-Length', fs.statSync(pdfPath).size);
     res.end();
   } catch(e) { res.status(500).end(); }
+});
+
+// test endpoint
+app.get('/api/test-ai', async (req, res) => {
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 64,
+      messages: [{ role: 'user', content: 'Reply with: API connection working.' }]
+    });
+    res.json({ ok: true, reply: response.content[0].text });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
