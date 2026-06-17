@@ -68,9 +68,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* lib search */
 .lsw{padding:6px 9px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
-.lsi{width:100%;font-size:12px;padding:4px 7px 4px 22px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text)}
+.lsi{width:100%;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text)}
 .lsi:focus{outline:none;border-color:#888;background:#fff}
-.lsico{position:absolute;left:17px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px;pointer-events:none}
 .lsr{position:absolute;top:calc(100% - 1px);left:0;right:0;background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);z-index:300;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .lri{padding:5px 9px;cursor:pointer;border-bottom:1px solid #f0efeb;font-size:12px}
 .lri:last-child{border-bottom:none}
@@ -288,10 +287,9 @@ tr:hover .dbtn{opacity:1}
 .nl-field{margin-bottom:13px}
 .nl-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
 .nl-link-wrap{position:relative}
-.nl-link-input{width:100%;font-size:12px;padding:7px 30px 7px 26px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text)}
+.nl-link-input{width:100%;font-size:12px;padding:7px 30px 7px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text)}
 .nl-link-input.linked{border-color:var(--blue);background:var(--blue-bg)}
 .nl-link-input:focus{outline:none;border-color:#888;background:#fff}
-.nl-link-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);pointer-events:none}
 .nl-link-drop{position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);z-index:450;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1)}
 .nl-link-clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);cursor:pointer;background:none;border:none;padding:0;display:none;line-height:1}
 .nl-link-clear.show{display:block}
@@ -363,6 +361,20 @@ tr:hover .dbtn{opacity:1}
 .sym-cat{padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap;color:var(--muted);border-bottom:2px solid transparent}
 .sym-cat.active{color:var(--text);border-bottom-color:var(--text);font-weight:500;background:#fff}
 .sym-browse-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px}
+
+/* ── Layer detail tabs (Summary / Drawings) ── */
+.ld-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:#fff}
+.ld-tab{flex:1;padding:5px 0;font-size:11px;font-weight:400;cursor:pointer;color:var(--muted);border:none;background:none;border-bottom:2px solid transparent;font-family:inherit;transition:color .1s}
+.ld-tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+.ld-tab:hover:not(.active){color:var(--text)}
+.ld-drw-list{flex:1;overflow-y:auto}
+.ld-drw-row{display:flex;align-items:center;padding:5px 10px;border-bottom:1px solid #f0efeb;gap:6px}
+.ld-drw-row:last-child{border-bottom:none}
+.ld-drw-pg{font-size:11px;color:var(--muted);min-width:36px;flex-shrink:0}
+.ld-drw-val{font-size:11px;font-weight:500;color:var(--text);flex:1}
+.ld-drw-go{font-size:11px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1}
+.ld-drw-go:hover{text-decoration:underline}
+.ld-drw-empty{padding:10px;font-size:11px;color:var(--muted);font-style:italic;text-align:center}
 </style>
 </head>
 <body>
@@ -412,7 +424,6 @@ tr:hover .dbtn{opacity:1}
       <button class="swb-link" onclick="focusScale()">Set scale →</button>
     </div>
     <div class="lsw">
-      <span class="lsico">&#9906;</span>
       <input class="lsi" id="lsi" type="text" placeholder="Quick-add from library..." oninput="libSearch(this.value)" autocomplete="off"/>
       <div class="lsr" id="lsr" style="display:none"></div>
     </div>
@@ -533,6 +544,7 @@ tr:hover .dbtn{opacity:1}
       onmousedown="cvd(event)"
       onmousemove="cvm(event)"
       onmouseup="cvu(event)"
+      onmouseleave="cvleave(event)"
       ondblclick="cvdb(event)"
       onwheel="cvwh(event)"
       ontouchstart="cvts(event)"
@@ -694,7 +706,6 @@ tr:hover .dbtn{opacity:1}
         <span style="font-weight:400;font-size:10px;opacity:.7;text-transform:none;letter-spacing:0">optional</span>
       </label>
       <div class="nl-link-wrap">
-        <span class="nl-link-ico">&#9906;</span>
         <input class="nl-link-input" id="nl-link-input" type="text"
                placeholder="Search estimate items and library..."
                oninput="nlLinkSearch(this.value)" autocomplete="off"/>
@@ -1024,6 +1035,8 @@ let colorTargetIdx=null;
 let _marqStart=null, _marqRect=null, _marqEl=null;
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
+// layer detail card active tab: 'summary' | 'drawings'
+let _detailTab='summary';
 
 // ─── Helpers ───
 function $(id){return document.getElementById(id);}
@@ -1453,13 +1466,15 @@ const SYMBOLS=[
   {id:'strip',    name:'Strip',     cat:'Lighting',
    svg:`<line x1="1.5" y1="7" x2="16.5" y2="7" stroke="currentColor" stroke-width="3"/><line x1="1.5" y1="11" x2="16.5" y2="11" stroke="currentColor" stroke-width="3"/>`},
   {id:'duplex',   name:'Duplex',    cat:'Power',
-   svg:`<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="7.5" x2="15" y2="7.5" stroke="currentColor" stroke-width="1.8"/><line x1="3" y1="10.5" x2="15" y2="10.5" stroke="currentColor" stroke-width="1.8"/><line x1="2" y1="7" x2="2" y2="11" stroke="currentColor" stroke-width="2.2"/>`},
+   svg:`<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="2.2" y1="7.8" x2="15.8" y2="7.8" stroke="currentColor" stroke-width="1.8"/><line x1="2.2" y1="10.2" x2="15.8" y2="10.2" stroke="currentColor" stroke-width="1.8"/><line x1="1.3" y1="7.1" x2="1.3" y2="10.9" stroke="currentColor" stroke-width="2.5"/>`},
+  {id:'singlerec',name:'Single Rec',cat:'Power',
+   svg:`<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="2.2" y1="9" x2="15.8" y2="9" stroke="currentColor" stroke-width="1.8"/><line x1="1.3" y1="6.5" x2="1.3" y2="11.5" stroke="currentColor" stroke-width="2.5"/>`},
   {id:'gfci',     name:'GFCI',      cat:'Power',
-   svg:`<circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3.5" y1="9" x2="14.5" y2="9" stroke="currentColor" stroke-width="2"/><text x="9" y="7.5" text-anchor="middle" fill="currentColor" font-size="4.5" font-weight="bold" font-family="sans-serif">GF</text>`},
+   svg:`<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="10.5" x2="14" y2="10.5" stroke="currentColor" stroke-width="1.6"/><line x1="2" y1="7.5" x2="2" y2="10.5" stroke="currentColor" stroke-width="2.2"/><text x="9.5" y="5.8" text-anchor="middle" fill="currentColor" font-size="4.5" font-weight="bold" font-family="sans-serif">GF</text>`},
   {id:'switch',   name:'Switch',    cat:'Power',
-   svg:`<text x="9" y="13.5" text-anchor="middle" fill="currentColor" font-size="14" font-weight="bold" font-family="sans-serif">S</text><line x1="4.5" y1="5.5" x2="13.5" y2="5.5" stroke="currentColor" stroke-width="2.2"/>`},
+   svg:`<text x="9" y="14" text-anchor="middle" fill="currentColor" font-size="13" font-weight="bold" font-family="sans-serif">S</text><line x1="4.5" y1="6" x2="13.5" y2="6" stroke="currentColor" stroke-width="2.2"/>`},
   {id:'switch3',  name:'3-Way',     cat:'Power',
-   svg:`<text x="7.5" y="13.5" text-anchor="middle" fill="currentColor" font-size="12" font-weight="bold" font-family="sans-serif">S</text><line x1="4" y1="5.5" x2="12" y2="5.5" stroke="currentColor" stroke-width="2"/><text x="14" y="16" text-anchor="middle" fill="currentColor" font-size="7" font-family="sans-serif">3</text>`},
+   svg:`<text x="8" y="14" text-anchor="middle" fill="currentColor" font-size="12" font-weight="bold" font-family="sans-serif">S</text><line x1="4" y1="6" x2="12.5" y2="6" stroke="currentColor" stroke-width="2"/><text x="14.5" y="15.5" text-anchor="middle" fill="currentColor" font-size="7.5" font-weight="bold" font-family="sans-serif">3</text>`},
   {id:'equipment',name:'Equipment', cat:'Power',
    svg:`<circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="9" y2="16.5" stroke="currentColor" stroke-width="1.8"/><line x1="9" y1="9" x2="3" y2="3.5" stroke="currentColor" stroke-width="1.8"/><line x1="9" y1="9" x2="15" y2="3.5" stroke="currentColor" stroke-width="1.8"/>`},
   {id:'os-ceil',  name:'OS Ceiling',cat:'Power',
@@ -1481,9 +1496,17 @@ const SYMBOLS=[
   {id:'camera',   name:'Camera',    cat:'Security',
    svg:`<rect x="1" y="5.5" width="11" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7 L17 5 L17 13 L12 11 Z" fill="none" stroke="currentColor" stroke-width="1.7"/>`},
   {id:'panel',    name:'Panel',     cat:'Power',
-   svg:`<rect x="1.5" y="3" width="15" height="12" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="5" x2="5.5" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="7" y1="5" x2="8.5" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="10.5" y1="5" x2="12" y2="13" stroke="currentColor" stroke-width="1.2"/>`},
+   svg:`<rect x="1.5" y="5.5" width="15" height="7" fill="currentColor"/>`},
+  {id:'nfds',     name:'Disc SW',   cat:'Power',
+   svg:`<rect x="3" y="3" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/>`},
+  {id:'fds',      name:'Fused Disc',cat:'Power',
+   svg:`<rect x="3" y="3" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/><line x1="3" y1="3" x2="15" y2="15" stroke="currentColor" stroke-width="1.6"/><line x1="15" y1="3" x2="3" y2="15" stroke="currentColor" stroke-width="1.6"/>`},
   {id:'exit',     name:'Exit sign', cat:'Fire/Life',
-   svg:`<rect x="1.5" y="4.5" width="15" height="9" fill="none" stroke="currentColor" stroke-width="1.8" rx="1"/><line x1="4.5" y1="6.5" x2="7.5" y2="11.5" stroke="currentColor" stroke-width="1.8"/><line x1="7.5" y1="6.5" x2="4.5" y2="11.5" stroke="currentColor" stroke-width="1.8"/><line x1="10" y1="6.5" x2="13" y2="11.5" stroke="currentColor" stroke-width="1.8"/><line x1="13" y1="6.5" x2="10" y2="11.5" stroke="currentColor" stroke-width="1.8"/>`},
+   svg:`<rect x="1.5" y="5" width="15" height="8" fill="none" stroke="currentColor" stroke-width="1.8" rx="1"/><text x="9" y="11" text-anchor="middle" fill="currentColor" font-size="5" font-weight="bold" font-family="sans-serif">EXIT</text>`},
+  {id:'emergency',name:'Emergency', cat:'Fire/Life',
+   svg:`<circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2 9 A7 7 0 0 1 16 9 Z" fill="currentColor"/>`},
+  {id:'wireless', name:'Wireless',  cat:'Data/Comm',
+   svg:`<circle cx="9" cy="14.5" r="1.5" fill="currentColor"/><path d="M5.5 11.5 Q9 8 12.5 11.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M3 8.5 Q9 3.5 15 8.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>`},
   {id:'motor',    name:'Motor',     cat:'Mechanical',
    svg:`<circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><text x="9" y="13" text-anchor="middle" fill="currentColor" font-size="10" font-weight="bold" font-family="sans-serif">M</text>`},
   {id:'fan',      name:'Fan',       cat:'Mechanical',
@@ -1520,35 +1543,60 @@ const SYM_DRAW={
     ctx.beginPath();ctx.moveTo(x-r*1.25,y+r*.28);ctx.lineTo(x+r*1.25,y+r*.28);ctx.stroke();
   },
   duplex(ctx,x,y,r,color){
-    // Circle + 2 horizontal parallel lines through it + short vertical tab on left (NECA 3.002)
-    const lw=Math.max(1.5,r*.2); ctx.strokeStyle=color; ctx.lineWidth=lw;
-    ctx.beginPath(); ctx.arc(x,y,r*.85,0,Math.PI*2); ctx.stroke();
-    const gap=r*.24; ctx.lineWidth=Math.max(1.2,r*.16);
-    ctx.beginPath(); ctx.moveTo(x-r*.62,y-gap); ctx.lineTo(x+r*.62,y-gap); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x-r*.62,y+gap); ctx.lineTo(x+r*.62,y+gap); ctx.stroke();
-    // Vertical tab on left side of circle
-    ctx.lineWidth=Math.max(1.8,r*.22);
-    ctx.beginPath(); ctx.moveTo(x-r*.85,y-r*.32); ctx.lineTo(x-r*.85,y+r*.32); ctx.stroke();
+    // Circle + 2 parallel lines reaching circle edge + left tab (per legend)
+    const R=r*.88, lw=Math.max(1.5,r*.2);
+    ctx.strokeStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.stroke();
+    // Lines at ±gap; x-extent = √(R²-gap²) so lines meet the circle
+    const gap=r*.24, xExt=Math.sqrt(R*R-gap*gap);
+    ctx.lineWidth=Math.max(1.2,r*.16);
+    ctx.beginPath(); ctx.moveTo(x-xExt,y-gap); ctx.lineTo(x+xExt,y-gap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-xExt,y+gap); ctx.lineTo(x+xExt,y+gap); ctx.stroke();
+    // Tab: short vertical just outside left tangent
+    ctx.lineWidth=Math.max(2,r*.25);
+    ctx.beginPath(); ctx.moveTo(x-R-r*.08,y-gap-r*.06); ctx.lineTo(x-R-r*.08,y+gap+r*.06); ctx.stroke();
   },
   gfci(ctx,x,y,r,color){
-    const lw=Math.max(1.5,r*.18);ctx.strokeStyle=color;ctx.lineWidth=lw;
-    ctx.beginPath();ctx.arc(x,y,r*.88,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(x-r*.55,y);ctx.lineTo(x+r*.55,y);ctx.stroke();
-    ctx.fillStyle=color;ctx.font=`bold ${Math.max(5,r*.5)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('GF',x,y-r*.38);
+    // Same as duplex + GF label — GFCI receptacle convention
+    const R=r*.88, lw=Math.max(1.5,r*.2);
+    ctx.strokeStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.stroke();
+    const gap=r*.22, xExt=Math.sqrt(R*R-gap*gap);
+    ctx.lineWidth=Math.max(1.2,r*.15);
+    ctx.beginPath(); ctx.moveTo(x-xExt,y-gap); ctx.lineTo(x+xExt,y-gap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-xExt,y+gap); ctx.lineTo(x+xExt,y+gap); ctx.stroke();
+    ctx.lineWidth=Math.max(2,r*.25);
+    ctx.beginPath(); ctx.moveTo(x-R-r*.08,y-gap-r*.06); ctx.lineTo(x-R-r*.08,y+gap+r*.06); ctx.stroke();
+    ctx.fillStyle=color; ctx.font=`bold ${Math.max(4,r*.44)}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('GF',x,y-r*.66);
   },
   switch(ctx,x,y,r,color){
-    // S with horizontal crossbar near top — NECA 4.001 single-pole switch
-    ctx.fillStyle=color; ctx.font=`bold ${Math.max(8,r*1.35)}px sans-serif`;
+    // Bold S + crossbar near top — single-pole switch ($ convention)
+    ctx.fillStyle=color; ctx.font=`bold ${Math.max(8,r*1.3)}px sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('S',x,y+r*.12);
+    ctx.fillText('S',x,y+r*.18);
     ctx.strokeStyle=color; ctx.lineWidth=Math.max(1.5,r*.2);
-    ctx.beginPath(); ctx.moveTo(x-r*.55,y-r*.48); ctx.lineTo(x+r*.55,y-r*.48); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x-r*.58,y-r*.42); ctx.lineTo(x+r*.58,y-r*.42); ctx.stroke();
   },
   switch3(ctx,x,y,r,color){
-    ctx.fillStyle=color;ctx.font=`bold ${Math.max(8,r*1.15)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('S',x-r*.12,y+r*.12);
-    ctx.strokeStyle=color;ctx.lineWidth=Math.max(1.5,r*.18);
-    ctx.beginPath();ctx.moveTo(x-r*.58,y-r*.48);ctx.lineTo(x+r*.38,y-r*.48);ctx.stroke();
-    ctx.font=`bold ${Math.max(5,r*.65)}px sans-serif`;ctx.fillText('3',x+r*.72,y+r*.52);
+    // S₃ — 3-way switch
+    ctx.fillStyle=color; ctx.font=`bold ${Math.max(8,r*1.2)}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('S',x-r*.15,y+r*.18);
+    ctx.strokeStyle=color; ctx.lineWidth=Math.max(1.5,r*.19);
+    ctx.beginPath(); ctx.moveTo(x-r*.58,y-r*.42); ctx.lineTo(x+r*.35,y-r*.42); ctx.stroke();
+    ctx.font=`bold ${Math.max(5,r*.62)}px sans-serif`;
+    ctx.fillStyle=color; ctx.fillText('3',x+r*.75,y+r*.58);
+  },
+  singlerec(ctx,x,y,r,color){
+    // Circle + single horizontal line + left tab — single receptacle
+    const R=r*.88, lw=Math.max(1.5,r*.2);
+    ctx.strokeStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.stroke();
+    ctx.lineWidth=Math.max(1.2,r*.16);
+    ctx.beginPath(); ctx.moveTo(x-R,y); ctx.lineTo(x+R,y); ctx.stroke();
+    ctx.lineWidth=Math.max(2,r*.25);
+    ctx.beginPath(); ctx.moveTo(x-R-r*.08,y-r*.36); ctx.lineTo(x-R-r*.08,y+r*.36); ctx.stroke();
   },
   equipment(ctx,x,y,r,color){
     // Circle with Y/peace-sign — equipment connection point
@@ -1610,16 +1658,29 @@ const SYM_DRAW={
     ctx.beginPath();ctx.moveTo(x+r*.35,y-r*.38);ctx.lineTo(x+r*1.05,y-r*.65);ctx.lineTo(x+r*1.05,y+r*.65);ctx.lineTo(x+r*.35,y+r*.38);ctx.stroke();
   },
   panel(ctx,x,y,r,color){
-    const lw=Math.max(1.2,r*.15);ctx.strokeStyle=color;ctx.lineWidth=lw;
-    ctx.strokeRect(x-r*1.1,y-r*.7,r*2.2,r*1.4);
-    const sp=r*.48;for(let d=-r*.9;d<=r*1.1;d+=sp){ctx.beginPath();ctx.moveTo(x-r*1.1+d,y-r*.7);ctx.lineTo(x-r*1.1+d+r*1.4,y+r*.7);ctx.stroke();}
+    // Solid filled rectangle — panelboard (per legend)
+    ctx.fillStyle=color;
+    ctx.fillRect(x-r*1.08,y-r*.62,r*2.16,r*1.24);
+  },
+  nfds(ctx,x,y,r,color){
+    // Plain square outline — non-fused disconnect switch
+    ctx.strokeStyle=color; ctx.lineWidth=Math.max(1.5,r*.2);
+    ctx.strokeRect(x-r*.82,y-r*.82,r*1.64,r*1.64);
+  },
+  fds(ctx,x,y,r,color){
+    // Square + X — fused disconnect switch
+    ctx.strokeStyle=color; ctx.lineWidth=Math.max(1.5,r*.2);
+    ctx.strokeRect(x-r*.82,y-r*.82,r*1.64,r*1.64);
+    ctx.lineWidth=Math.max(1,r*.14);
+    ctx.beginPath(); ctx.moveTo(x-r*.82,y-r*.82); ctx.lineTo(x+r*.82,y+r*.82); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+r*.82,y-r*.82); ctx.lineTo(x-r*.82,y+r*.82); ctx.stroke();
   },
   exit(ctx,x,y,r,color){
+    // Rectangle with EXIT text — standard exit sign symbol
     const lw=Math.max(1.2,r*.15);ctx.strokeStyle=color;ctx.lineWidth=lw;
-    ctx.strokeRect(x-r*.9,y-r*.62,r*1.8,r*1.24);
-    const ox=r*.35,oy=r*.38;
-    ctx.beginPath();ctx.moveTo(x-ox,y-oy);ctx.lineTo(x+ox,y+oy);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(x+ox,y-oy);ctx.lineTo(x-ox,y+oy);ctx.stroke();
+    ctx.strokeRect(x-r*.95,y-r*.62,r*1.9,r*1.24);
+    ctx.fillStyle=color;ctx.font=`bold ${Math.max(4.5,r*.48)}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('EXIT',x,y);
   },
   motor(ctx,x,y,r,color){
     ctx.strokeStyle=color;ctx.lineWidth=Math.max(1.5,r*.18);
@@ -1633,6 +1694,28 @@ const SYM_DRAW={
     ctx.beginPath();ctx.moveTo(x-r*.5,y);ctx.lineTo(x+r*.5,y);ctx.stroke();
     ctx.beginPath();ctx.moveTo(x,y-r*.5);ctx.lineTo(x,y+r*.5);ctx.stroke();
     ctx.beginPath();ctx.arc(x,y,r*.25,0,Math.PI*2);ctx.stroke();
+  },
+  emergency(ctx,x,y,r,color){
+    // Upper half filled, lower half outline — emergency luminaire convention
+    const lw=Math.max(1.5,r*.18); ctx.strokeStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.arc(x,y,r*.88,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.arc(x,y,r*.88,Math.PI,0,false); // clockwise from 9 o'clock through 12 to 3 = upper half
+    ctx.closePath(); ctx.fill();
+  },
+  wireless(ctx,x,y,r,color){
+    // WiFi arcs above a dot — wireless access point
+    ctx.lineCap='round';
+    const cy=y+r*.55; // dot sits below centre
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(x,cy,Math.max(1.5,r*.14),0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=color;
+    ctx.lineWidth=Math.max(1.2,r*.16);
+    ctx.beginPath(); ctx.arc(x,cy,r*.42,Math.PI*(1+1/4),Math.PI*(2-1/4),false); ctx.stroke();
+    ctx.lineWidth=Math.max(1.5,r*.2);
+    ctx.beginPath(); ctx.arc(x,cy,r*.78,Math.PI*(1+1/5),Math.PI*(2-1/5),false); ctx.stroke();
+    ctx.lineCap='butt';
   }
 };
 
@@ -1648,6 +1731,11 @@ function symSvgHtml(sym,size){
 }
 
 // ─── Layer detail card ───
+function switchDetailTab(tab){
+  _detailTab=tab;
+  renderDetailCard();
+}
+
 function renderDetailCard(){
   const card=$('layer-detail');
   if(!card) return;
@@ -1659,7 +1747,8 @@ function renderDetailCard(){
   const mult=it.multiplier||1;
   const effQty=Math.round(tot.qty*mult*100)/100;
   const hasLink=it.lib&&it.lib.code&&!it.lib.custom;
-  // Projected cost / labour from settings
+
+  // ── Summary panel ──
   let projHtml='';
   if(hasLink&&(it.lib.mat_unit||it.lib.labour_unit)){
     const jm=parseFloat(($('d-jm')||{}).value||0)||115;
@@ -1669,15 +1758,10 @@ function renderDetailCard(){
     const labHrs=effQty*labU;
     const labTot=labHrs*jm;
     projHtml=`<div class="ld-proj">
-      ${matU?`$${fmt(matTot)} mat &nbsp;|&nbsp;`:''}${labU?`${labHrs.toFixed(1)} hrs &nbsp;|&nbsp; $${fmt(labTot)} labour`:''}
+      ${matU?`${fmtM(matTot)} mat &nbsp;|&nbsp;`:''}${labU?`${labHrs.toFixed(1)} hrs &nbsp;|&nbsp; ${fmtM(labTot)} labour`:''}
     </div>`;
   }
-  card.innerHTML=`
-    <div class="ld-head">
-      <span class="ld-color" style="background:${it.color}"></span>
-      <span class="ld-name" title="${esc(it.name)}">${esc(it.name)}</span>
-      <button class="ld-edit-btn" onclick="openNewLayerModal(${activeItemIdx})">Edit</button>
-    </div>
+  const summaryHtml=`
     <div class="ld-mult-row">
       <span class="ld-mult-lbl">Multiplier</span>
       <input class="ld-mult-inp" type="number" min="0.01" step="0.25" value="${mult}"
@@ -1689,7 +1773,7 @@ function renderDetailCard(){
       ${hasLink
         ?`<div class="ld-link-label">&#8594; ${esc(it.lib.code)}${it.lib.description?' \u2013 '+it.lib.description.slice(0,35):''}</div>
           <div class="ld-meta-grid">
-            <div><div class="ld-mc">Unit cost</div><div class="ld-mv">${it.lib.mat_unit?'$'+fmt(it.lib.mat_unit):'\u2014'}</div></div>
+            <div><div class="ld-mc">Unit cost</div><div class="ld-mv">${it.lib.mat_unit?fmtM(it.lib.mat_unit):'\u2014'}</div></div>
             <div><div class="ld-mc">Labour/ea</div><div class="ld-mv">${it.lib.labour_unit?it.lib.labour_unit+' hrs':'\u2014'}</div></div>
             <div><div class="ld-mc">Unit</div><div class="ld-mv">${esc(it.lib.unit||'ea')}</div></div>
           </div>
@@ -1699,6 +1783,51 @@ function renderDetailCard(){
     <div class="ld-act">
       <button class="ld-push-btn" onclick="openPush()"${linked?'':' disabled'}>Push to estimate</button>
     </div>`;
+
+  // ── Drawings panel ──
+  function buildDrawingsHtml(){
+    // Aggregate markups by page
+    const pages={};
+    it.markups.forEach(m=>{
+      const pg=m.page||1;
+      if(!pages[pg]) pages[pg]={count:0,runs:[]};
+      if(m.type==='count') pages[pg].count+=(m.pts?m.pts.length:m.value)||0;
+      else if(m.type==='linear') pages[pg].runs.push(m);
+    });
+    const sorted=Object.keys(pages).map(Number).sort((a,b)=>a-b);
+    if(!sorted.length) return `<div class="ld-drw-empty">No marks placed yet</div>`;
+    return sorted.map(pg=>{
+      const d=pages[pg];
+      const parts=[];
+      if(d.count>0) parts.push(d.count+' ea');
+      if(d.runs.length){
+        const totalDist=d.runs.reduce((s,m)=>s+(m.value||0),0);
+        parts.push(fmtDist(totalDist,d.runs[0].unit||'ft'));
+      }
+      return `<div class="ld-drw-row">
+        <span class="ld-drw-pg">Pg ${pg}</span>
+        <span class="ld-drw-val">${parts.join(' + ')}</span>
+        <button class="ld-drw-go" onclick="renderPage(${pg})" title="Go to page ${pg}">&#8594;</button>
+      </div>`;
+    }).join('');
+  }
+
+  const drawingsHtml=`<div class="ld-drw-list">${buildDrawingsHtml()}</div>
+    <div class="ld-act">
+      <button class="ld-push-btn" onclick="openPush()"${linked?'':' disabled'}>Push to estimate</button>
+    </div>`;
+
+  card.innerHTML=`
+    <div class="ld-head">
+      <span class="ld-color" style="background:${it.color}"></span>
+      <span class="ld-name" title="${esc(it.name)}">${esc(it.name)}</span>
+      <button class="ld-edit-btn" onclick="openNewLayerModal(${activeItemIdx})">Edit</button>
+    </div>
+    <div class="ld-tabs">
+      <button class="ld-tab${_detailTab==='summary'?' active':''}" onclick="switchDetailTab('summary')">Summary</button>
+      <button class="ld-tab${_detailTab==='drawings'?' active':''}" onclick="switchDetailTab('drawings')">Drawings</button>
+    </div>
+    ${_detailTab==='drawings'?drawingsHtml:summaryHtml}`;
   card.classList.add('show');
 }
 
@@ -1935,9 +2064,13 @@ function openNewLayerModal(editIdx){
   // Type — infer from unit
   const isLinear=['ft','m','lf'].includes(unitVal.toLowerCase());
   _nlType=isLinear?'linear':'count';
+  if(editing&&existing.type) _nlType=existing.type; // restore saved type
   ['count','linear','count-dist','area'].forEach(t=>{
     $('nltype-'+t).classList.toggle('sel',t===_nlType);
   });
+  // Sync symbol section visibility to initial type
+  const _symSecInit=document.querySelector('.sym-section');
+  if(_symSecInit) _symSecInit.style.display=(_nlType==='count')?'':'none';
 
   // Color swatches
   const ce=$('nl-colors');
@@ -2040,6 +2173,22 @@ function nlSelectType(type){
   ['count','linear','count-dist','area'].forEach(t=>{
     $('nltype-'+t).classList.toggle('sel',t===type);
   });
+  // Symbol picker only applies to count layers
+  const symSec=document.querySelector('.sym-section');
+  if(symSec){
+    const showing=type==='count';
+    symSec.style.display=showing?'':'none';
+    if(!showing){
+      // Clear SVG content so no text can ghost behind the hidden container
+      const g=$('nl-sym-grid'); if(g) g.innerHTML='';
+      const bg=$('nl-sym-browse-grid'); if(bg) bg.innerHTML='';
+      const bp=$('nl-sym-browse-panel'); if(bp) bp.classList.remove('open');
+    } else {
+      // Re-populate when switching back to count
+      const existingItem=_nlEditIdx!=null?items[_nlEditIdx]:null;
+      nlInitSymPicker(_nlEditIdx!=null, existingItem||{});
+    }
+  }
   // Sync unit
   const us=$('nl-unit');
   if(type==='linear'){
@@ -2083,6 +2232,7 @@ function confirmNewLayer(){
     it.opacity=opacity;
     it.groupId=groupId;
     it.symbolId=_nlSymbolId||'dot';
+    it.type=_nlType;
     closeMo('layer-mo');
     renderGroups();
     redraw();
@@ -2090,7 +2240,7 @@ function confirmNewLayer(){
   } else {
     // Create new layer
     const iid='i_'+(lib.code||'cust')+'_'+Date.now();
-    items.push({id:iid,name,lib,color,opacity,symbolId:_nlSymbolId||'dot',groupId,markups:[],checked:false});
+    items.push({id:iid,name,lib,color,opacity,symbolId:_nlSymbolId||'dot',type:_nlType,groupId,markups:[],checked:false});
     gci++;
     activeItemIdx=items.length-1;
     const isLinear=_nlType==='linear'||['ft','m','lf'].includes(unitVal);
@@ -2273,7 +2423,7 @@ function cvd(e){
     intentDecided=true;
     return;
   }
-  // count/measure: wait for mousemove
+  // count / measure fall through — pan intent resolved in cvm with a wider threshold
 }
 
 function cvm(e){
@@ -2306,7 +2456,9 @@ function cvm(e){
   if(mousedownPos&&!intentDecided){
     const dx=e.clientX-mousedownPos.x;
     const dy=e.clientY-mousedownPos.y;
-    if(Math.sqrt(dx*dx+dy*dy)>PAN_THRESHOLD){
+    // Wider threshold in count/measure so a normal click (< ~5px drift) never starts a pan
+    const panThresh=(activeTool==='count'||activeTool==='measure')?15:PAN_THRESHOLD;
+    if(Math.sqrt(dx*dx+dy*dy)>panThresh){
       intentDecided=true;
       isPanning=true;
       $('cvw').style.cursor='grabbing';
@@ -2355,6 +2507,10 @@ function cvm(e){
 function cvu(e){
   if(!pdfDoc||e.button!==0) return;
   $('cvw').style.cursor='';
+  // Capture then immediately clear transient drag state so a release can never
+  // leave the PDF "stuck" to the cursor on the following mousemove.
+  const wasPanning=isPanning;
+  isPanning=false;
 
   if(activeTool==='select'){
     if(_selectDragging) renderGroups();
@@ -2398,27 +2554,42 @@ function cvu(e){
     mousedownPos=null; return;
   }
   if(activeTool==='pan'||activeTool==='cal'){mousedownPos=null;return;}
-  if(isPanning){mousedownPos=null;return;}
+  if(wasPanning){mousedownPos=null;return;}
 
   const pt=getCvPt(e);
-  if(activeTool==='count'){
-    if(activeItemIdx===null){toast('Select or add an item first');mousedownPos=null;return;}
-    addCount(pt);
-  } else if(activeTool==='measure'){
-    if(activeItemIdx===null){toast('Select or add an item first');mousedownPos=null;return;}
-    if(!scaleRaw){
-      $('scale-warn').classList.add('show');
-      mousedownPos=null; return;
+  try{
+    if(activeTool==='count'){
+      if(activeItemIdx===null){toast('Select or add an item first');return;}
+      addCount(pt);
+    } else if(activeTool==='measure'){
+      if(activeItemIdx===null){toast('Select or add an item first');return;}
+      if(!scaleRaw){
+        $('scale-warn').classList.add('show');
+        return;
+      }
+      if(!isDrawing){isDrawing=true;curPts=[pt];}
+      else{curPts.push(pt);}
+      redraw();
     }
-    if(!isDrawing){isDrawing=true;curPts=[pt];}
-    else{curPts.push(pt);}
-    redraw();
+  } finally {
+    mousedownPos=null;
   }
-  mousedownPos=null;
 }
 
 function cvdb(e){
   if(activeTool==='measure'&&isDrawing&&curPts.length>=2) finishMeasure();
+}
+
+// If the cursor leaves the canvas mid-drag (button released outside, or just exits),
+// terminate any pan/select drag so the PDF can't stay "stuck" to the cursor.
+function cvleave(e){
+  if(isPanning||_selectDragging){
+    isPanning=false;
+    _selectDragging=false;
+    _selectDragStart=null;
+    mousedownPos=null;
+    $('cvw').style.cursor='';
+  }
 }
 
 // keyboard
