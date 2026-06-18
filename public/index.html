@@ -1271,19 +1271,12 @@ function sheetTotals(sheet){
     rawMat+=c.mat; rawLab+=c.lab; labHrs+=c.hrs;
   });
   const s=getSettings();
-  // Derive subtotal and total from the breakout config — single source of truth
-  const cfg=getBreakoutConfig();
-  const bucketTotals={};
-  cfg.buckets.forEach(bucket=>{
-    let base=0;
-    if(bucket.id==='MATERIAL') base=rawMat;
-    else if(bucket.id==='LABOUR') base=rawLab;
-    else if(bucket.id==='SUBTOTAL') base=(bucketTotals['MATERIAL']||0)+(bucketTotals['LABOUR']||0);
-    else if(bucket.id==='TOTAL') base=bucketTotals['SUBTOTAL']||0;
-    bucketTotals[bucket.id]=base+(bucket.children||[]).reduce((sum,c)=>sum+calcChild(c,base,s),0);
-  });
-  const sub=bucketTotals['SUBTOTAL']||0;
-  const total=bucketTotals['TOTAL']||0;
+  // Derive subtotal and total from the shared breakout engine — single source of truth.
+  // This is the SAME function the Summary tab and single-sheet export both render from,
+  // so a sheet's subtotal always reconciles across every screen and export.
+  const bk=computeBreakout(rawMat, rawLab, labHrs);
+  const sub=bk.sub;
+  const total=bk.total;
   // Keep legacy fields for anything still referencing them directly
   const matMkp=rawMat*(1+s.matMkp);
   const oh=(matMkp+rawLab)*s.oh;
@@ -1420,7 +1413,6 @@ function exportSheetSummaryOnly(){
   closeSheetMenu();
   const sh = state.sheets[state.activeSheet];
   const t = sheetTotals(sh);
-  const s = getSettings();
 
   // Build a standalone print div for this single sheet
   const old = document.getElementById('bom-print-area');
@@ -1499,37 +1491,30 @@ function exportSheetSummaryOnly(){
   });
   printDiv.appendChild(table);
 
-  // Summary box — Accubid style
+  // Summary box — driven by the same bucket/child engine as the Summary tab and the
+  // multi-sheet PDF export, so this number always reconciles with both of those.
   const sumDiv = document.createElement('div');
   sumDiv.style.cssText = 'max-width:380px;margin-left:auto;font-size:12px';
 
-  const matPst = t.rawMat * s.pst;
-  const matOh  = t.rawMat * s.oh;
-  const matMkp = t.rawMat * s.matMkp;
-  const matTotal = t.rawMat + matPst + matOh + matMkp;
-  const cont = (matTotal + t.rawLab) * s.cont;
-  const subtotal = matTotal + t.rawLab + cont;
-  const gst = subtotal * s.gst;
-  const grand = subtotal + gst;
+  const bk = computeBreakout(t.rawMat, t.rawLab, t.labHrs);
 
-  function sumRow(label, value, bold, indent, topBorder, color){
-    return `<tr style="${topBorder?'border-top:2px solid #333;':''}">
+  function sumRow(label, value, bold, indent, topBorder, color, shade){
+    return `<tr style="${topBorder?'border-top:2px solid #333;':''}${shade?'background:#f5f4f0;':''}">
       <td style="padding:3px ${indent?'20px':'6px'} 3px 6px;color:${color||'#444'};${bold?'font-weight:600;':''}">${label}</td>
       <td style="padding:3px 6px;text-align:right;font-variant-numeric:tabular-nums;${bold?'font-weight:600;':''}color:${color||'#222'}">${value}</td>
     </tr>`;
   }
 
+  let rowsHTML = '';
+  bk.buckets.forEach((b, bi) => {
+    if(b.showBaseRow) rowsHTML += sumRow(esc(b.parentLabel), fmt(b.base), true, false, bi>0);
+    b.children.forEach(c => { rowsHTML += sumRow(esc(c.label)+c.rateLabel, fmt(c.value), false, true); });
+    if(b.showTotalRow) rowsHTML += sumRow(esc(b.totalLabel), fmt(b.bucketTotal), true, false, true, null, true);
+  });
+
   let tableHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ccc">
-    ${sumRow('General Materials', fmt(t.rawMat), false)}
-    ${s.pst>0 ? sumRow(`Material PST (@\u00a0${(s.pst*100).toFixed(1)}\u00a0%)`, fmt(matPst), false, true) : ''}
-    ${s.oh>0  ? sumRow(`Material Overhead (@\u00a0${(s.oh*100).toFixed(1)}\u00a0%)`, fmt(matOh), false, true) : ''}
-    ${s.matMkp>0 ? sumRow(`Material Markup (@\u00a0${(s.matMkp*100).toFixed(1)}\u00a0%)`, fmt(matMkp), false, true) : ''}
-    ${sumRow('Material Total', fmt(matTotal), true, false, true)}
-    ${sumRow(`Labour (${t.labHrs.toFixed(2)}\u00a0hrs\u00a0@\u00a0$${s.jm}/hr)`, fmt(t.rawLab), false, false, true)}
-    ${cont > 0 ? sumRow(`Contingency (@\u00a0${(s.cont*100).toFixed(1)}\u00a0%)`, fmt(cont), false, true) : ''}
-    ${sumRow('Subtotal', fmt(subtotal), true, false, true)}
-    ${sumRow(`GST (@\u00a0${(s.gst*100).toFixed(1)}\u00a0%)`, fmt(gst), false, true)}
-    ${sumRow('Final Amount', fmt(grand), true, false, true, '#2d6b1f')}
+    ${rowsHTML}
+    ${sumRow('Final Amount', fmt(bk.total), true, false, true, '#2d6b1f')}
   </table>`;
   sumDiv.innerHTML = tableHTML;
   printDiv.appendChild(sumDiv);
@@ -2827,78 +2812,100 @@ function calcChild(child, base, s){
   return 0;
 }
 
-function renderBreakout(tM, tL, tH){
+// Shared bucket/child engine — the ONE place that turns raw material/labour into a
+// Subtotal and Final Amount. sheetTotals() (Sheet Totals bar, Summary table rows,
+// multi-sheet PDF export), renderBreakout() (Summary tab breakdown box), and
+// exportSheetSummaryOnly() (single-sheet export) all call this instead of each
+// running their own copy of the math — so every number in the app reconciles.
+function computeBreakout(baseMat, baseLab, baseHrs){
   const s = getSettings();
   const cfg = getBreakoutConfig();
-
-  // Compute bucket totals in order
   const bucketTotals = {};
+  const buckets = [];
 
   cfg.buckets.forEach(bucket => {
     let base = 0;
-    if(bucket.id === 'MATERIAL') base = tM;
-    else if(bucket.id === 'LABOUR') base = tL;
+    if(bucket.id === 'MATERIAL') base = baseMat;
+    else if(bucket.id === 'LABOUR') base = baseLab;
     else if(bucket.id === 'SUBTOTAL') base = (bucketTotals['MATERIAL']||0) + (bucketTotals['LABOUR']||0);
     else if(bucket.id === 'TOTAL') base = bucketTotals['SUBTOTAL']||0;
 
-    const childSum = (bucket.children||[]).reduce((sum, c) => sum + calcChild(c, base, s), 0);
-    bucketTotals[bucket.id] = base + childSum;
-  });
-
-  const final = bucketTotals['TOTAL'] || 0;
-
-  // Render
-  let html = '';
-  cfg.buckets.forEach(bucket => {
-    let base = 0;
-    if(bucket.id === 'MATERIAL') base = tM;
-    else if(bucket.id === 'LABOUR') base = tL;
-    else if(bucket.id === 'SUBTOTAL') base = (bucketTotals['MATERIAL']||0) + (bucketTotals['LABOUR']||0);
-    else if(bucket.id === 'TOTAL') base = bucketTotals['SUBTOTAL']||0;
-
-    // Filter: visible AND effective rate is non-zero (hides profit/cont when set to 0)
-    const visChildren = (bucket.children||[]).filter(c => {
+    // Filter: visible AND effective rate is non-zero (hides Profit/Contingency/etc. when set to 0)
+    const children = (bucket.children||[]).filter(c => {
       if(!c.visible) return false;
       if(c.type === 'settings') return (s[c.key]||0) !== 0;
       if(c.type === 'pct') return (c.rate||0) !== 0;
       if(c.type === 'custom_adj') return (c.adjVal||0) !== 0;
-      return true; // flat always show
-    });
-    const bucketTotal = bucketTotals[bucket.id];
-
-    // Special label for Labour bucket — show hrs and rate
-    let parentLabel = bucket.label;
-    if(bucket.id === 'LABOUR') parentLabel = `Labour (${tH.toFixed(2)} hrs @ $${(s.jm||115).toFixed(2)}/hr)`;
-
-    html += `<div class="bk-parent">${esc(parentLabel)}<span>${fmt(base)}</span></div>`;
-    visChildren.forEach(c => {
-      const val = calcChild(c, base, s);
+      return true; // flat always shows
+    }).map(c => {
+      const value = calcChild(c, base, s);
       let rateLabel = '';
       if(c.type==='settings') rateLabel = ` (${((s[c.key]||0)*100).toFixed(1)}%)`;
       else if(c.type==='pct') rateLabel = ` (${(c.rate||0).toFixed(1)}%)`;
       else if(c.type==='custom_adj' && c.adjType==='hrs') rateLabel = ` (${(c.adjVal||0).toFixed(2)} hrs)`;
       else if(c.type==='custom_adj' && c.adjType==='pct'){
-        const adjHrs = tH * ((c.adjVal||0)/100);
+        const adjHrs = baseHrs * ((c.adjVal||0)/100);
         rateLabel = ` (${(c.adjVal||0).toFixed(1)}% = ${adjHrs.toFixed(2)} hrs)`;
       }
-      html += `<div class="bk-child">${esc(c.label)}${rateLabel}<span>${fmt(val)}</span></div>`;
+      return {label:c.label, rateLabel, value};
     });
-    if(visChildren.length){
-      let totalLabel = `${bucket.label} Total`;
-      if(bucket.id === 'LABOUR'){
-        const adjChild = (bucket.children||[]).find(c=>c.id==='lab_adj' && c.visible);
-        let adjHrs = 0;
-        if(adjChild){
-          adjHrs = adjChild.adjType==='hrs' ? (adjChild.adjVal||0) : tH*((adjChild.adjVal||0)/100);
-        }
-        const adjTotal = tH + adjHrs;
-        totalLabel = `Labour Total (${adjTotal.toFixed(2)} hrs @ $${(s.jm||115).toFixed(2)}/hr)`;
+
+    const childSum = children.reduce((sum,c)=>sum+c.value, 0);
+    const bucketTotal = base + childSum;
+    bucketTotals[bucket.id] = bucketTotal;
+
+    // Special label for Labour bucket — show hrs and rate
+    let parentLabel = bucket.label;
+    if(bucket.id === 'LABOUR') parentLabel = `Labour (${baseHrs.toFixed(2)} hrs @ $${(s.jm||115).toFixed(2)}/hr)`;
+
+    let totalLabel = `${bucket.label} Total`;
+    if(bucket.id === 'LABOUR' && children.length){
+      const adjChild = (bucket.children||[]).find(c=>c.id==='lab_adj' && c.visible);
+      let adjHrs = 0;
+      if(adjChild){
+        adjHrs = adjChild.adjType==='hrs' ? (adjChild.adjVal||0) : baseHrs*((adjChild.adjVal||0)/100);
       }
-      html += `<div class="bk-parent" style="font-size:12px;background:var(--bg2);padding:5px 12px">${totalLabel}<span>${fmt(bucketTotal)}</span></div>`;
+      const adjTotal = baseHrs + adjHrs;
+      totalLabel = `Labour Total (${adjTotal.toFixed(2)} hrs @ $${(s.jm||115).toFixed(2)}/hr)`;
+    }
+
+    // The TOTAL bucket's base just restates Subtotal, and its own bucket total is the
+    // same number "Final Amount" shows below — skip both rows here so GST/PST sit
+    // directly under Subtotal instead of sandwiched between two duplicate-looking lines.
+    const isTaxBucket = bucket.id === 'TOTAL';
+
+    buckets.push({
+      id: bucket.id,
+      label: bucket.label,
+      parentLabel,
+      base,
+      children,
+      bucketTotal,
+      totalLabel,
+      showBaseRow: !isTaxBucket,
+      showTotalRow: children.length > 0 && !isTaxBucket
+    });
+  });
+
+  return { buckets, sub: bucketTotals['SUBTOTAL']||0, total: bucketTotals['TOTAL']||0 };
+}
+
+function renderBreakout(tM, tL, tH){
+  const bk = computeBreakout(tM, tL, tH);
+  let html = '';
+  bk.buckets.forEach(b => {
+    if(b.showBaseRow){
+      html += `<div class="bk-parent">${esc(b.parentLabel)}<span>${fmt(b.base)}</span></div>`;
+    }
+    b.children.forEach(c => {
+      html += `<div class="bk-child">${esc(c.label)}${c.rateLabel}<span>${fmt(c.value)}</span></div>`;
+    });
+    if(b.showTotalRow){
+      html += `<div class="bk-parent" style="font-size:12px;background:var(--bg2);padding:5px 12px">${esc(b.totalLabel)}<span>${fmt(b.bucketTotal)}</span></div>`;
     }
   });
 
-  html += `<div class="bk-final">Final Amount<span>${fmt(final)}</span></div>`;
+  html += `<div class="bk-final">Final Amount<span>${fmt(bk.total)}</span></div>`;
 
   $('summary-breakdown-body').innerHTML = html;
   const b2 = $('summary-breakdown-body-2');
