@@ -964,6 +964,76 @@ const LIBRARY=[
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+// ─── PdfStore (IndexedDB) ───
+// Replaces localStorage base64 approach. Handles PDFs up to browser quota (typically 200MB+).
+// Phase 2 migration path: swap save/load internals to R2 behind same API surface.
+const PdfStore = {
+  _db: null,
+  async _open(){
+    if(this._db) return this._db;
+    return new Promise((resolve, reject)=>{
+      const req = indexedDB.open('onsite_pdfs', 1);
+      req.onupgradeneeded = e=>{
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('pdfs')) db.createObjectStore('pdfs');
+      };
+      req.onsuccess = e=>{ this._db=e.target.result; resolve(this._db); };
+      req.onerror  = e=>reject(e.target.error);
+    });
+  },
+  async save(estId, arrayBuffer, meta){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx  = db.transaction('pdfs','readwrite');
+      const req = tx.objectStore('pdfs').put({
+        bytes:      arrayBuffer,
+        totalPages: (meta&&meta.totalPages) || 0,
+        fileSize:   (meta&&meta.fileSize)   || arrayBuffer.byteLength,
+        fileName:   (meta&&meta.fileName)   || '',
+        uploadedAt: new Date().toISOString()
+      }, estId);
+      req.onsuccess = ()=>resolve();
+      req.onerror   = e=>reject(e.target.error);
+    });
+  },
+  async load(estId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction('pdfs','readonly').objectStore('pdfs').get(estId);
+      req.onsuccess = e=>resolve(e.target.result ? e.target.result.bytes : null);
+      req.onerror   = e=>reject(e.target.error);
+    });
+  },
+  async getMeta(estId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction('pdfs','readonly').objectStore('pdfs').get(estId);
+      req.onsuccess = e=>{
+        if(!e.target.result){ resolve(null); return; }
+        const {bytes, ...meta} = e.target.result;
+        resolve(meta);
+      };
+      req.onerror = e=>reject(e.target.error);
+    });
+  },
+  async exists(estId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction('pdfs','readonly').objectStore('pdfs').getKey(estId);
+      req.onsuccess = e=>resolve(e.target.result !== undefined);
+      req.onerror   = e=>reject(e.target.error);
+    });
+  },
+  async delete(estId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction('pdfs','readwrite').objectStore('pdfs').delete(estId);
+      req.onsuccess = ()=>resolve();
+      req.onerror   = e=>reject(e.target.error);
+    });
+  }
+};
+
 // ─── Constants ───
 const PDF_RS = 1.5;           // PDF.js render scale factor
 const PAN_THRESHOLD = 5;      // px movement before treating as pan vs click
@@ -1088,35 +1158,30 @@ async function savePdfToServer(estId){
     console.log('PDF uploaded to server ('+(pdfRawBytes.byteLength/1024).toFixed(0)+'KB)');
   }catch(e){
     console.warn('PDF server upload failed:',e.message);
-    toast('PDF save failed — will restore from local cache');
+    // IndexedDB is the primary persistent store; server upload is best-effort only
   }
-  // Also cache locally as fast fallback
-  savePdfToLocalStorage(estId);
 }
-function savePdfToLocalStorage(estId){
-  if(!pdfRawBytes||!estId) return;
-  try{
-    const bytes=new Uint8Array(pdfRawBytes);
-    let b64=''; const chunk=8192;
-    for(let i=0;i<bytes.length;i+=chunk) b64+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-    localStorage.setItem('onsite_pdf_'+estId, btoa(b64));
-  }catch(e){ /* too large for localStorage — server copy is the fallback */ }
-}
-// Keep old name as alias so existing call sites still work
-function savePdfToStorage(estId){ savePdfToLocalStorage(estId); }
 function loadPDF(file){
   if(!file) return;
   pdfFilename = file.name.replace(/\.pdf$/i,'');
   $('push-ref').value = pdfFilename;
   const r=new FileReader();
-  r.onload=e=>{
+  r.onload=async e=>{
     const arrBuf=e.target.result;
     // Keep our own copy BEFORE pdf.js detaches the ArrayBuffer
     pdfRawBytes=arrBuf.slice(0);
-    pdfjsLib.getDocument({data:arrBuf}).promise.then(pdf=>{
+    pdfjsLib.getDocument({data:arrBuf}).promise.then(async pdf=>{
       pdfDoc=pdf;
       $('cv-empty').style.display='none';
       $('uz').style.display='none';
+      // Persist to IndexedDB — handles real-world PDF sizes (40-80MB+)
+      if(linked&&linked.id){
+        PdfStore.save(linked.id, pdfRawBytes, {
+          totalPages: pdf.numPages,
+          fileSize:   file.size,
+          fileName:   file.name
+        }).catch(e=>console.warn('PdfStore.save failed:',e));
+      }
       buildThumbs();
       // Render at zoom=1 first, then fit — gives correct natural dimensions
       zoom=1; _panX=0; _panY=0;
@@ -3222,8 +3287,11 @@ async function confirmLink(){
     }
     localStorage.setItem('onsite_active_id',linked.id);
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
-    // If PDF is already loaded, upload it now under the newly linked estimate
-    if(pdfRawBytes){ savePdfToServer(linked.id); }
+    // If PDF is already loaded, persist it under the newly linked estimate
+    if(pdfRawBytes){
+      savePdfToServer(linked.id);
+      if(pdfDoc) PdfStore.save(linked.id, pdfRawBytes, {totalPages:pdfDoc.numPages, fileSize:pdfRawBytes.byteLength, fileName:pdfFilename+'.pdf'}).catch(()=>{});
+    }
     buildLinkedEstItems(linked);
     updatePushBtn();
     closeMo('link-mo');
@@ -3406,7 +3474,8 @@ function getDrawingsState(){
     items: items.map(it=>({...it, markups:it.markups})),
     userGroups,
     scaleRaw, scaleUnit, scaleLabel,
-    curPage, zoom, panX:_panX, panY:_panY, markerSize,
+    curPage, totalPages: pdfDoc ? pdfDoc.numPages : 0,
+    zoom, panX:_panX, panY:_panY, markerSize,
     pdfFilename
   };
 }
@@ -3619,13 +3688,17 @@ renderTO();
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
     buildLinkedEstItems(linked);
     updatePushBtn();
-    const pdfKey='onsite_pdf_'+linked.id;
-    const pdfDataLocal=localStorage.getItem(pdfKey);
-    async function restorePdfFromBytes(arrayBuf){
+    async function restorePdfFromBytes(arrayBuf, sourceMeta){
       pdfRawBytes=arrayBuf.slice(0);
       try{
         const pdf=await pdfjsLib.getDocument({data:arrayBuf}).promise;
         pdfDoc=pdf;
+        // Ensure IndexedDB is primed with correct page count
+        PdfStore.save(linked.id, pdfRawBytes, {
+          totalPages: pdf.numPages,
+          fileSize:   (sourceMeta&&sourceMeta.fileSize) || arrayBuf.byteLength,
+          fileName:   pdfFilename||linked.name||''
+        }).catch(()=>{});
         $('cv-empty').style.display='none';
         $('uz').style.display='none';
         buildThumbs();
@@ -3638,39 +3711,21 @@ renderTO();
         toast('Restored: '+linked.name);
       }catch(e){ toast('Restored: '+linked.name+' (PDF error)'); }
     }
-    if(pdfDataLocal){
-      try{
-        const binary=atob(pdfDataLocal);
-        const arr=new Uint8Array(binary.length);
-        for(let i=0;i<binary.length;i++) arr[i]=binary.charCodeAt(i);
-        await restorePdfFromBytes(arr.buffer);
-      }catch(e){
-        // localStorage corrupt — try server
-        localStorage.removeItem(pdfKey);
-        try{
-          const pr=await fetch('/api/estimates/'+linked.id+'/pdf');
-          if(pr.ok){
-            const buf=await pr.arrayBuffer();
-            savePdfToLocalStorage(linked.id); // refresh cache
-            await restorePdfFromBytes(buf);
-          } else { toast('Restored: '+linked.name+' (re-upload PDF)'); }
-        }catch(fe){ toast('Restored: '+linked.name+' (re-upload PDF)'); }
-      }
+    // Primary restore path: IndexedDB (handles real-world PDF sizes)
+    const pdfBytes = await PdfStore.load(linked.id).catch(()=>null);
+    if(pdfBytes){
+      await restorePdfFromBytes(pdfBytes, null);
     } else {
-      // No local cache — try server
+      // No IndexedDB entry — try server (R2 will land here in Phase 2)
       try{
         const pr=await fetch('/api/estimates/'+linked.id+'/pdf');
         if(pr.ok){
           const buf=await pr.arrayBuffer();
-          pdfRawBytes=buf.slice(0);
-          savePdfToLocalStorage(linked.id); // prime the cache
-          await restorePdfFromBytes(buf);
+          await restorePdfFromBytes(buf, {fileSize:buf.byteLength});
         } else {
           toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
         }
-      }catch(fe){
-        toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
-      }
+      }catch(fe){ toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));}
     }
   }catch(e){ /* silent fail */ }
 })();
