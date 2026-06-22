@@ -2489,7 +2489,7 @@ function switchDetailTab(tab){
 function renderDetailCard(){
   const card=$('layer-detail');
   if(!card) return;
-  if(activeItemIdx<0||activeItemIdx>=items.length){
+  if(activeItemIdx==null||activeItemIdx<0||activeItemIdx>=items.length||!items[activeItemIdx]){
     card.classList.remove('show');card.innerHTML='';return;
   }
   const it=items[activeItemIdx];
@@ -3765,6 +3765,7 @@ function deleteUserGroup(ugId){
 
 function grpTot(grpOrItem){
   // works on both old group objects and new item objects
+  if(!grpOrItem) return{qty:0,display:'0',unit:'ea'}; // never throw the restore over a missing item
   const allMarkups=grpOrItem.markups||grpOrItem.items||[];
   // Quantity totals are scoped to the active drawing set only — historical/superseded
   // sets stay viewable for reference but must never inflate current quantities or push totals.
