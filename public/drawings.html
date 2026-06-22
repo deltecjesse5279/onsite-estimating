@@ -1282,6 +1282,7 @@ let _selectDragging=false, _selectDragStart=null;
 let mousedownPos=null, mousedownScroll=null, intentDecided=false, isPanning=false;
 
 let linked=null;
+let _restoreComplete=false; // true once autoOpenEst restore (or new-estimate create) has populated in-memory state
 let sheets=[{id:1,name:'Sheet 1',rows:[]}];
 let activeSheet=0, nextSid=2;
 
@@ -4108,9 +4109,7 @@ async function confirmPush(){
   });
 
   try{
-    // Capture drawings state BEFORE the POST so it's included in the payload
-    linked.drawingsState=getDrawingsState();
-    linked.updatedAt=new Date().toISOString();
+    _attachDrawingsState(linked,'confirmPush'); // capture state before POST
     const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
     if(!r.ok) throw new Error('HTTP '+r.status);
     await r.json();
@@ -4170,6 +4169,7 @@ async function _doCreateEstimate(name, client, estimateNum){
     linked={...newEst, id:saved.id, updatedAt:saved.updatedAt};
     sheets=JSON.parse(JSON.stringify(linked.sheets));
     activeSheet=0;
+    _restoreComplete = true; // freshly created estimate is a legitimate in-memory state
     const b=$('proj-badge');
     b.textContent=linked.name;
     b.className='proj-badge linked';
@@ -4227,13 +4227,33 @@ function applyDrawingsState(ds){
   else { pdfFilename=ds.pdfFilename||''; sheetNames=ds.sheetNames||{}; sheetGroups=ds.sheetGroups||[]; nextGroupId=ds.nextGroupId||1; curPage=ds.curPage||1; }
   renderGroups(); updatePushBtn();
 }
+function _dsSummary(ds){
+  if(!ds) return 'none';
+  const sets=(ds.drawingSets||[]).length;
+  const itms=(ds.items||[]).length;
+  const mks=(ds.items||[]).reduce((n,it)=>n+((it.markups||[]).length),0);
+  return '(sets='+sets+', items='+itms+', markups='+mks+')';
+}
+// Single source of truth for attaching drawings state to an outgoing save.
+// Only asserts drawingsState once a real restore/create has populated memory.
+// Before that, the field is omitted so the server-side merge preserves the
+// already-saved copy instead of an un-restored client overwriting it with empty.
+function _attachDrawingsState(obj, tag){
+  if(_restoreComplete){
+    obj.drawingsState = getDrawingsState();
+    console.log('[OnSite] '+tag+': saving drawingsState '+_dsSummary(obj.drawingsState));
+  } else {
+    delete obj.drawingsState;
+    console.warn('[OnSite] '+tag+': restore not complete \u2014 omitting drawingsState so server copy is preserved');
+  }
+  obj.updatedAt = new Date().toISOString();
+}
 async function saveLinked(){
   if(!linked){toast('No estimate linked');return;}
   linked.name=$('pf-name').value||linked.name;
   linked.client=$('pf-client').value||linked.client;
   linked.estimateNum=$('pf-num').value||linked.estimateNum;
-  linked.drawingsState=getDrawingsState();
-  linked.updatedAt=new Date().toISOString();
+  _attachDrawingsState(linked,'saveLinked');
   try{
     const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -4325,8 +4345,7 @@ async function navToApp(url){
   // If we have a linked estimate, do a real server save before navigating
   // so takeoffs and PDF cache are always persisted (beacon is unreliable on fast navigation)
   if(linked){
-    linked.drawingsState = getDrawingsState();
-    linked.updatedAt = new Date().toISOString();
+    _attachDrawingsState(linked,'navToApp');
     try{
       await fetch('/api/estimates',{
         method:'POST',
@@ -4422,9 +4441,11 @@ renderTO();
       activeSheet=0;
     }
     localStorage.setItem('onsite_active_id',linked.id);
+    console.log('[OnSite] autoOpenEst loaded '+linked.id+' \u2014 server drawingsState '+_dsSummary(linked.drawingsState));
     if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
     buildLinkedEstItems(linked);
     updatePushBtn();
+    _restoreComplete = true; // in-memory state now reflects the server; saves may assert drawingsState
     async function restorePdfFromBytes(arrayBuf, sourceMeta){
       pdfRawBytes=arrayBuf.slice(0);
       try{
@@ -4453,6 +4474,7 @@ renderTO();
     }
     // Primary restore path: IndexedDB (handles real-world PDF sizes)
     const pdfBytes = await PdfStore.load(linked.id, activeSetId).catch(()=>null);
+    console.log('[OnSite] PdfStore.load key='+linked.id+'::'+activeSetId+' -> '+(pdfBytes?('found '+pdfBytes.byteLength+' bytes'):'MISS'));
     if(pdfBytes){
       await restorePdfFromBytes(pdfBytes, null);
     } else {
@@ -4467,7 +4489,7 @@ renderTO();
         }
       }catch(fe){ toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));}
     }
-  }catch(e){ /* silent fail */ }
+  }catch(e){ console.error('[OnSite] autoOpenEst failed:', e); }
 })();
 // Open on Drawings tab at startup
 switchMain('drawings');
@@ -4475,8 +4497,7 @@ switchMain('drawings');
 // Auto-save drawings state when user navigates away or closes tab
 window.addEventListener('beforeunload', ()=>{
   if(linked){
-    linked.drawingsState = getDrawingsState();
-    linked.updatedAt = new Date().toISOString();
+    _attachDrawingsState(linked,'beforeunload');
     // Use sendBeacon for reliability on unload
     const blob = new Blob([JSON.stringify(linked)], {type:'application/json'});
     navigator.sendBeacon('/api/estimates', blob);
