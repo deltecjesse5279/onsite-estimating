@@ -241,7 +241,8 @@ tr:hover .dbtn{opacity:1}
 /* marquee drag-select - positioned inside cv-stage */
 .marquee{position:absolute;border:1.5px dashed #1a4f8a;background:rgba(26,79,138,.08);pointer-events:none;z-index:5;top:0;left:0}
 /* Auto-Count (Job 1: reference capture + characterize) */
-.cv-wrap.tool-autocount{cursor:crosshair}
+.cv-wrap.tool-autocount{cursor:grab}
+.cv-wrap.tool-autocount.ac-boxing{cursor:crosshair}
 #ac-chip{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:30;display:none;max-width:min(440px,92%);background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.13);font-size:12px;color:var(--text);overflow:hidden}
 #ac-chip.show{display:block}
 #ac-chip .ac-head{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border-bottom:1px solid var(--border)}
@@ -1323,7 +1324,6 @@ let _acStep=null;        // null | 'ref' (awaiting reference marquee) | 'done'
 let _acRefImage=null;    // base64 PNG of reference crop (no data: prefix); reused by later jobs
 let _acCharacter=null;   // characterize() result; reused by later scan jobs
 let _acBusy=false;       // true while a characterize request is in flight
-let _acPrevZoom=null;    // zoom to restore when leaving Auto-Count
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2130,12 +2130,7 @@ function setTool(t, silent){
 const AC_ICON='<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.4" y="1.4" width="13.2" height="13.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.6 1.8"/><text x="8" y="11.4" font-size="9.5" font-weight="700" text-anchor="middle" fill="currentColor">A</text></svg>';
 function acEnter(){
   _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false;
-  // Lock the working zoom to the 300% sweet spot for crisp reference crops.
-  _zoomMax=3;
-  if(pdfDoc){
-    if(_acPrevZoom==null) _acPrevZoom=zoom;
-    if(zoom!==3){ zoom=3; renderPage(curPage,false); }
-  }
+  _zoomMax=3; // hard ceiling at 300% while in the mode; never move the user's view
   $('ac-chip').classList.add('show');
   acSetBody(acRefPromptHtml());
 }
@@ -2144,14 +2139,13 @@ function acExit(){
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
   _zoomMax=6;
-  if(pdfDoc&&_acPrevZoom!=null&&_acPrevZoom!==zoom){ zoom=_acPrevZoom; renderPage(curPage,false); }
-  _acPrevZoom=null;
+  $('cvw').classList.remove('ac-boxing');
   $('ac-chip').classList.remove('show');
 }
 function acSetBody(html){ const b=$('ac-body'); if(b) b.innerHTML=html; }
 function acRefPromptHtml(){
-  return '<div>Box <b>one clean instance</b> of the symbol you want to find.</div>'
-    +'<div class="ac-feat" style="margin-top:5px">Zoom is locked to 300% for the sharpest reference. Pan to your symbol, then drag a tight box around just the symbol, not its label or wiring.</div>';
+  return '<div>Drag to pan around the drawing, just like normal. When you find your symbol, <b>hold Shift and drag</b> a tight box around one clean instance.</div>'
+    +'<div class="ac-feat" style="margin-top:5px">Zoom stops at 300% here for the sharpest reference. Box just the symbol, not its label or wiring.</div>';
 }
 async function acCharacterize(rect){
   if(_acBusy) return;
@@ -2206,6 +2200,8 @@ function acShowResult(ch){
 }
 function acRetry(){ _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+document.addEventListener('keydown',e=>{ if(e.key==='Shift'&&activeTool==='autocount') $('cvw')?.classList.add('ac-boxing'); });
+document.addEventListener('keyup',e=>{ if(e.key==='Shift') $('cvw')?.classList.remove('ac-boxing'); });
 
 // ─── Scale presets ───
 function onScaleSel(){
@@ -3302,10 +3298,17 @@ function cvd(e){
   }
   if(activeTool==='autocount'){
     if(_acBusy) return;
-    const pt=getCvPt(e);
-    _marqStart=toCanvas(pt);
-    _marqRect=null;
-    intentDecided=true;
+    if(e.shiftKey){
+      // Shift+drag = draw the reference box
+      const pt=getCvPt(e);
+      _marqStart=toCanvas(pt);
+      _marqRect=null;
+      intentDecided=true;
+      return;
+    }
+    // plain drag = pan / navigate exactly like normal viewing
+    isPanning=true; intentDecided=true;
+    $('cvw').style.cursor='grabbing';
     return;
   }
   // count / measure fall through — pan intent resolved in cvm with a wider threshold
@@ -3410,9 +3413,10 @@ function cvu(e){
     // or mouse state stuck (drag-state cleanup rule).
     if(_marqEl){_marqEl.remove();_marqEl=null;}
     const r=_marqRect;
+    const wasBoxing=(_marqStart!=null);
     _marqStart=null; _marqRect=null; mousedownPos=null;
-    if(r&&r.w>6&&r.h>6) acCharacterize(r);
-    else acSetBody(acRefPromptHtml());
+    if(wasBoxing && r && r.w>6 && r.h>6) acCharacterize(r);
+    // plain-drag pan release: leave the chip and any result as-is
     return;
   }
   if(activeTool==='drag-sel'){
