@@ -118,18 +118,23 @@ app.post('/api/estimates', async (req, res) => {
   try {
     const id = req.body.id || ('est_' + Date.now());
     const now = new Date().toISOString();
-    const est = { ...req.body, id, updatedAt: now };
+    const incoming = { ...req.body, id, updatedAt: now };
     if (USE_PG) {
+      // Merge at the DB level so a save from a client that only knows about
+      // some fields (index.html, for example, never sends drawingsState)
+      // can't wipe out fields it doesn't carry. On a brand-new id this is a
+      // plain insert; on conflict, existing JSONB is merged with incoming,
+      // with incoming's keys winning on overlap.
       await pool.query(
         `INSERT INTO estimates (id, data, updated_at)
          VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO UPDATE SET data=$2, updated_at=$3`,
-        [id, est, now]
+         ON CONFLICT (id) DO UPDATE SET data = estimates.data || $2::jsonb, updated_at=$3`,
+        [id, incoming, now]
       );
       return res.json({ id, updatedAt: now });
     }
     const data = readEstimatesFile();
-    data[id] = est;
+    data[id] = { ...(data[id] || {}), ...incoming };
     writeEstimatesFile(data);
     res.json({ id, updatedAt: now });
   } catch(e) { res.status(500).json({ error: e.message }); }
