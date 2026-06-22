@@ -244,6 +244,55 @@ tr:hover .dbtn{opacity:1}
 .toast{position:fixed;bottom:18px;right:18px;background:#1a1a18;color:#fff;padding:9px 14px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 
+/* ════════════════════════════
+   DOCUMENTS MODE
+════════════════════════════ */
+#pane-drawings{position:relative}
+.doc-mode{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+.doc-hdr{height:46px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
+.doc-hdr-title{font-size:13px;font-weight:600;color:var(--text)}
+.doc-search{font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text);width:220px}
+.doc-search:focus{outline:none;border-color:#888;background:#fff}
+.doc-set-switcher{font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);font-family:inherit;color:var(--text);max-width:160px;cursor:pointer}
+.doc-set-switcher:focus{outline:none;border-color:#888}
+.doc-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.doc-sheet-list{flex:1;overflow-y:auto;padding:0 0 8px}
+.doc-sheet-row{display:flex;align-items:center;gap:12px;padding:9px 16px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.doc-sheet-row:hover{background:#fff}
+.doc-sheet-thumb{width:72px;height:54px;border:1px solid var(--border);border-radius:4px;overflow:hidden;flex-shrink:0;background:#f0efeb;display:flex;align-items:center;justify-content:center}
+.doc-sheet-thumb img,.doc-sheet-thumb canvas{width:100%;height:100%;object-fit:contain;display:block}
+.doc-sheet-info{flex:1;min-width:0}
+.doc-sheet-name{font-size:13px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-sheet-file{font-size:11px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-sheet-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.doc-sheet-badge{font-size:10px;color:var(--muted);background:var(--bg3);padding:2px 7px;border-radius:10px;white-space:nowrap}
+.doc-sheet-dot{width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0}
+.doc-sheet-chev{font-size:18px;color:var(--muted)}
+/* group sections */
+.doc-group-hdr{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg3);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.doc-group-chev{font-size:11px;color:var(--muted);transition:transform .15s;flex-shrink:0}
+.doc-group-chev.collapsed{transform:rotate(-90deg)}
+.doc-group-name{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-group-name-input{font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;border:1px solid var(--blue);border-radius:4px;padding:2px 5px;font-family:inherit;background:#fff}
+.doc-group-count{font-size:10px;color:var(--muted);background:#fff;padding:2px 7px;border-radius:10px;flex-shrink:0}
+.doc-group-del{font-size:11px;color:var(--danger);cursor:pointer;flex-shrink:0;padding:2px 4px}
+.doc-group-del:hover{text-decoration:underline}
+.doc-group-body.collapsed{display:none}
+.doc-sheet-name-input{font-size:13px;font-weight:500;color:var(--text);border:1px solid var(--blue);border-radius:4px;padding:2px 5px;font-family:inherit;width:100%}
+/* select mode */
+.doc-sheet-check{width:17px;height:17px;border:1.5px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff}
+.doc-sheet-check.checked{background:var(--blue);border-color:var(--blue)}
+.doc-sheet-check.checked::after{content:'';width:7px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.doc-select-bar{display:none;align-items:center;gap:10px;height:42px;background:#eef4fb;border-bottom:1px solid var(--border);padding:0 16px;flex-shrink:0}
+.doc-select-bar.show{display:flex}
+.doc-select-label{font-size:12px;color:var(--text);font-weight:500}
+/* sheet viewer */
+.doc-viewer{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--bg2)}
+.doc-viewer-bar{height:46px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
+.doc-viewer-title{font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-viewer-wrap{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:20px}
+.doc-viewer-wrap canvas{border:1px solid var(--border);border-radius:4px;box-shadow:0 2px 14px rgba(0,0,0,.12);max-width:100%;background:#fff}
+
 /* ── Scale warning bar (panel) ── */
 .scale-warn-bar{display:none;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--amber-bg);border-bottom:1px solid #e8c560;flex-shrink:0}
 .scale-warn-bar.show{display:flex}
@@ -403,11 +452,64 @@ tr:hover .dbtn{opacity:1}
 <div class="main-tabs">
   <div class="main-tab active" id="mtab-drawings" onclick="switchMain('drawings')">Drawings</div>
   <div class="main-tab" id="mtab-takeoff" onclick="switchMain('takeoff')">Takeoff</div>
+  <div class="main-tab" id="mtab-quantities" onclick="switchMain('quantities')">Quantities</div>
   <div class="main-tab" id="mtab-details" onclick="switchMain('details')">Project Details</div>
 </div>
 
 <!-- ═══════════════════════ DRAWINGS PANE ═══════════════════════ -->
 <div class="pane active" id="pane-drawings">
+
+<!-- ─── Documents mode overlay ─── -->
+<div id="doc-mode" class="doc-mode">
+  <!-- Header -->
+  <div class="doc-hdr">
+    <span class="doc-hdr-title">Drawings</span>
+    <select id="set-switcher" class="doc-set-switcher" onchange="switchActiveSet(this.value)" style="display:none"></select>
+    <button class="btn sm" id="set-rename-btn" onclick="renameActiveSet()" style="display:none" title="Rename this drawing set">&#9998;</button>
+    <input id="doc-search" class="doc-search" type="text" placeholder="Search sheets..." oninput="filterDocSheets(this.value)"/>
+    <div style="flex:1"></div>
+    <button class="btn sm" id="doc-select-btn" onclick="toggleDocSelectMode()" style="display:none">Select</button>
+    <button class="btn sm primary" id="doc-upload-btn" onclick="document.getElementById('fi').click()">+ Upload PDF</button>
+    <button class="btn sm danger" id="doc-remove-set-btn" onclick="removeDrawingSet()" style="display:none">Remove drawing set</button>
+  </div>
+  <!-- Select-mode action bar -->
+  <div id="doc-select-bar" class="doc-select-bar">
+    <span class="doc-select-label" id="doc-select-label">0 selected</span>
+    <div style="flex:1"></div>
+    <button class="btn sm primary" onclick="openGroupPicker()">Move to Group</button>
+    <button class="btn sm" onclick="toggleDocSelectMode()">Done</button>
+  </div>
+  <!-- Empty state -->
+  <div id="doc-empty" class="doc-empty">
+    <div style="font-size:54px;opacity:.12;line-height:1">&#128443;</div>
+    <div style="font-size:15px;font-weight:600;color:var(--text);opacity:.45">No drawings uploaded</div>
+    <div style="font-size:12px;color:var(--muted)">Upload a PDF drawing set to get started</div>
+    <button class="btn primary" style="margin-top:4px" onclick="document.getElementById('fi').click()">Upload PDF</button>
+  </div>
+  <!-- Sheet list (hidden until PDF loaded) -->
+  <div id="doc-sheet-list" class="doc-sheet-list" style="display:none"></div>
+  <!-- Sheet viewer (full-page preview, hidden until a sheet is clicked) -->
+  <div id="doc-viewer" class="doc-viewer" style="display:none">
+    <div class="doc-viewer-bar">
+      <button class="btn sm" onclick="closeDocViewer()">&#8592; Back</button>
+      <span class="doc-viewer-title" id="doc-viewer-title"></span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="tbtn" id="dv-prev" onclick="navDocViewer(-1)">&#8249;</button>
+        <span id="dv-page-ind" class="zdsp" style="min-width:52px;text-align:center"></span>
+        <button class="tbtn" id="dv-next" onclick="navDocViewer(1)">&#8250;</button>
+      </div>
+      <button class="btn primary" onclick="startTakeoff(docViewPage)">Start Takeoff</button>
+    </div>
+    <div class="doc-viewer-wrap" id="doc-viewer-wrap">
+      <canvas id="doc-viewer-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══════════════════════ TAKEOFF PANE ═══════════════════════ -->
+<div class="pane" id="pane-takeoff">
 <div class="draw-layout">
 
   <!-- LEFT: items -->
@@ -585,8 +687,8 @@ tr:hover .dbtn{opacity:1}
 </div>
 </div>
 
-<!-- ═══════════════════════ TAKEOFF PANE ═══════════════════════ -->
-<div class="pane" id="pane-takeoff">
+<!-- ═══════════════════════ QUANTITIES PANE ═══════════════════════ -->
+<div class="pane" id="pane-quantities">
 <div class="to-page">
   <div class="toolbar">
     <div class="sheet-tabs" id="stabs"></div>
@@ -875,6 +977,44 @@ tr:hover .dbtn{opacity:1}
   </div>
 </div>
 
+<div class="mo" id="group-mo" style="display:none">
+  <div class="md" style="width:320px">
+    <h3>Move to group</h3>
+    <p>Choose a destination group for the selected sheets.</p>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px" id="group-pick-list"></div>
+    <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Or create new group</label>
+      <div style="display:flex;gap:6px">
+        <input id="group-new-name" type="text" placeholder="New group name..." style="flex:1;font-size:12px;padding:5px 7px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit"/>
+        <button class="btn sm primary" onclick="createGroupAndMove()">Create &amp; Move</button>
+      </div>
+    </div>
+    <div class="md-act" style="margin-top:10px">
+      <button class="btn" onclick="closeMo('group-mo')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="newset-mo" style="display:none">
+  <div class="md" style="width:320px">
+    <h3 id="newset-title">Label this drawing set</h3>
+    <p>Helps you tell revisions apart later.</p>
+    <select id="newset-preset" onchange="$('newset-custom').value=''" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit;margin-bottom:8px">
+      <option value="IFT">IFT (Issued for Tender)</option>
+      <option value="IFC">IFC (Issued for Construction)</option>
+      <option value="IFB">IFB (Issued for Bid)</option>
+      <option value="Permit Set">Permit Set</option>
+      <option value="Addendum">Addendum</option>
+      <option value="As-Built">As-Built / Record</option>
+    </select>
+    <input id="newset-custom" type="text" placeholder="Or type a custom label, e.g. IFC R001" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:inherit"/>
+    <div class="md-act" style="margin-top:10px">
+      <button class="btn" onclick="cancelNewSetUpload()">Cancel</button>
+      <button class="btn primary" onclick="confirmNewSetLabel()">Continue</button>
+    </div>
+  </div>
+</div>
+
 <div class="mo" id="color-mo" style="display:none">
   <div class="md">
     <h3>Choose Color</h3>
@@ -967,21 +1107,33 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/p
 // ─── PdfStore (IndexedDB) ───
 // Replaces localStorage base64 approach. Handles PDFs up to browser quota (typically 200MB+).
 // Phase 2 migration path: swap save/load internals to R2 behind same API surface.
+// Multi-set: keys are now estId+'::'+setId so multiple sets' bytes coexist.
+// Read paths fall back to the old plain-estId key so pre-multi-set saves keep working.
 const PdfStore = {
   _db: null,
   async _open(){
     if(this._db) return this._db;
     return new Promise((resolve, reject)=>{
-      const req = indexedDB.open('onsite_pdfs', 1);
+      const req = indexedDB.open('onsite_pdfs', 2);
       req.onupgradeneeded = e=>{
         const db = e.target.result;
         if(!db.objectStoreNames.contains('pdfs')) db.createObjectStore('pdfs');
+        if(!db.objectStoreNames.contains('thumbnails')) db.createObjectStore('thumbnails');
       };
       req.onsuccess = e=>{ this._db=e.target.result; resolve(this._db); };
       req.onerror  = e=>reject(e.target.error);
     });
   },
-  async save(estId, arrayBuffer, meta){
+  _key(estId, setId){ return estId+'::'+(setId!=null?setId:'legacy'); },
+  async _getRaw(storeName, key){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction(storeName,'readonly').objectStore(storeName).get(key);
+      req.onsuccess = e=>resolve(e.target.result||null);
+      req.onerror   = e=>reject(e.target.error);
+    });
+  },
+  async save(estId, setId, arrayBuffer, meta){
     const db = await this._open();
     return new Promise((resolve, reject)=>{
       const tx  = db.transaction('pdfs','readwrite');
@@ -991,46 +1143,50 @@ const PdfStore = {
         fileSize:   (meta&&meta.fileSize)   || arrayBuffer.byteLength,
         fileName:   (meta&&meta.fileName)   || '',
         uploadedAt: new Date().toISOString()
-      }, estId);
+      }, this._key(estId,setId));
       req.onsuccess = ()=>resolve();
       req.onerror   = e=>reject(e.target.error);
     });
   },
-  async load(estId){
-    const db = await this._open();
-    return new Promise((resolve, reject)=>{
-      const req = db.transaction('pdfs','readonly').objectStore('pdfs').get(estId);
-      req.onsuccess = e=>resolve(e.target.result ? e.target.result.bytes : null);
-      req.onerror   = e=>reject(e.target.error);
-    });
+  async load(estId, setId){
+    const rec = await this._getRaw('pdfs', this._key(estId,setId)).catch(()=>null);
+    if(rec) return rec.bytes;
+    // Legacy fallback: pre-multi-set saves were keyed by estId alone
+    const legacy = await this._getRaw('pdfs', estId).catch(()=>null);
+    return legacy ? legacy.bytes : null;
   },
-  async getMeta(estId){
-    const db = await this._open();
-    return new Promise((resolve, reject)=>{
-      const req = db.transaction('pdfs','readonly').objectStore('pdfs').get(estId);
-      req.onsuccess = e=>{
-        if(!e.target.result){ resolve(null); return; }
-        const {bytes, ...meta} = e.target.result;
-        resolve(meta);
-      };
-      req.onerror = e=>reject(e.target.error);
-    });
+  async getMeta(estId, setId){
+    const rec = (await this._getRaw('pdfs', this._key(estId,setId)).catch(()=>null))
+             || (await this._getRaw('pdfs', estId).catch(()=>null));
+    if(!rec) return null;
+    const {bytes, ...meta} = rec;
+    return meta;
   },
-  async exists(estId){
-    const db = await this._open();
-    return new Promise((resolve, reject)=>{
-      const req = db.transaction('pdfs','readonly').objectStore('pdfs').getKey(estId);
-      req.onsuccess = e=>resolve(e.target.result !== undefined);
-      req.onerror   = e=>reject(e.target.error);
-    });
+  async exists(estId, setId){
+    const rec = (await this._getRaw('pdfs', this._key(estId,setId)).catch(()=>null))
+             || (await this._getRaw('pdfs', estId).catch(()=>null));
+    return !!rec;
   },
-  async delete(estId){
+  async delete(estId, setId){
     const db = await this._open();
     return new Promise((resolve, reject)=>{
-      const req = db.transaction('pdfs','readwrite').objectStore('pdfs').delete(estId);
+      const req = db.transaction('pdfs','readwrite').objectStore('pdfs').delete(this._key(estId,setId));
       req.onsuccess = ()=>resolve();
       req.onerror   = e=>reject(e.target.error);
     });
+  },
+  async saveThumbnails(estId, setId, thumbsArr){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const req = db.transaction('thumbnails','readwrite').objectStore('thumbnails').put(thumbsArr, this._key(estId,setId));
+      req.onsuccess = ()=>resolve();
+      req.onerror   = e=>reject(e.target.error);
+    });
+  },
+  async getThumbnails(estId, setId){
+    const rec = await this._getRaw('thumbnails', this._key(estId,setId)).catch(()=>null);
+    if(rec) return rec;
+    return await this._getRaw('thumbnails', estId).catch(()=>null);
   }
 };
 
@@ -1053,6 +1209,36 @@ const ALL_COLORS  = [
 
 // ─── State ───
 let pdfDoc=null, curPage=1, pdfFilename='', pdfRawBytes=null;
+let docViewPage=1;         // page shown in sheet viewer
+let _docThumbs=[];         // cached thumbnail data URLs, indexed by page number
+let sheetNames={};         // {pageNum: customName} — working copy for the ACTIVE drawing set
+let sheetGroups=[];        // [{id, name, pages:[pageNum,...]}] — working copy for the ACTIVE drawing set
+let nextGroupId=1;
+// ── Multi-set (revision) model ──
+// drawingSets: [{id, label, pdfFilename, uploadedAt, totalPages, sheetNames, sheetGroups, nextGroupId, curPage}]
+// sheetNames/sheetGroups/nextGroupId/pdfFilename above are a *working copy* of the active set's
+// values, synced in/out via _syncActiveSetFromGlobals()/_loadGlobalsFromSet() on every switch.
+// Markups carry setId (see mSetId()); legacy markups with no setId belong to the migrated 'legacy' set.
+let drawingSets=[];
+let activeSetId=null;
+let nextSetId=1;
+function _findSet(id){ return drawingSets.find(s=>String(s.id)===String(id)); }
+function _activeSet(){ return _findSet(activeSetId); }
+function mSetId(m){ return m.setId!=null?m.setId:'legacy'; }
+function _hasActiveSetMarkups(it){ return it.markups.some(m=>mSetId(m)===activeSetId); }
+function _syncActiveSetFromGlobals(){
+  const s=_activeSet(); if(!s) return;
+  s.sheetNames=sheetNames; s.sheetGroups=sheetGroups; s.nextGroupId=nextGroupId;
+  s.pdfFilename=pdfFilename; s.curPage=curPage;
+  if(pdfDoc) s.totalPages=pdfDoc.numPages;
+}
+function _loadGlobalsFromSet(s){
+  sheetNames=s.sheetNames||{}; sheetGroups=s.sheetGroups||[]; nextGroupId=s.nextGroupId||1;
+  pdfFilename=s.pdfFilename||'';
+}
+let _docSelectMode=false;
+let _docSelectedPages=new Set();
+let _ungroupedCollapsed=false;
 let zoom=1.0;          // logical zoom level (used for scale calculations)
 let _baseZoom=1.0;     // zoom level the canvas was last rendered at
 let _panX=0, _panY=0;  // pan offset in screen pixels
@@ -1138,14 +1324,469 @@ function syncFields(key, val){
 
 // ─── Tab switching ───
 function switchMain(name){
-  ['drawings','takeoff','details'].forEach(n=>{
+  ['drawings','takeoff','quantities','details'].forEach(n=>{
     $('mtab-'+n)?.classList.toggle('active',n===name);
     $('pane-'+n)?.classList.toggle('active',n===name);
   });
-  if(name==='takeoff') renderTO();
+  if(name==='quantities') renderTO();
+  if(name==='drawings') buildDocSheetList().catch(()=>{});
+}
+
+// ─── Documents mode ───
+
+async function buildDocSheetList(){
+  _refreshSetUI();
+  if(!pdfDoc) return;
+  $('doc-empty').style.display='none';
+  $('doc-sheet-list').style.display='';
+  $('doc-select-btn').style.display='';
+  _renderDocSheetList();
+  // Try stored thumbnails first (instant), else generate fresh
+  const stored = linked&&linked.id ? await PdfStore.getThumbnails(linked.id, activeSetId).catch(()=>null) : null;
+  if(stored&&stored.length>0){
+    _docThumbs=stored;
+    for(let i=1;i<=pdfDoc.numPages;i++){ if(stored[i]) _applyDocThumb(i,stored[i]); }
+  } else {
+    _genDocThumbs();
+  }
+}
+
+// Refreshes the set switcher dropdown, rename button, upload-button label, and remove-set
+// button visibility. Called any time drawingSets/activeSetId change.
+function _refreshSetUI(){
+  const sw=$('set-switcher'), rb=$('set-rename-btn'), upBtn=$('doc-upload-btn'), rmBtn=$('doc-remove-set-btn');
+  const has=drawingSets.length>0;
+  if(sw) sw.style.display=has?'':'none';
+  if(rb) rb.style.display=has?'':'none';
+  if(sw&&has) sw.innerHTML=drawingSets.map(s=>
+    `<option value="${esc(String(s.id))}"${String(s.id)===String(activeSetId)?' selected':''}>${esc(s.label)}</option>`).join('');
+  if(upBtn) upBtn.textContent = has? '+ Upload new revision' : '+ Upload PDF';
+  if(rmBtn) rmBtn.style.display = has? '' : 'none';
+}
+
+// Full re-render of the sheet list: group sections + Ungrouped section.
+// Called after any rename, group, or select-mode change.
+function _renderDocSheetList(){
+  if(!pdfDoc) return;
+  const list=$('doc-sheet-list');
+  list.innerHTML='';
+  const grouped=new Set();
+  sheetGroups.forEach(g=>g.pages.forEach(p=>grouped.add(p)));
+  sheetGroups.forEach(g=>{
+    list.appendChild(_buildGroupHeader(g,true));
+    const body=document.createElement('div');
+    body.className='doc-group-body'+(g.collapsed?' collapsed':''); body.id='doc-gbody-'+g.id;
+    g.pages.filter(p=>p>=1&&p<=pdfDoc.numPages).forEach(p=>body.appendChild(_buildDocRow(p)));
+    list.appendChild(body);
+  });
+  const ungroupedPages=[];
+  for(let i=1;i<=pdfDoc.numPages;i++){ if(!grouped.has(i)) ungroupedPages.push(i); }
+  if(sheetGroups.length===0){
+    ungroupedPages.forEach(p=>list.appendChild(_buildDocRow(p)));
+  } else if(ungroupedPages.length>0){
+    const pseudo={id:'ungrouped', name:'Ungrouped', pages:ungroupedPages, collapsed:_ungroupedCollapsed};
+    list.appendChild(_buildGroupHeader(pseudo,false));
+    const body=document.createElement('div');
+    body.className='doc-group-body'+(_ungroupedCollapsed?' collapsed':''); body.id='doc-gbody-ungrouped';
+    ungroupedPages.forEach(p=>body.appendChild(_buildDocRow(p)));
+    list.appendChild(body);
+  }
+  if(_docThumbs&&_docThumbs.length){
+    for(let i=1;i<=pdfDoc.numPages;i++){ if(_docThumbs[i]) _applyDocThumb(i,_docThumbs[i]); }
+  }
+  _updateDocSelectBar();
+}
+
+function _buildGroupHeader(g, editable){
+  const hdr=document.createElement('div');
+  hdr.className='doc-group-hdr'; hdr.id='doc-ghdr-'+g.id;
+  hdr.onclick=()=>toggleGroupCollapsed(g.id);
+  const chev=document.createElement('span');
+  chev.className='doc-group-chev'+(g.collapsed?' collapsed':''); chev.textContent='\u25be';
+  const nm=document.createElement('span'); nm.className='doc-group-name'; nm.id='doc-gname-'+g.id;
+  nm.textContent=g.name;
+  if(editable){
+    nm.style.cursor='text';
+    nm.onclick=(e)=>{ e.stopPropagation(); startRenameGroup(g.id); };
+  }
+  const cnt=document.createElement('span'); cnt.className='doc-group-count'; cnt.textContent=g.pages.length;
+  hdr.appendChild(chev); hdr.appendChild(nm); hdr.appendChild(cnt);
+  if(editable){
+    const del=document.createElement('span'); del.className='doc-group-del'; del.textContent='Delete';
+    del.onclick=(e)=>{ e.stopPropagation(); deleteGroup(g.id); };
+    hdr.appendChild(del);
+  }
+  return hdr;
+}
+
+function toggleGroupCollapsed(id){
+  let collapsed;
+  if(id==='ungrouped'){ _ungroupedCollapsed=!_ungroupedCollapsed; collapsed=_ungroupedCollapsed; }
+  else{
+    const g=sheetGroups.find(x=>x.id===id); if(!g) return;
+    g.collapsed=!g.collapsed; collapsed=g.collapsed;
+  }
+  const body=$('doc-gbody-'+id);
+  const hdr=$('doc-ghdr-'+id);
+  const chev=hdr?hdr.querySelector('.doc-group-chev'):null;
+  if(body) body.classList.toggle('collapsed',collapsed);
+  if(chev) chev.classList.toggle('collapsed',collapsed);
+}
+
+function startRenameGroup(groupId){
+  const g=sheetGroups.find(x=>x.id===groupId); if(!g) return;
+  const nm=$('doc-gname-'+groupId); if(!nm) return;
+  const inp=document.createElement('input');
+  inp.className='doc-group-name-input'; inp.value=g.name; inp.type='text';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=g.name; inp.blur(); } };
+  inp.onblur=()=>{
+    const val=inp.value.trim();
+    if(val) g.name=val;
+    _renderDocSheetList();
+  };
+  nm.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+
+function deleteGroup(groupId){
+  const g=sheetGroups.find(x=>x.id===groupId); if(!g) return;
+  if(!confirm('Delete group "'+g.name+'"? Sheets will move back to Ungrouped.')) return;
+  sheetGroups=sheetGroups.filter(x=>x.id!==groupId);
+  _renderDocSheetList();
+}
+
+function _buildDocRow(i){
+  const hasMarkup=items.some(it=>it.markups.some(m=>m.page===i&&mSetId(m)===activeSetId));
+  const row=document.createElement('div');
+  row.className='doc-sheet-row'; row.id='doc-row-'+i;
+  row.onclick=()=>{ if(_docSelectMode){ toggleDocPageSelected(i); } else { openDocViewer(i); } };
+  // thumb
+  const tw=document.createElement('div');
+  tw.className='doc-sheet-thumb'; tw.id='doc-twrap-'+i;
+  const ph=document.createElement('div');
+  ph.style.cssText='font-size:11px;color:var(--muted)'; ph.textContent=i;
+  tw.appendChild(ph);
+  // info
+  const info=document.createElement('div'); info.className='doc-sheet-info';
+  const nm=document.createElement('div'); nm.className='doc-sheet-name'; nm.id='doc-name-'+i;
+  nm.textContent=sheetNames[i]||('Page '+i);
+  nm.onclick=(e)=>{
+    e.stopPropagation();
+    if(_docSelectMode) toggleDocPageSelected(i);
+    else startRenameSheet(i);
+  };
+  info.appendChild(nm);
+  if(pdfFilename){
+    const fi=document.createElement('div'); fi.className='doc-sheet-file'; fi.textContent=pdfFilename;
+    info.appendChild(fi);
+  }
+  // right
+  const rt=document.createElement('div'); rt.className='doc-sheet-right';
+  if(_docSelectMode){
+    const chk=document.createElement('div');
+    chk.className='doc-sheet-check'+(_docSelectedPages.has(i)?' checked':''); chk.id='doc-chk-'+i;
+    rt.appendChild(chk);
+  } else {
+    if(hasMarkup){
+      const dot=document.createElement('div'); dot.className='doc-sheet-dot'; rt.appendChild(dot);
+    }
+    const badge=document.createElement('div'); badge.className='doc-sheet-badge';
+    badge.textContent=i+' of '+pdfDoc.numPages; rt.appendChild(badge);
+    const chev=document.createElement('div'); chev.className='doc-sheet-chev'; chev.textContent='\u203a'; rt.appendChild(chev);
+  }
+  row.appendChild(tw); row.appendChild(info); row.appendChild(rt);
+  return row;
+}
+
+function startRenameSheet(i){
+  const nm=$('doc-name-'+i); if(!nm) return;
+  const cur=sheetNames[i]||('Page '+i);
+  const inp=document.createElement('input');
+  inp.className='doc-sheet-name-input'; inp.value=cur; inp.type='text';
+  inp.onclick=e=>e.stopPropagation();
+  inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value=cur; inp.blur(); } };
+  inp.onblur=()=>{
+    const val=inp.value.trim();
+    if(val&&val!==('Page '+i)) sheetNames[i]=val;
+    else delete sheetNames[i];
+    _renderDocSheetList();
+  };
+  nm.replaceWith(inp);
+  inp.focus(); inp.select();
+}
+
+// ─── Select mode + groups ───
+function toggleDocSelectMode(){
+  _docSelectMode=!_docSelectMode;
+  _docSelectedPages.clear();
+  $('doc-select-btn').style.display=_docSelectMode?'none':'';
+  $('doc-select-bar').classList.toggle('show',_docSelectMode);
+  _renderDocSheetList();
+}
+
+function toggleDocPageSelected(i){
+  if(_docSelectedPages.has(i)) _docSelectedPages.delete(i);
+  else _docSelectedPages.add(i);
+  const chk=$('doc-chk-'+i);
+  if(chk) chk.classList.toggle('checked',_docSelectedPages.has(i));
+  _updateDocSelectBar();
+}
+
+function _updateDocSelectBar(){
+  const lbl=$('doc-select-label');
+  if(lbl) lbl.textContent=_docSelectedPages.size+' selected';
+}
+
+function openGroupPicker(){
+  if(_docSelectedPages.size===0){ toast('Select at least one sheet'); return; }
+  const list=$('group-pick-list');
+  if(sheetGroups.length===0){
+    list.innerHTML='<div style="padding:10px;font-size:12px;color:var(--muted)">No groups yet, create one below.</div>';
+  } else {
+    list.innerHTML=sheetGroups.map(g=>`
+      <div onclick="moveSelectedToGroup(${g.id})" style="padding:7px 10px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid #f0efeb" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.name)}</span>
+        <span style="font-size:10px;color:var(--muted)">${g.pages.length}</span>
+      </div>`).join('');
+  }
+  $('group-new-name').value='';
+  $('group-mo').style.display='flex';
+}
+
+function moveSelectedToGroup(groupId){
+  const group=sheetGroups.find(g=>g.id===groupId);
+  if(!group) return;
+  _docSelectedPages.forEach(p=>{
+    sheetGroups.forEach(g=>{ const idx=g.pages.indexOf(p); if(idx>=0) g.pages.splice(idx,1); });
+    group.pages.push(p);
+  });
+  closeMo('group-mo');
+  toggleDocSelectMode();
+  toast('Moved to '+group.name);
+}
+
+function createGroupAndMove(){
+  const name=$('group-new-name').value.trim();
+  if(!name){ toast('Enter a group name'); return; }
+  const group={id:nextGroupId++, name, pages:[]};
+  sheetGroups.push(group);
+  moveSelectedToGroup(group.id);
+}
+
+// ─── Remove drawing set ───
+async function removeDrawingSet(){
+  const target=_activeSet();
+  if(!target&&!pdfDoc&&!pdfRawBytes) return;
+  const others=drawingSets.filter(s=>String(s.id)!==String(activeSetId));
+  const label=target?target.label:(pdfFilename||'this drawing set');
+  const msg = others.length
+    ? `Remove "${label}"? This deletes its PDF and any markups tied to it. This cannot be undone. Other drawing sets are not affected.`
+    : 'Remove this drawing set? This deletes the PDF and clears all layers, markups, and groups tied to it. This cannot be undone.';
+  if(!confirm(msg)) return;
+  if(linked&&linked.id){ await PdfStore.delete(linked.id, activeSetId).catch(()=>{}); }
+  // Strip markups that belonged to the removed set (legacy markups if removing the legacy set)
+  const removedId=target?target.id:'legacy';
+  items.forEach(it=>{ it.markups=it.markups.filter(m=>mSetId(m)!==removedId); });
+  drawingSets=others;
+  closeDocViewer();
+  if(drawingSets.length){
+    activeSetId=drawingSets[0].id;
+    _loadGlobalsFromSet(drawingSets[0]);
+    const ok=await _loadActiveSetPdf();
+    curPage=drawingSets[0].curPage||1; zoom=1; _panX=0; _panY=0; _docThumbs=[];
+    if(ok){
+      buildThumbs();
+      await buildDocSheetList();
+      await renderPage(curPage,false); fitPage();
+      $('push-ref').value=pdfFilename;
+    } else {
+      await buildDocSheetList();
+      $('doc-empty').style.display='flex';
+      const pc=$('pc'), oc=$('oc'); pc.width=0; pc.height=0; oc.width=0; oc.height=0;
+      $('cv-empty').style.display='';
+      toast('PDF for "'+drawingSets[0].label+'" not found locally, re-upload may be needed');
+    }
+  } else {
+    activeSetId=null;
+    pdfDoc=null; pdfRawBytes=null; pdfFilename=''; curPage=1;
+    sheetNames={}; sheetGroups=[]; _docThumbs=[];
+    _docSelectMode=false; _docSelectedPages.clear(); _ungroupedCollapsed=false;
+    items=[]; activeItemIdx=-1; userGroups=[];
+    hiddenItems.clear(); collapsedItems.clear(); _collapsedGroups.clear();
+    $('doc-select-bar').classList.remove('show');
+    $('doc-select-btn').style.display='none';
+    $('doc-sheet-list').style.display='none';
+    $('doc-sheet-list').innerHTML='';
+    $('doc-empty').style.display='flex';
+    const pc=$('pc'), oc=$('oc');
+    pc.width=0; pc.height=0; oc.width=0; oc.height=0;
+    $('cv-empty').style.display='';
+    _refreshSetUI();
+  }
+  renderGroups(); updatePushBtn(); redraw();
+  toast('Removed: '+label);
+}
+
+// ─── Switch active drawing set ───
+async function switchActiveSet(newSetId){
+  const target=_findSet(newSetId);
+  if(!target||String(target.id)===String(activeSetId)) return;
+  _syncActiveSetFromGlobals();
+  closeDocViewer();
+  activeSetId=target.id;
+  _loadGlobalsFromSet(target);
+  const ok=await _loadActiveSetPdf();
+  curPage=target.curPage||1; zoom=1; _panX=0; _panY=0; _docThumbs=[];
+  if(ok){
+    buildThumbs();
+    await buildDocSheetList();
+    await renderPage(curPage,false); fitPage();
+    $('push-ref').value=pdfFilename;
+  } else {
+    await buildDocSheetList();
+    $('doc-sheet-list').style.display='none';
+    $('doc-empty').style.display='flex';
+    const pc=$('pc'), oc=$('oc'); pc.width=0; pc.height=0; oc.width=0; oc.height=0;
+    $('cv-empty').style.display='';
+    toast('PDF for "'+target.label+'" not found locally, re-upload may be needed');
+  }
+  renderGroups(); updatePushBtn(); redraw();
+  if(ok) toast('Switched to: '+target.label);
+}
+
+function renameActiveSet(){
+  const as=_activeSet(); if(!as) return;
+  const val=prompt('Rename drawing set:',as.label);
+  if(val===null) return;
+  const trimmed=val.trim();
+  if(trimmed) as.label=trimmed;
+  _refreshSetUI();
+}
+
+// Jumps to a markup's page, switching sets first if the markup lives in a non-active set.
+async function goToSetPage(setId,page){
+  if(String(setId)!==String(activeSetId)){
+    await switchActiveSet(setId);
+  }
+  if(pdfDoc) renderPage(page);
+}
+
+function _applyDocThumb(i,dataUrl){
+  const wrap=$('doc-twrap-'+i); if(!wrap) return;
+  wrap.innerHTML='';
+  const img=document.createElement('img');
+  img.src=dataUrl; img.style.cssText='width:100%;height:100%;object-fit:contain;display:block';
+  wrap.appendChild(img);
+}
+
+async function _genDocThumbs(){
+  if(!pdfDoc) return;
+  _docThumbs=[];
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    try{
+      const pg=await pdfDoc.getPage(i);
+      const vp=pg.getViewport({scale:0.17});
+      const c=document.createElement('canvas');
+      c.width=vp.width; c.height=vp.height;
+      const ctx=c.getContext('2d');
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+      await pg.render({canvasContext:ctx,viewport:vp}).promise;
+      const url=c.toDataURL('image/jpeg',0.75);
+      _docThumbs[i]=url;
+      _applyDocThumb(i,url);
+    }catch(e){}
+  }
+  if(linked&&linked.id&&_docThumbs.length>0)
+    PdfStore.saveThumbnails(linked.id,activeSetId,_docThumbs).catch(()=>{});
+}
+
+async function openDocViewer(page){
+  if(!pdfDoc) return;
+  docViewPage=page;
+  $('doc-viewer').style.display='flex';
+  $('doc-viewer-title').textContent='Page '+page+(pdfFilename?' — '+pdfFilename:'');
+  $('dv-page-ind').textContent=page+' / '+pdfDoc.numPages;
+  $('dv-prev').disabled=page<=1;
+  $('dv-next').disabled=page>=pdfDoc.numPages;
+  await _renderDocViewer(page);
+}
+
+async function _renderDocViewer(page){
+  if(!pdfDoc) return;
+  const pg=await pdfDoc.getPage(page);
+  const dm=$('doc-mode');
+  const maxW=dm.clientWidth-80;
+  const maxH=dm.clientHeight-46-80;
+  const vp0=pg.getViewport({scale:1});
+  const scale=Math.min(maxW/vp0.width, maxH/vp0.height, 2.5);
+  const vp=pg.getViewport({scale:Math.max(scale,0.3)});
+  const c=$('doc-viewer-canvas');
+  c.width=vp.width; c.height=vp.height;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:ctx,viewport:vp}).promise;
+}
+
+function closeDocViewer(){ $('doc-viewer').style.display='none'; }
+
+async function navDocViewer(dir){
+  const next=docViewPage+dir;
+  if(next<1||next>pdfDoc.numPages) return;
+  docViewPage=next;
+  $('doc-viewer-title').textContent='Page '+next+(pdfFilename?' — '+pdfFilename:'');
+  $('dv-page-ind').textContent=next+' / '+pdfDoc.numPages;
+  $('dv-prev').disabled=next<=1;
+  $('dv-next').disabled=next>=pdfDoc.numPages;
+  await _renderDocViewer(next);
+}
+
+function filterDocSheets(q){
+  const term=q.toLowerCase().trim();
+  const rows=$('doc-sheet-list').querySelectorAll('.doc-sheet-row');
+  rows.forEach((row)=>{
+    const i=parseInt(row.id.replace('doc-row-',''),10);
+    const name=(sheetNames[i]||('Page '+i)).toLowerCase();
+    const text=name+' '+(pdfFilename||'').toLowerCase();
+    row.style.display=(!term||text.includes(term))?'':'none';
+  });
+  document.querySelectorAll('.doc-group-body').forEach(body=>{
+    const groupId=body.id.replace('doc-gbody-','');
+    const hdr=$('doc-ghdr-'+groupId);
+    if(!term){
+      body.style.display=''; if(hdr) hdr.style.display='';
+      return;
+    }
+    const anyVisible=Array.from(body.children).some(c=>c.style.display!=='none');
+    body.style.display=anyVisible?'':'none';
+    if(hdr) hdr.style.display=anyVisible?'':'none';
+  });
+}
+
+async function startTakeoff(page){
+  switchMain('takeoff');
+  closeDocViewer();
+  if(page&&page!==curPage){
+    await renderPage(page,false);
+  }
 }
 
 // ─── PDF ───
+// Loads the active set's PDF bytes from PdfStore into pdfDoc/pdfRawBytes.
+// Returns true on success, false if no bytes were found or parsing failed (pdfDoc/pdfRawBytes are cleared either way).
+async function _loadActiveSetPdf(){
+  if(!activeSetId||!linked||!linked.id){ pdfDoc=null; pdfRawBytes=null; return false; }
+  const bytes=await PdfStore.load(linked.id, activeSetId).catch(()=>null);
+  if(!bytes){ pdfDoc=null; pdfRawBytes=null; return false; }
+  pdfRawBytes=bytes.slice(0);
+  try{
+    pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;
+    return true;
+  }catch(e){
+    pdfDoc=null;
+    return false;
+  }
+}
 async function savePdfToServer(estId){
   if(!pdfRawBytes||!estId) return;
   try{
@@ -1161,32 +1802,75 @@ async function savePdfToServer(estId){
     // IndexedDB is the primary persistent store; server upload is best-effort only
   }
 }
+// Entry point for every upload path (Upload PDF / Upload new revision / drag-drop / +PDF button).
+// Never overwrites a set silently — always stashes the file and asks for a label first.
+let _pendingPdfFile=null;
 function loadPDF(file){
   if(!file) return;
-  pdfFilename = file.name.replace(/\.pdf$/i,'');
-  $('push-ref').value = pdfFilename;
+  _pendingPdfFile=file;
+  openNewSetLabelModal();
+}
+function openNewSetLabelModal(){
+  const sel=$('newset-preset');
+  if(sel) sel.value='IFT';
+  if($('newset-custom')) $('newset-custom').value='';
+  $('newset-title').textContent = drawingSets.length ? 'Label this revision' : 'Label this drawing set';
+  $('newset-mo').style.display='flex';
+  setTimeout(()=>$('newset-custom')&&$('newset-custom').focus(),50);
+}
+function cancelNewSetUpload(){
+  _pendingPdfFile=null;
+  const fi=$('fi'); if(fi) fi.value='';
+  closeMo('newset-mo');
+}
+function confirmNewSetLabel(){
+  const custom=($('newset-custom').value||'').trim();
+  const label=custom||$('newset-preset').value;
+  const file=_pendingPdfFile; _pendingPdfFile=null;
+  closeMo('newset-mo');
+  if(!file) return;
+  _createSetFromFile(file,label);
+}
+function _createSetFromFile(file,label){
+  const cleanName=file.name.replace(/\.pdf$/i,'');
   const r=new FileReader();
   r.onload=async e=>{
     const arrBuf=e.target.result;
     // Keep our own copy BEFORE pdf.js detaches the ArrayBuffer
-    pdfRawBytes=arrBuf.slice(0);
+    const rawBytes=arrBuf.slice(0);
     pdfjsLib.getDocument({data:arrBuf}).promise.then(async pdf=>{
-      pdfDoc=pdf;
+      // Persist the set we're leaving (if any) before swapping globals
+      _syncActiveSetFromGlobals();
+      const allPages=[]; for(let p=1;p<=pdf.numPages;p++) allPages.push(p);
+      const newSet={
+        id:nextSetId++, label, pdfFilename:cleanName,
+        uploadedAt:new Date().toISOString(), totalPages:pdf.numPages,
+        sheetNames:{}, sheetGroups:[{id:1,name:label,pages:allPages,collapsed:false}],
+        nextGroupId:2, curPage:1
+      };
+      drawingSets.push(newSet);
+      activeSetId=newSet.id;
+      _loadGlobalsFromSet(newSet);
+      pdfDoc=pdf; pdfRawBytes=rawBytes; curPage=1;
+      $('push-ref').value=pdfFilename;
       $('cv-empty').style.display='none';
       $('uz').style.display='none';
+      _docThumbs=[];
       // Persist to IndexedDB — handles real-world PDF sizes (40-80MB+)
       if(linked&&linked.id){
-        PdfStore.save(linked.id, pdfRawBytes, {
+        PdfStore.save(linked.id, activeSetId, pdfRawBytes, {
           totalPages: pdf.numPages,
           fileSize:   file.size,
           fileName:   file.name
         }).catch(e=>console.warn('PdfStore.save failed:',e));
       }
       buildThumbs();
+      await buildDocSheetList();
+      switchMain('drawings');
       // Render at zoom=1 first, then fit — gives correct natural dimensions
       zoom=1; _panX=0; _panY=0;
       renderPage(1).then(()=>fitPage());
-      toast('Loaded: '+file.name);
+      toast((drawingSets.length>1?'Added revision: ':'Loaded: ')+label);
       if(linked&&linked.id){ savePdfToServer(linked.id); }
     }).catch(e=>toast('PDF error: '+e.message));
   };
@@ -1270,7 +1954,7 @@ function updateThumbMarkers(){
   for(let i=1;i<=(pdfDoc?pdfDoc.numPages:0);i++){
     const el=$('thumb-pg-'+i);
     if(!el) continue;
-    el.classList.toggle('marked', items.some(it=>it.markups.some(m=>m.page===i)));
+    el.classList.toggle('marked', items.some(it=>it.markups.some(m=>m.page===i&&mSetId(m)===activeSetId)));
   }
 }
 
@@ -1851,18 +2535,23 @@ function renderDetailCard(){
 
   // ── Drawings panel ──
   function buildDrawingsHtml(){
-    // Aggregate markups by page
-    const pages={};
+    // Aggregate markups by set + page (page numbers can collide across sets)
+    const buckets={};
     it.markups.forEach(m=>{
-      const pg=m.page||1;
-      if(!pages[pg]) pages[pg]={count:0,runs:[]};
-      if(m.type==='count') pages[pg].count+=(m.pts?m.pts.length:m.value)||0;
-      else if(m.type==='linear') pages[pg].runs.push(m);
+      const sid=mSetId(m), pg=m.page||1, key=sid+'::'+pg;
+      if(!buckets[key]) buckets[key]={setId:sid,page:pg,count:0,runs:[]};
+      if(m.type==='count') buckets[key].count+=(m.pts?m.pts.length:m.value)||0;
+      else if(m.type==='linear') buckets[key].runs.push(m);
     });
-    const sorted=Object.keys(pages).map(Number).sort((a,b)=>a-b);
-    if(!sorted.length) return `<div class="ld-drw-empty">No marks placed yet</div>`;
-    return sorted.map(pg=>{
-      const d=pages[pg];
+    const keys=Object.keys(buckets).sort((a,b)=>{
+      const A=buckets[a],B=buckets[b];
+      if(A.setId!==B.setId) return String(A.setId).localeCompare(String(B.setId));
+      return A.page-B.page;
+    });
+    if(!keys.length) return `<div class="ld-drw-empty">No marks placed yet</div>`;
+    return keys.map(k=>{
+      const d=buckets[k];
+      const setLbl = drawingSets.length>1 ? esc((_findSet(d.setId)||{}).label||'Set')+' \u00b7 ' : '';
       const parts=[];
       if(d.count>0) parts.push(d.count+' ea');
       if(d.runs.length){
@@ -1870,9 +2559,9 @@ function renderDetailCard(){
         parts.push(fmtDist(totalDist,d.runs[0].unit||'ft'));
       }
       return `<div class="ld-drw-row">
-        <span class="ld-drw-pg">Pg ${pg}</span>
+        <span class="ld-drw-pg">${setLbl}Pg ${d.page}</span>
         <span class="ld-drw-val">${parts.join(' + ')}</span>
-        <button class="ld-drw-go" onclick="renderPage(${pg})" title="Go to page ${pg}">&#8594;</button>
+        <button class="ld-drw-go" onclick="goToSetPage('${esc(String(d.setId))}',${d.page})" title="Go to page ${d.page}">&#8594;</button>
       </div>`;
     }).join('');
   }
@@ -2416,7 +3105,7 @@ function hitTest(cvPt){
     const item=items[idx];
     if(hiddenItems.has(item.id)) continue;
     if(item.groupId && hiddenItems.has(item.groupId+'_group')) continue;
-    const pageMarkups=item.markups.filter(m=>m.page===curPage);
+    const pageMarkups=item.markups.filter(m=>m.page===curPage&&mSetId(m)===activeSetId);
     for(let mi=0;mi<pageMarkups.length;mi++){
       const m=pageMarkups[mi];
       const origMi=item.markups.indexOf(m);
@@ -2458,7 +3147,7 @@ function cvd(e){
       const {gi,ii,ptIdx}=selectedMarker;
       const grp=items[gi];
       const it=grp&&grp.markups[ii];
-      if(it&&it.page===curPage&&it.pts[ptIdx]){
+      if(it&&it.page===curPage&&mSetId(it)===activeSetId&&it.pts[ptIdx]){
         const cp=toCanvas(it.pts[ptIdx]);
         const bdx=cvPt.x-(cp.x+9), bdy=cvPt.y-(cp.y-9);
         if(Math.sqrt(bdx*bdx+bdy*bdy)<=9){
@@ -2594,7 +3283,7 @@ function cvu(e){
         if(hiddenItems.has(item.id)) return;
         if(item.groupId&&hiddenItems.has(item.groupId+'_group')) return;
         item.markups.forEach((m,mi)=>{
-          if(m.page!==curPage) return;
+          if(m.page!==curPage||mSetId(m)!==activeSetId) return;
           if(m.type==='count'){
             m.pts.forEach((p,pi)=>{
               const c=toCanvas(p);
@@ -2693,7 +3382,7 @@ function finishMeasure(){
   const item=items[activeItemIdx];
   const oc=$('oc');
   const normPxD=pxD/oc.width;
-  item.markups.push({type:'linear',value:val,unit,pts:[...curPts],page:curPage,normPxD});
+  item.markups.push({type:'linear',value:val,unit,pts:[...curPts],page:curPage,setId:activeSetId,normPxD});
   isDrawing=false; curPts=[];
   $('ltip').style.display='none';
   renderGroups();
@@ -2704,9 +3393,9 @@ function finishMeasure(){
 // ─── Count ───
 function addCount(pt){
   const item=items[activeItemIdx];
-  let it=item.markups.find(x=>x.type==='count'&&x.page===curPage);
+  let it=item.markups.find(x=>x.type==='count'&&x.page===curPage&&mSetId(x)===activeSetId);
   if(it){it.pts.push(pt);it.value=it.pts.length;}
-  else{item.markups.push({type:'count',value:1,unit:item.lib.unit||'ea',pts:[pt],page:curPage});}
+  else{item.markups.push({type:'count',value:1,unit:item.lib.unit||'ea',pts:[pt],page:curPage,setId:activeSetId});}
   renderGroups();
   updateThumbMarkers();
   redraw();
@@ -2751,7 +3440,7 @@ function renderGroups(){
   userGroups.forEach(ug=>{
     const ugItems=items.filter(it=>it.groupId===ug.id);
     const isHidden=hiddenItems.has(ug.id+'_group');
-    const totalMarkups=ugItems.reduce((s,it)=>s+it.markups.filter(m=>m.page===curPage).length,0);
+    const totalMarkups=ugItems.reduce((s,it)=>s+it.markups.filter(m=>m.page===curPage&&mSetId(m)===activeSetId).length,0);
     html+=`<div class="tog" id="ug-${ug.id}">
       <div class="tog-hdr" onclick="toggleUGCollapse('${ug.id}')">
         <span class="tog-arr${_collapsedGroups.has(ug.id)?'':' open'}" id="ugarr-${ug.id}">&#9654;</span>
@@ -2775,8 +3464,9 @@ function renderGroups(){
 
 function renderItemCard(it, idx){
   const isActive=idx===activeItemIdx;
-  const pageMarkups=it.markups.filter(m=>m.page===curPage).length;
-  const allMarkups=it.markups.length;
+  const setMarkups=it.markups.filter(m=>mSetId(m)===activeSetId);
+  const pageMarkups=setMarkups.filter(m=>m.page===curPage).length;
+  const allMarkups=setMarkups.length;
   const isHidden=hiddenItems.has(it.id);
   const isCollapsed=collapsedItems.has(it.id);
   const tot=grpTot(it);
@@ -2805,7 +3495,9 @@ function renderItemCard(it, idx){
       </div>
     </div>
     <div class="tog-body${isCollapsed?'':' open'}" id="ibody-${it.id}">
-      ${it.markups.map((m,mi)=>`
+      ${setMarkups.map((m)=>{
+        const mi=it.markups.indexOf(m);
+        return `
         <div class="toi" onclick="event.stopPropagation()">
           <span class="toi-dot" style="background:${it.color}"></span>
           <div class="toi-info">
@@ -2814,7 +3506,8 @@ function renderItemCard(it, idx){
           </div>
           <div class="toi-v">${m.type==='linear'?fmtDist(m.value,m.unit):m.value+'x'}</div>
           <button class="toi-del" onclick="delMarkup(${idx},${mi},event)">x</button>
-        </div>`).join('')||'<div style="padding:4px 9px;font-size:11px;color:var(--muted);font-style:italic">Click drawing to add marks</div>'}
+        </div>`;
+      }).join('')||'<div style="padding:4px 9px;font-size:11px;color:var(--muted);font-style:italic">Click drawing to add marks</div>'}
     </div>
   </div>`;
 }
@@ -2987,9 +3680,9 @@ function selPtsDuplicate(){
   });
   newPts.forEach(({itemIdx,pt})=>{
     const item=items[itemIdx];
-    let m=item.markups.find(x=>x.type==='count'&&x.page===curPage);
+    let m=item.markups.find(x=>x.type==='count'&&x.page===curPage&&mSetId(x)===activeSetId);
     if(m){m.pts.push(pt);m.value=m.pts.length;}
-    else{item.markups.push({type:'count',value:1,unit:item.lib.unit||'ea',pts:[pt],page:curPage});}
+    else{item.markups.push({type:'count',value:1,unit:item.lib.unit||'ea',pts:[pt],page:curPage,setId:activeSetId});}
   });
   _selPts=[];
   showSelPtsBar();
@@ -3015,9 +3708,9 @@ function _doMovePtsToIdx(targetIdx){
     const m=item.markups[markupIdx]; if(!m) return;
     const p=m.pts[ptIdx]; if(!p) return;
     const tgtItem=items[targetIdx];
-    let tm=tgtItem.markups.find(x=>x.type==='count'&&x.page===curPage);
+    let tm=tgtItem.markups.find(x=>x.type==='count'&&x.page===curPage&&mSetId(x)===activeSetId);
     if(tm){tm.pts.push({...p});tm.value=tm.pts.length;}
-    else{tgtItem.markups.push({type:'count',value:1,unit:tgtItem.lib.unit||'ea',pts:[{...p}],page:curPage});}
+    else{tgtItem.markups.push({type:'count',value:1,unit:tgtItem.lib.unit||'ea',pts:[{...p}],page:curPage,setId:activeSetId});}
   });
   const sorted=[..._selPts].filter(x=>!x.isLinear).sort((a,b)=>b.ptIdx-a.ptIdx);
   sorted.forEach(({itemIdx,markupIdx,ptIdx})=>{
@@ -3071,7 +3764,10 @@ function deleteUserGroup(ugId){
 
 function grpTot(grpOrItem){
   // works on both old group objects and new item objects
-  const markups=grpOrItem.markups||grpOrItem.items||[];
+  const allMarkups=grpOrItem.markups||grpOrItem.items||[];
+  // Quantity totals are scoped to the active drawing set only — historical/superseded
+  // sets stay viewable for reference but must never inflate current quantities or push totals.
+  const markups=allMarkups.filter(m=>mSetId(m)===activeSetId);
   const lib=grpOrItem.lib||{};
   if(!markups.length) return{qty:0,display:'0',unit:lib.unit||'ea'};
   if(markups[0]?.type==='count'){
@@ -3143,7 +3839,7 @@ function redraw(livePt){
     const alpha=item.opacity!=null?item.opacity:0.5;
     ctx.save();
     ctx.globalAlpha=isActive?Math.min(alpha+0.25,1):alpha;
-    item.markups.filter(m=>m.page===curPage).forEach(m=>{
+    item.markups.filter(m=>m.page===curPage&&mSetId(m)===activeSetId).forEach(m=>{
       const cvPts=toCvArr(m.pts);
       if(m.type==='linear') drawLine(ctx,cvPts,item.color,fmtDist(m.value,m.unit),false,isActive);
       if(m.type==='count') drawDots(ctx,cvPts,item.color,isActive,item.symbolId);
@@ -3172,7 +3868,7 @@ function redraw(livePt){
     const ctx2=oc.getContext('2d');
     _selPts.forEach(({itemIdx,markupIdx,ptIdx,isLinear})=>{
       const item=items[itemIdx]; if(!item) return;
-      const m=item.markups[markupIdx]; if(!m||m.page!==curPage) return;
+      const m=item.markups[markupIdx]; if(!m||m.page!==curPage||mSetId(m)!==activeSetId) return;
       const pts2=isLinear?m.pts:[m.pts[ptIdx]].filter(Boolean);
       pts2.forEach(p=>{
         const c=toCanvas(p);
@@ -3192,7 +3888,7 @@ function redraw(livePt){
     const item=items[gi];
     if(item){
       const it=item.markups[ii];
-      if(it&&it.page===curPage&&it.pts[ptIdx]){
+      if(it&&it.page===curPage&&mSetId(it)===activeSetId&&it.pts[ptIdx]){
         const cp=toCanvas(it.pts[ptIdx]);
         ctx.save();
         ctx.strokeStyle='#fff'; ctx.lineWidth=3;
@@ -3286,11 +3982,26 @@ async function confirmLink(){
       activeSheet=0;
     }
     localStorage.setItem('onsite_active_id',linked.id);
-    if(linked.drawingsState){ applyDrawingsState(linked.drawingsState); }
-    // If PDF is already loaded, persist it under the newly linked estimate
-    if(pdfRawBytes){
-      savePdfToServer(linked.id);
-      if(pdfDoc) PdfStore.save(linked.id, pdfRawBytes, {totalPages:pdfDoc.numPages, fileSize:pdfRawBytes.byteLength, fileName:pdfFilename+'.pdf'}).catch(()=>{});
+    closeDocViewer();
+    if(linked.drawingsState){
+      applyDrawingsState(linked.drawingsState);
+    } else {
+      drawingSets=[]; activeSetId=null; nextSetId=1;
+      sheetNames={}; sheetGroups=[]; items=[]; userGroups=[];
+    }
+    // Load this estimate's own active-set PDF rather than whatever happened to be on screen
+    const ok=await _loadActiveSetPdf();
+    curPage=(_activeSet()&&_activeSet().curPage)||1; zoom=1; _panX=0; _panY=0; _docThumbs=[];
+    if(ok){
+      buildThumbs();
+      await buildDocSheetList();
+      await renderPage(curPage,false); fitPage();
+    } else {
+      await buildDocSheetList();
+      $('doc-sheet-list').style.display='none';
+      $('doc-empty').style.display='flex';
+      const pc=$('pc'), oc=$('oc'); pc.width=0; pc.height=0; oc.width=0; oc.height=0;
+      $('cv-empty').style.display='';
     }
     buildLinkedEstItems(linked);
     updatePushBtn();
@@ -3301,12 +4012,12 @@ async function confirmLink(){
 
 function updatePushBtn(){
   const btn=$('push-btn'), sum=$('push-sum');
-  const hasMarkups=items.some(it=>it.markups.length>0);
+  const hasMarkups=items.some(it=>_hasActiveSetMarkups(it));
   btn.disabled=!linked||!hasMarkups;
   if(!linked) sum.textContent='Link an estimate to enable';
   else if(!hasMarkups) sum.textContent='No items to push yet';
   else {
-    const n=items.filter(it=>it.markups.length>0).length;
+    const n=items.filter(it=>_hasActiveSetMarkups(it)).length;
     sum.textContent=n+' item'+(n!==1?'s':'')+' ready';
   }
 }
@@ -3314,7 +4025,7 @@ function updatePushBtn(){
 // ─── Push to estimate ───
 function openPush(){
   if(!linked) return;
-  const withMarkups=items.filter(it=>it.markups.length>0);
+  const withMarkups=items.filter(it=>_hasActiveSetMarkups(it));
   const ungrouped=withMarkups.filter(it=>!it.groupId);
   const ref=$('push-ref').value.trim()||pdfFilename||'Drawing';
 
@@ -3355,7 +4066,7 @@ function openPush(){
 
 async function confirmPush(){
   const ref=$('push-ref').value.trim()||pdfFilename||'Drawing';
-  const withMarkups=items.filter(it=>it.markups.length>0);
+  const withMarkups=items.filter(it=>_hasActiveSetMarkups(it));
   if(!withMarkups.length){toast('No items to push');return;}
 
   // Build sheets: one per userGroup + one "Ungrouped" if needed
@@ -3470,13 +4181,16 @@ async function _doCreateEstimate(name, client, estimateNum){
 }
 
 function getDrawingsState(){
+  _syncActiveSetFromGlobals();
   return{
     items: items.map(it=>({...it, markups:it.markups})),
     userGroups,
     scaleRaw, scaleUnit, scaleLabel,
     curPage, totalPages: pdfDoc ? pdfDoc.numPages : 0,
     zoom, panX:_panX, panY:_panY, markerSize,
-    pdfFilename
+    pdfFilename,
+    sheetNames, sheetGroups, nextGroupId,
+    drawingSets, activeSetId, nextSetId
   };
 }
 function applyDrawingsState(ds){
@@ -3486,8 +4200,31 @@ function applyDrawingsState(ds){
   if(ds.scaleRaw!=null){ scaleRaw=ds.scaleRaw; scaleUnit=ds.scaleUnit||'ft'; scaleLabel=ds.scaleLabel||''; }
   if(ds.scaleLabel) setScaleInd(ds.scaleLabel);
   if(ds.markerSize){ markerSize=ds.markerSize; $('marker-size').value=markerSize; }
-  if(ds.pdfFilename) pdfFilename=ds.pdfFilename;
   if(ds.panX!=null){ _panX=ds.panX; _panY=ds.panY||0; }
+
+  if(ds.drawingSets&&ds.drawingSets.length){
+    drawingSets=ds.drawingSets;
+    activeSetId=ds.activeSetId!=null?ds.activeSetId:drawingSets[0].id;
+    nextSetId=ds.nextSetId||(drawingSets.reduce((m,s)=>Math.max(m, typeof s.id==='number'?s.id:0),0)+1);
+  } else {
+    // Pre-multi-set save — wrap the existing flat sheetNames/sheetGroups/pdfFilename
+    // into a single migrated "legacy" set so nothing is lost.
+    drawingSets=[{
+      id:'legacy',
+      label: ds.pdfFilename||'Drawing Set 1',
+      pdfFilename: ds.pdfFilename||'',
+      uploadedAt: (linked&&linked.updatedAt)||new Date().toISOString(),
+      totalPages: ds.totalPages||0,
+      sheetNames: ds.sheetNames||{},
+      sheetGroups: ds.sheetGroups||[],
+      nextGroupId: ds.nextGroupId||(((ds.sheetGroups||[]).reduce((m,g)=>Math.max(m,g.id||0),0))+1),
+      curPage: ds.curPage||1
+    }];
+    activeSetId='legacy'; nextSetId=2;
+  }
+  const as=_activeSet();
+  if(as){ _loadGlobalsFromSet(as); curPage=as.curPage||ds.curPage||1; }
+  else { pdfFilename=ds.pdfFilename||''; sheetNames=ds.sheetNames||{}; sheetGroups=ds.sheetGroups||[]; nextGroupId=ds.nextGroupId||1; curPage=ds.curPage||1; }
   renderGroups(); updatePushBtn();
 }
 async function saveLinked(){
@@ -3694,7 +4431,7 @@ renderTO();
         const pdf=await pdfjsLib.getDocument({data:arrayBuf}).promise;
         pdfDoc=pdf;
         // Ensure IndexedDB is primed with correct page count
-        PdfStore.save(linked.id, pdfRawBytes, {
+        PdfStore.save(linked.id, activeSetId, pdfRawBytes, {
           totalPages: pdf.numPages,
           fileSize:   (sourceMeta&&sourceMeta.fileSize) || arrayBuf.byteLength,
           fileName:   pdfFilename||linked.name||''
@@ -3702,8 +4439,11 @@ renderTO();
         $('cv-empty').style.display='none';
         $('uz').style.display='none';
         buildThumbs();
+        await buildDocSheetList();
+        switchMain('drawings');
         const ds=linked.drawingsState;
-        const pg=(ds&&ds.curPage)||1;
+        const as=_activeSet();
+        const pg=(as&&as.curPage)||(ds&&ds.curPage)||1;
         // Restore saved zoom/pan before renderPage so it renders at the right zoom
         if(ds&&ds.zoom){ zoom=ds.zoom; }
         if(ds&&ds.panX!=null){ _panX=ds.panX; _panY=ds.panY||0; }
@@ -3712,7 +4452,7 @@ renderTO();
       }catch(e){ toast('Restored: '+linked.name+' (PDF error)'); }
     }
     // Primary restore path: IndexedDB (handles real-world PDF sizes)
-    const pdfBytes = await PdfStore.load(linked.id).catch(()=>null);
+    const pdfBytes = await PdfStore.load(linked.id, activeSetId).catch(()=>null);
     if(pdfBytes){
       await restorePdfFromBytes(pdfBytes, null);
     } else {
@@ -3729,6 +4469,9 @@ renderTO();
     }
   }catch(e){ /* silent fail */ }
 })();
+// Open on Drawings tab at startup
+switchMain('drawings');
+
 // Auto-save drawings state when user navigates away or closes tab
 window.addEventListener('beforeunload', ()=>{
   if(linked){
