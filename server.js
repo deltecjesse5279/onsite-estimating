@@ -262,13 +262,21 @@ app.post('/api/symbols/characterize', async (req, res) => {
           },
           {
             type: 'text',
-            text: `You are a construction drawing symbol analyst.
+            text: `You are an electrical estimator's assistant analyzing a SINGLE symbol cropped from an electrical construction drawing (floor plans, panel schedules, riser diagrams). The symbol follows standard North American electrical drafting conventions.
 
-Examine this symbol carefully and describe its visual structure for use in automated detection.
+Identify it and describe its visual structure so it can be detected automatically elsewhere on the same drawing set.
 
-Return ONLY a valid JSON object — no explanation, no markdown fences:
+HARD RULES:
+- This is ALWAYS an electrical drawing symbol. Names from software, web design, UI, or any unrelated domain (for example "loading spinner", "progress indicator", "button") are NEVER valid answers. If you are unsure, give a functional ELECTRICAL description, never a non-electrical guess.
+- suggested_name: use the standard electrical convention name when recognizable (for example "Duplex receptacle 15A", "Single-pole switch", "Recessed light fixture", "Smoke detector", "Data/comms outlet", "Panelboard"). If not confidently recognizable, give a short functional electrical description such as "Ceiling-mounted circular device".
+- category: classify into one of Power, Lighting, Fire Alarm, Auxiliary/Comms, Exit/Emergency, Security, or Unknown.
+- too_complex: set true if the crop contains more than one distinct symbol, a wiring or schematic region, a legend block, or mostly text, rather than one discrete symbol. When true, automated detection will be unreliable and the user should re-crop tighter around a single symbol.
+
+Return ONLY a valid JSON object, no explanation, no markdown fences:
 {
-  "suggested_name": "standard electrical convention name e.g. Duplex receptacle 15A",
+  "suggested_name": "electrical convention name, or a functional electrical description if unsure",
+  "category": "Power | Lighting | Fire Alarm | Auxiliary/Comms | Exit/Emergency | Security | Unknown",
+  "too_complex": true or false,
   "primary_shape": "dominant shape description",
   "key_features": ["up to 5 specific visual features that define this symbol"],
   "has_circle": true or false,
@@ -276,7 +284,7 @@ Return ONLY a valid JSON object — no explanation, no markdown fences:
   "line_count": approximate number of distinct lines as integer,
   "aspect_ratio": "W:H e.g. 1:1 or 2:1",
   "is_symmetric": true or false,
-  "do_not_confuse_with": ["2 to 3 visually similar symbols this should NOT match"]
+  "do_not_confuse_with": ["2 to 3 OTHER electrical symbols that look similar but should NOT match"]
 }`
           }
         ]
