@@ -685,7 +685,7 @@ tr:hover .dbtn{opacity:1}
         <button class="btn primary sm" onclick="focusScale()">Set Scale</button>
       </div>
       <!-- Auto-Count status chip (Job 1) -->
-      <div id="ac-chip">
+      <div id="ac-chip" onmousedown="event.stopPropagation()" onmouseup="event.stopPropagation()" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()" onwheel="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()" ontouchend="event.stopPropagation()">
         <div class="ac-head">
           <span class="ac-badge"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.4" y="1.4" width="13.2" height="13.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.6 1.8"/><text x="8" y="11.4" font-size="9.5" font-weight="700" text-anchor="middle" fill="currentColor">A</text></svg>Auto-Count</span>
           <span class="ac-x" onclick="setTool('pan')" title="Exit Auto-Count">&times;</span>
