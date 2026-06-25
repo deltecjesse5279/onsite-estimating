@@ -252,7 +252,7 @@ app.post('/api/symbols/characterize', async (req, res) => {
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 512,
+      max_tokens: 800,
       messages: [{
         role: 'user',
         content: [
@@ -298,6 +298,17 @@ Return ONLY a valid JSON object, no explanation, no markdown fences:
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// Salvage match objects even if the model's JSON is truncated mid-array
+// (e.g. when a dense tile overflows max_tokens). Returns whatever complete
+// {...} match objects can be recovered rather than throwing the whole reply away.
+function parseMatchesLenient(text){
+  const t = String(text||'').replace(/```json|```/g,'').trim();
+  try { const o=JSON.parse(t); if(Array.isArray(o.matches)) return o.matches; if(Array.isArray(o)) return o; } catch(_){}
+  const out=[]; const re=/\{[^{}]*\}/g; let m;
+  while((m=re.exec(t))){ try{ const obj=JSON.parse(m[0]); if(typeof obj.x==='number'||typeof obj.confidence==='number') out.push(obj); }catch(_){} }
+  return out;
+}
+
 // Stage 2: scan a single tile for symbol matches
 // Receives: { tileImage: base64 PNG, refImage: base64 PNG, character: object }
 // Returns:  { ok: true, matches: [{ x, y, w, h, confidence, partial, rotation }] }
@@ -310,7 +321,7 @@ app.post('/api/symbols/scan-tile', async (req, res) => {
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: [{
         role: 'user',
         content: [
@@ -332,21 +343,33 @@ app.post('/api/symbols/scan-tile', async (req, res) => {
           },
           {
             type: 'text',
-            text: `TASK: Find every instance of the reference symbol in the drawing tile.
+            text: `TASK: Locate the ACTUAL instances of the reference symbol in this drawing tile. Accuracy matters far more than quantity.
+
+CRITICAL RULES:
+- Report a symbol ONLY where you can actually see one in the pixels. Look at the image, do not assume.
+- NEVER guess, infer, or fill in an evenly-spaced grid or regular pattern. Real electrical symbols are placed irregularly. If your boxes are forming a neat grid or evenly spaced rows, you are guessing. Stop and return only what you truly see.
+- Do NOT decide a count in advance. Return exactly the number you can locate, whether that is 0, 1, a few, or many.
+- Each box must TIGHTLY bound one visible symbol: the smallest rectangle containing that specific symbol.
 
 INCLUDE matches that are:
-- Rotated at any angle
-- Scaled up to 30% larger or smaller than the reference
-- Adjacent to text labels or dimension strings
-- Partially cut off at a tile edge — mark these "partial": true
+- Rotated at any angle, or up to 30% larger or smaller than the reference
+- Next to text labels or dimension strings
+- Partially cut off at a tile edge (set "partial": true)
 
-EXCLUDE anything that:
-- Is a different symbol type even if it shares one feature
-- Is text, a dimension, a north arrow, or a title block element
-- Appears in the do_not_confuse_with list above
+EXCLUDE:
+- Any different symbol type, even if it shares one feature
+- Text, dimensions, a north arrow, grid bubbles, or title-block elements
+- Anything in the do_not_confuse_with list above
+- Any location where you are not actually seeing the symbol
 
-Return pixel coordinates relative to this tile image.
-Return ONLY this JSON — no explanation, no markdown fences:
+CONFIDENCE must be honest, this drives whether a match is trusted:
+- 0.85 to 1.0: you clearly see this exact symbol and the box is tight and correct
+- 0.5 to 0.84: probably this symbol, but some doubt about identity or exact position
+- below 0.5: weak or uncertain, report it low rather than inflating it
+A correct low number beats a high number padded with guesses.
+
+Return pixel coordinates relative to THIS tile image (top-left corner is 0,0).
+Return ONLY this JSON, no explanation, no markdown fences:
 {
   "matches": [
     {
@@ -361,15 +384,14 @@ Return ONLY this JSON — no explanation, no markdown fences:
   ]
 }
 
-If no matches found return: {"matches": []}`
+If you see none, return: {"matches": []}`
           }
         ]
       }]
     });
 
-    const raw = response.content[0].text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(raw);
-    res.json({ ok: true, matches: result.matches || [] });
+    const matches = parseMatchesLenient(response.content[0].text);
+    res.json({ ok: true, matches });
 
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
