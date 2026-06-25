@@ -1322,7 +1322,8 @@ let _marqStart=null, _marqRect=null, _marqEl=null;
 let _acStep=null;        // null | 'ref' (awaiting reference marquee) | 'done'
 let _acRefImage=null;    // base64 PNG of reference crop (no data: prefix); reused by later jobs
 let _acCharacter=null;   // characterize() result; reused by later scan jobs
-let _acBusy=false;       // true while a characterize request is in flight
+let _acBusy=false;       // true while a request is in flight
+let _acMatches=[];       // detected match boxes (page-normalized), read-only overlay (Job 2)
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2128,7 +2129,7 @@ function setTool(t, silent){
 // jobs reuse them without a second round trip.
 const AC_ICON='<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.4" y="1.4" width="13.2" height="13.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.6 1.8"/><text x="8" y="11.4" font-size="9.5" font-weight="700" text-anchor="middle" fill="currentColor">A</text></svg>';
 function acEnter(){
-  _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false;
+  _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; _acMatches=[];
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
   _zoomMax=3; // hard ceiling at 300% while in the mode; never move the user's view
@@ -2136,7 +2137,7 @@ function acEnter(){
   acSetBody(acRefPromptHtml());
 }
 function acExit(){
-  _acStep=null; _acBusy=false;
+  _acStep=null; _acBusy=false; _acMatches=[];
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
   _zoomMax=6;
@@ -2161,9 +2162,9 @@ async function acCharacterize(rect){
     });
     const data=await resp.json().catch(()=>({}));
     if(!resp.ok||!data.ok||!data.character) throw new Error(data.error||('HTTP '+resp.status));
-    _acCharacter=data.character; _acStep='done';
+    _acCharacter=data.character; _acStep='scan';
     console.log('[OnSite] autocount characterize ->', _acCharacter);
-    acShowResult(_acCharacter);
+    acShowScanPrompt(_acCharacter);
   }catch(err){
     console.error('[OnSite] autocount characterize failed:', err);
     acSetBody('<div class="ac-err">Could not analyze that selection.</div>'
@@ -2188,17 +2189,105 @@ function acCropToPng(rect){
   const comma=url.indexOf(',');
   return comma>=0?url.slice(comma+1):null;
 }
-function acShowResult(ch){
-  const feats=Array.isArray(ch.key_features)?ch.key_features.slice(0,5):[];
-  let html='<div class="ac-name">'+AC_ICON+'<span>'+_acEsc(ch.suggested_name||'Unidentified symbol')+'</span></div>';
-  if(ch.primary_shape) html+='<div class="ac-feat">Shape: '+_acEsc(ch.primary_shape)+'</div>';
-  if(feats.length) html+='<ul class="ac-feat" style="margin:4px 0 0;padding-left:16px">'+feats.map(f=>'<li>'+_acEsc(f)+'</li>').join('')+'</ul>';
-  html+='<div class="ac-feat" style="margin-top:6px">Reference captured. Region scanning is the next step.</div>';
-  html+='<div class="ac-actions"><button class="btn sm" onclick="acRetry()">Redo reference</button>'
-    +'<button class="btn sm" onclick="setTool(\'pan\')">Done</button></div>';
+function acShowScanPrompt(ch){
+  const nm=(ch&&ch.suggested_name)?_acEsc(ch.suggested_name):'symbol';
+  let html='<div class="ac-name">'+AC_ICON+'<span>'+nm+'</span></div>';
+  html+='<div>Reference captured. Now <b>click two corners</b> around an area to scan for this symbol.</div>';
+  html+='<div class="ac-feat" style="margin-top:5px">Keep the area modest for now (about one screen). Drag to pan.</div>';
+  html+='<div class="ac-actions"><button class="btn sm" onclick="acRetry()">Redo reference</button></div>';
   acSetBody(html);
 }
-function acRetry(){ _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; acSetBody(acRefPromptHtml()); }
+function acStartScan(){ _acStep='scan'; acShowScanPrompt(_acCharacter); }
+
+// Confidence -> color band (read-only overlay)
+function acConfColor(c){
+  if(c==null) return 'rgb(120,120,120)';
+  if(c>=0.7) return 'rgb(30,150,70)';
+  if(c>=0.4) return 'rgb(200,140,20)';
+  return 'rgb(200,60,50)';
+}
+// Draw current matches on the overlay, tracking zoom/pan via toCanvas (called from redraw).
+function acDrawMatches(ctx){
+  if(activeTool!=='autocount'||!_acMatches.length) return;
+  ctx.save();
+  _acMatches.forEach(m=>{
+    const a=toCanvas({x:m.x,y:m.y}), b=toCanvas({x:m.x+m.w,y:m.y+m.h});
+    const x=Math.min(a.x,b.x), y=Math.min(a.y,b.y), w=Math.abs(b.x-a.x), h=Math.abs(b.y-a.y);
+    const col=acConfColor(m.confidence);
+    ctx.lineWidth=2; ctx.strokeStyle=col;
+    ctx.setLineDash(m.partial?[5,4]:[]);
+    ctx.fillStyle=col.replace('rgb(','rgba(').replace(')',',0.12)');
+    ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+  });
+  ctx.setLineDash([]); ctx.restore();
+}
+// Scan one area (single tile) for the reference symbol; draw matches read-only.
+async function acScanTile(rect){
+  if(_acBusy) return;
+  if(!_acRefImage||!_acCharacter){ _acStep='ref'; acSetBody(acRefPromptHtml()); return; }
+  _acBusy=true;
+  acSetBody('<div><span class="ac-spin"></span>Scanning the area...</div>');
+  try{
+    const pc=$('pc');
+    if(!pc||!pc.width) throw new Error('No page rendered');
+    const sx=Math.max(0,Math.round(rect.x)), sy=Math.max(0,Math.round(rect.y));
+    const sw=Math.min(pc.width-sx,Math.round(rect.w)), sh=Math.min(pc.height-sy,Math.round(rect.h));
+    if(sw<=0||sh<=0) throw new Error('Empty scan area');
+    const MAX=1500;
+    const scale=Math.min(1, MAX/Math.max(sw,sh));
+    const tw=Math.max(1,Math.round(sw*scale)), th=Math.max(1,Math.round(sh*scale));
+    const off=document.createElement('canvas'); off.width=tw; off.height=th;
+    const octx=off.getContext('2d');
+    octx.fillStyle='#fff'; octx.fillRect(0,0,tw,th);
+    octx.drawImage(pc, sx,sy,sw,sh, 0,0,tw,th);
+    const url=off.toDataURL('image/png'); const comma=url.indexOf(',');
+    const tileImage=comma>=0?url.slice(comma+1):null;
+    if(!tileImage) throw new Error('Could not read scan area');
+    const resp=await fetch('/api/symbols/scan-tile',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({tileImage, refImage:_acRefImage, character:_acCharacter})
+    });
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||!data.ok) throw new Error(data.error||('HTTP '+resp.status));
+    const raw=Array.isArray(data.matches)?data.matches:[];
+    // tile-pixel matches -> page-normalized boxes (0..1), so they track zoom/pan
+    const mapped=raw.map(m=>{
+      const pcX=sx+(m.x/tw)*sw, pcY=sy+(m.y/th)*sh;
+      const pcW=(m.w/tw)*sw, pcH=(m.h/th)*sh;
+      return {x:pcX/pc.width, y:pcY/pc.height, w:pcW/pc.width, h:pcH/pc.height,
+              confidence:m.confidence, partial:!!m.partial, rotation:m.rotation};
+    }).filter(m=>m.w>0&&m.h>0);
+    _acMatches=_acMatches.concat(mapped);
+    _acStep='results';
+    console.log('[OnSite] autocount scan-tile -> '+raw.length+' matches', raw);
+    redraw();
+    acShowMatches(mapped.length);
+  }catch(err){
+    console.error('[OnSite] autocount scan-tile failed:', err);
+    acSetBody('<div class="ac-err">Scan failed.</div>'
+      +'<div class="ac-feat" style="margin-top:4px">'+_acEsc(err&&err.message||'Unknown error')+'</div>'
+      +'<div class="ac-actions"><button class="btn sm" onclick="acStartScan()">Try again</button></div>');
+  }finally{ _acBusy=false; }
+}
+function acShowMatches(thisScan){
+  const total=_acMatches.length;
+  const hi=_acMatches.filter(m=>m.confidence>=0.7).length;
+  const md=_acMatches.filter(m=>m.confidence>=0.4&&m.confidence<0.7).length;
+  const lo=total-hi-md;
+  let html='<div class="ac-name">'+AC_ICON+'<span>'+thisScan+' found in this area</span></div>';
+  html+='<div class="ac-feat">Total shown: '+total+'  ('
+    +'<span style="color:rgb(30,150,70)">'+hi+' high</span>, '
+    +'<span style="color:rgb(200,140,20)">'+md+' med</span>, '
+    +'<span style="color:rgb(200,60,50)">'+lo+' low</span>)</div>';
+  html+='<div class="ac-feat" style="margin-top:4px">Boxes are colored by confidence. Read-only for now, nothing is added to your takeoff yet.</div>';
+  html+='<div class="ac-actions">'
+    +'<button class="btn sm" onclick="acStartScan()">Scan another area</button>'
+    +'<button class="btn sm" onclick="acClearMatches()">Clear boxes</button>'
+    +'<button class="btn sm" onclick="acRetry()">New reference</button></div>';
+  acSetBody(html);
+}
+function acClearMatches(){ _acMatches=[]; redraw(); acStartScan(); }
+function acRetry(){ _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; _acMatches=[]; redraw(); acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ─── Scale presets ───
@@ -3408,7 +3497,7 @@ function cvu(e){
              w:Math.abs(c2.x-_marqStart.x),h:Math.abs(c2.y-_marqStart.y)};
     if(_marqEl){_marqEl.remove();_marqEl=null;}
     _marqStart=null; _marqRect=null; mousedownPos=null;
-    if(r.w>6&&r.h>6) acCharacterize(r); // tiny box = cancel/restart
+    if(r.w>6&&r.h>6){ if(_acStep==='scan') acScanTile(r); else acCharacterize(r); } // tiny box = cancel/restart
     return;
   }
   if(activeTool==='drag-sel'){
@@ -4043,6 +4132,7 @@ function redraw(livePt){
       }
     }
   }
+  acDrawMatches(ctx);
 }
 
 function drawLine(ctx,pts,color,label,inProg,isActive){
