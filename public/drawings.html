@@ -1957,8 +1957,12 @@ function _centeredPan(){
   };
 }
 
+let _renderTask=null;
 async function renderPage(n, keepPan){
   curPage=n;
+  // Cancel any in-flight render before touching the canvas, so two render() ops
+  // never run on the same canvas (pdf.js throws on rapid zoom/page changes).
+  if(_renderTask){ try{ _renderTask.cancel(); }catch(_){} _renderTask=null; }
   const pg=await pdfDoc.getPage(n);
   const vp=pg.getViewport({scale:zoom*PDF_RS});
   const pc=$('pc'), oc=$('oc');
@@ -1975,7 +1979,11 @@ async function renderPage(n, keepPan){
   applyStageTransform();
   const ctx=pc.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,vp.width,vp.height);
-  await pg.render({canvasContext:ctx,viewport:vp}).promise;
+  const task=pg.render({canvasContext:ctx,viewport:vp});
+  _renderTask=task;
+  try{ await task.promise; }
+  catch(err){ if(err&&err.name==='RenderingCancelledException') return; throw err; }
+  finally{ if(_renderTask===task) _renderTask=null; }
   redraw();
   updateThumbActive();
   $('zdsp').textContent=Math.round(zoom*100)+'%';
