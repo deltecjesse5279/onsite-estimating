@@ -2230,6 +2230,29 @@ function acDrawMatches(ctx){
   ctx.setLineDash([]); ctx.restore();
 }
 // Scan one area (single tile) for the reference symbol; draw matches read-only.
+const AC_SCAN_SCALE=3.0; // fixed PDF render scale for scan tiles (about 2x the "100%" view; zoom-independent)
+const AC_TILE_MAX=1500;  // longest side (px) of the tile actually sent to the model
+
+// Render a page sub-region (given in normalized 0..1 page coords) straight from the
+// PDF at a fixed scale, capped at AC_TILE_MAX on the long side. Independent of the
+// on-screen zoom, so the same area always yields the same tile image.
+async function acRenderRegion(pageNum, nx, ny, nw, nh){
+  const pg=await pdfDoc.getPage(pageNum);
+  const base=pg.getViewport({scale:1});
+  const regionLong=Math.max(nw*base.width, nh*base.height); // region long side at scale 1
+  const targetLong=Math.min(AC_TILE_MAX, regionLong*AC_SCAN_SCALE);
+  const scale=Math.max(0.1, targetLong/Math.max(1,regionLong));
+  const vp=pg.getViewport({scale});
+  const rx=nx*vp.width, ry=ny*vp.height;
+  const W=Math.max(1,Math.round(nw*vp.width)), H=Math.max(1,Math.round(nh*vp.height));
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const regionVp=pg.getViewport({scale, offsetX:-rx, offsetY:-ry});
+  await pg.render({canvasContext:ctx, viewport:regionVp}).promise;
+  return cv;
+}
+
 async function acScanTile(rect){
   if(_acBusy) return;
   if(!_acRefImage||!_acCharacter){ _acStep='ref'; acSetBody(acRefPromptHtml()); return; }
@@ -2237,17 +2260,15 @@ async function acScanTile(rect){
   acSetBody('<div><span class="ac-spin"></span>Scanning the area...</div>');
   try{
     const pc=$('pc');
-    if(!pc||!pc.width) throw new Error('No page rendered');
-    const sx=Math.max(0,Math.round(rect.x)), sy=Math.max(0,Math.round(rect.y));
-    const sw=Math.min(pc.width-sx,Math.round(rect.w)), sh=Math.min(pc.height-sy,Math.round(rect.h));
-    if(sw<=0||sh<=0) throw new Error('Empty scan area');
-    const MAX=1500;
-    const scale=Math.min(1, MAX/Math.max(sw,sh));
-    const tw=Math.max(1,Math.round(sw*scale)), th=Math.max(1,Math.round(sh*scale));
-    const off=document.createElement('canvas'); off.width=tw; off.height=th;
-    const octx=off.getContext('2d');
-    octx.fillStyle='#fff'; octx.fillRect(0,0,tw,th);
-    octx.drawImage(pc, sx,sy,sw,sh, 0,0,tw,th);
+    if(!pc||!pc.width||!pdfDoc) throw new Error('No page rendered');
+    // Marquee rect is in current #pc pixels; convert to zoom-independent normalized region.
+    let nx=rect.x/pc.width, ny=rect.y/pc.height, nw=rect.w/pc.width, nh=rect.h/pc.height;
+    nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
+    nw=Math.max(0,Math.min(1-nx,nw)); nh=Math.max(0,Math.min(1-ny,nh));
+    if(nw<=0||nh<=0) throw new Error('Empty scan area');
+    // Render the region from the PDF at a fixed scale (not from the screen).
+    const off=await acRenderRegion(curPage, nx,ny,nw,nh);
+    const sentW=off.width, sentH=off.height;
     const url=off.toDataURL('image/png'); const comma=url.indexOf(',');
     const tileImage=comma>=0?url.slice(comma+1):null;
     if(!tileImage) throw new Error('Could not read scan area');
@@ -2258,16 +2279,15 @@ async function acScanTile(rect){
     const data=await resp.json().catch(()=>({}));
     if(!resp.ok||!data.ok) throw new Error(data.error||('HTTP '+resp.status));
     const raw=Array.isArray(data.matches)?data.matches:[];
-    // tile-pixel matches -> page-normalized boxes (0..1), so they track zoom/pan
-    const mapped=raw.map(m=>{
-      const pcX=sx+(m.x/tw)*sw, pcY=sy+(m.y/th)*sh;
-      const pcW=(m.w/tw)*sw, pcH=(m.h/th)*sh;
-      return {x:pcX/pc.width, y:pcY/pc.height, w:pcW/pc.width, h:pcH/pc.height,
-              confidence:m.confidence, partial:!!m.partial, rotation:m.rotation};
-    }).filter(m=>m.w>0&&m.h>0);
+    // tile-pixel matches -> page-normalized boxes; the fixed scale cancels out
+    const mapped=raw.map(m=>({
+      x:nx+(m.x/sentW)*nw, y:ny+(m.y/sentH)*nh,
+      w:(m.w/sentW)*nw,    h:(m.h/sentH)*nh,
+      confidence:m.confidence, partial:!!m.partial, rotation:m.rotation
+    })).filter(m=>m.w>0&&m.h>0);
     _acMatches=_acMatches.concat(mapped);
     _acStep='results';
-    console.log('[OnSite] autocount scan-tile -> '+raw.length+' matches', raw);
+    console.log('[OnSite] autocount scan-tile -> '+raw.length+' matches  tile '+sentW+'x'+sentH, raw);
     redraw();
     acShowMatches(mapped.length);
   }catch(err){
