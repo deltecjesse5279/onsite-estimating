@@ -240,7 +240,7 @@ tr:hover .dbtn{opacity:1}
 
 /* marquee drag-select - positioned inside cv-stage */
 .marquee{position:absolute;border:1.5px dashed #1a4f8a;background:rgba(26,79,138,.08);pointer-events:none;z-index:5;top:0;left:0}
-/* Auto-Count (Job 1: reference capture + characterize) */
+/* Auto-Count (template matching) */
 .cv-wrap.tool-autocount{cursor:crosshair}
 #ac-chip{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:30;display:none;max-width:min(440px,92%);background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.13);font-size:12px;color:var(--text);overflow:hidden}
 #ac-chip.show{display:block}
@@ -256,6 +256,7 @@ tr:hover .dbtn{opacity:1}
 #ac-chip .ac-spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:ac-spin .7s linear infinite;vertical-align:-2px;margin-right:5px}
 @keyframes ac-spin{to{transform:rotate(360deg)}}
 #ac-chip .ac-err{color:var(--danger,#c0392b);font-weight:600}
+#ac-chip .ac-ref{max-height:34px;max-width:70px;border:1px solid var(--border);border-radius:4px;background:#fff;padding:2px;image-rendering:pixelated;flex-shrink:0}
 /* toast */
 .toast{position:fixed;bottom:18px;right:18px;background:#1a1a18;color:#fff;padding:9px 14px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
@@ -684,7 +685,7 @@ tr:hover .dbtn{opacity:1}
         <p>Set a drawing scale before measuring.</p>
         <button class="btn primary sm" onclick="focusScale()">Set Scale</button>
       </div>
-      <!-- Auto-Count status chip (Job 1) -->
+      <!-- Auto-Count status chip -->
       <div id="ac-chip" onmousedown="event.stopPropagation()" onmouseup="event.stopPropagation()" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()" onwheel="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchmove="event.stopPropagation()" ontouchend="event.stopPropagation()">
         <div class="ac-head">
           <span class="ac-badge"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.4" y="1.4" width="13.2" height="13.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.6 1.8"/><text x="8" y="11.4" font-size="9.5" font-weight="700" text-anchor="middle" fill="currentColor">A</text></svg>Auto-Count</span>
@@ -1268,7 +1269,7 @@ let _docSelectedPages=new Set();
 let _ungroupedCollapsed=false;
 let zoom=1.0;          // logical zoom level (used for scale calculations)
 let _baseZoom=1.0;     // zoom level the canvas was last rendered at
-let _zoomMax=6;        // dynamic max zoom (Auto-Count tightens this to 3 = 300%)
+let _zoomMax=6;        // max zoom
 let _panX=0, _panY=0;  // pan offset in screen pixels
 // scaleRaw = px per real foot at zoom=1, PDF_RS=1
 // actual scale = scaleRaw * PDF_RS * zoom
@@ -1318,12 +1319,12 @@ let activeSheet=0, nextSid=2;
 let colorTargetIdx=null;
 // drag-select marquee state
 let _marqStart=null, _marqRect=null, _marqEl=null;
-// ─── Auto-Count state (Job 1: reference capture + characterize) ───
-let _acStep=null;        // null | 'ref' (awaiting reference marquee) | 'done'
-let _acRefImage=null;    // base64 PNG of reference crop (no data: prefix); reused by later jobs
-let _acCharacter=null;   // characterize() result; reused by later scan jobs
-let _acBusy=false;       // true while a request is in flight
-let _acMatches=[];       // detected match boxes (page-normalized), read-only overlay (Job 2)
+// ─── Auto-Count state (template matching) ───
+let _acStep=null;        // null | 'ref' (awaiting reference box) | 'scan' (awaiting area) | 'results'
+let _acRef=null;         // reference symbol as a PDF region: {page,setId,nx,ny,nw,nh} (normalized 0..1)
+let _acRefThumb=null;    // data URL of the trimmed reference, shown in the chip
+let _acBusy=false;       // true while a capture or scan is running
+let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId}; read-only overlay
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2130,193 +2131,449 @@ function setTool(t, silent){
   if(!silent) redraw();
 }
 
-// ─── Auto-Count (Job 1: reference capture + characterize) ───
-// Enter mode, marquee one symbol instance, crop it from the rendered page canvas,
-// POST to /api/symbols/characterize, show what the model saw. Scanning and
-// placement come in later jobs; _acRefImage and _acCharacter are retained so those
-// jobs reuse them without a second round trip.
+// ─── Auto-Count (template matching) ───
+// Flow: box one symbol (reference) -> box an area or tap Whole page -> matches drawn
+// as confidence-coloured boxes. Matching runs entirely in the browser with OpenCV.js:
+// the reference and the scan area are both rendered straight from the PDF at the SAME
+// fixed scale, so results do not depend on screen zoom and the same scan always gives
+// the same answer. No API calls. Read-only overlay for now; accept/reject and push
+// to takeoff come in the next jobs.
 const AC_ICON='<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.4" y="1.4" width="13.2" height="13.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.6 1.8"/><text x="8" y="11.4" font-size="9.5" font-weight="700" text-anchor="middle" fill="currentColor">A</text></svg>';
+const AC_CV_URL='https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/dist/opencv.js';
+const AC_MATCH_SCALE=2.0;      // PDF render scale for matching (2 px per PDF point, ~144 DPI)
+const AC_MAX_PIXELS=16000000;  // render budget per scan; big areas drop scale to stay under (Safari canvas limit)
+const AC_GREEN=0.90, AC_AMBER=0.80; // colour bands on the verified score
+
+let _acCvPromise=null;
+// Load OpenCV.js once, on demand. NOTE: never resolve a promise WITH window.cv:
+// the Emscripten module object has its own .then(), and resolving with it loops forever.
+function acLoadCv(){
+  if(_acCvPromise) return _acCvPromise;
+  const isReady=()=>{
+    const c=window.cv;
+    if(!c||typeof c.Mat!=='function') return false;
+    try{ new c.Mat().delete(); return true; }catch(_){ return false; }
+  };
+  _acCvPromise=new Promise((resolve,reject)=>{
+    if(isReady()) return resolve(true);
+    const s=document.createElement('script');
+    s.src=AC_CV_URL; s.async=true;
+    s.onerror=()=>{ _acCvPromise=null; s.remove(); reject(new Error('Could not load the matcher (OpenCV.js). Check your connection and try again.')); };
+    s.onload=()=>{
+      const t0=Date.now();
+      const iv=setInterval(()=>{
+        if(isReady()){ clearInterval(iv); console.log('[OnSite] autocount OpenCV ready in '+(Date.now()-t0)+'ms after load'); resolve(true); }
+        else if(Date.now()-t0>60000){ clearInterval(iv); _acCvPromise=null; reject(new Error('The matcher took too long to start.')); }
+      },50);
+    };
+    document.head.appendChild(s);
+  });
+  return _acCvPromise;
+}
+function acCvReady(){ const c=window.cv; return !!(c&&typeof c.Mat==='function'); }
+
 function acEnter(){
-  _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; _acMatches=[];
+  _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[];
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
-  _zoomMax=3; // hard ceiling at 300% while in the mode; never move the user's view
   $('ac-chip').classList.add('show');
   acSetBody(acRefPromptHtml());
+  acLoadCv().catch(()=>{}); // start the one-time download while the user boxes a reference
 }
 function acExit(){
   _acStep=null; _acBusy=false; _acMatches=[];
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
-  _zoomMax=6;
   $('ac-chip').classList.remove('show');
 }
 function acSetBody(html){ const b=$('ac-body'); if(b) b.innerHTML=html; }
 function acRefPromptHtml(){
-  return '<div><b>Click one corner</b>, then the opposite corner, to box the symbol you want to find.</div>'
-    +'<div class="ac-feat" style="margin-top:5px">Drag to pan, just like measuring. Zoom stops at 300% here for the sharpest reference. Box just the symbol, not its label or wiring.</div>';
+  return '<div><b>Click one corner</b>, then the opposite corner, to box one clean example of the symbol you want to count.</div>'
+    +'<div class="ac-feat" style="margin-top:5px">Box just the symbol, not its label, wiring or a nearby wall. A little white space around it is fine. Drag to pan.</div>';
 }
-async function acCharacterize(rect){
+function _acPaint(){ return new Promise(r=>setTimeout(r,30)); } // let the chip repaint before heavy work
+
+// Marquee rect (current #pc pixels) -> zoom-independent normalized page region
+function acRectToNorm(rect){
+  const pc=$('pc');
+  let nx=rect.x/pc.width, ny=rect.y/pc.height, nw=rect.w/pc.width, nh=rect.h/pc.height;
+  nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
+  nw=Math.max(0,Math.min(1-nx,nw)); nh=Math.max(0,Math.min(1-ny,nh));
+  return {nx,ny,nw,nh};
+}
+
+// Render a page sub-region (normalized 0..1 page coords) straight from the PDF at an
+// explicit scale. Same region + same scale = same pixels, regardless of screen zoom.
+async function acRenderRegion(pageNum, nx, ny, nw, nh, scale){
+  const pg=await pdfDoc.getPage(pageNum);
+  const vp=pg.getViewport({scale});
+  const rx=nx*vp.width, ry=ny*vp.height;
+  const W=Math.max(1,Math.round(nw*vp.width)), H=Math.max(1,Math.round(nh*vp.height));
+  const can=document.createElement('canvas'); can.width=W; can.height=H;
+  const ctx=can.getContext('2d',{willReadFrequently:true});
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const regionVp=pg.getViewport({scale, offsetX:-rx, offsetY:-ry});
+  await pg.render({canvasContext:ctx, viewport:regionVp}).promise;
+  return can;
+}
+// Scale that keeps a region under the pixel budget (never above AC_MATCH_SCALE)
+async function acScaleFor(pageNum, nw, nh){
+  const pg=await pdfDoc.getPage(pageNum);
+  const base=pg.getViewport({scale:1});
+  const areaPt=Math.max(1, nw*base.width*nh*base.height);
+  return Math.min(AC_MATCH_SCALE, Math.sqrt(AC_MAX_PIXELS/areaPt));
+}
+function acCanvasToGray(cv, can){
+  const img=can.getContext('2d',{willReadFrequently:true}).getImageData(0,0,can.width,can.height);
+  const rgba=cv.matFromImageData(img), gray=new cv.Mat();
+  cv.cvtColor(rgba, gray, cv.COLOR_RGBA2GRAY);
+  rgba.delete();
+  return gray;
+}
+
+// Step 1: store the reference as a normalized PDF region (not pixels), and show the
+// trimmed symbol back to the user so they can see exactly what will be matched.
+async function acSetReference(rect){
   if(_acBusy) return;
   _acBusy=true;
-  acSetBody('<div><span class="ac-spin"></span>Analyzing the symbol...</div>');
+  acSetBody('<div><span class="ac-spin"></span>Capturing the reference...</div>');
   try{
-    const refImage=acCropToPng(rect);
-    if(!refImage) throw new Error('Could not read the selected region');
-    _acRefImage=refImage;
-    const resp=await fetch('/api/symbols/characterize',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({refImage})
-    });
-    const data=await resp.json().catch(()=>({}));
-    if(!resp.ok||!data.ok||!data.character) throw new Error(data.error||('HTTP '+resp.status));
-    _acCharacter=data.character; _acStep='scan';
-    console.log('[OnSite] autocount characterize ->', _acCharacter);
-    acShowScanPrompt(_acCharacter);
+    if(!pdfDoc||!$('pc').width) throw new Error('No page rendered');
+    const r=acRectToNorm(rect);
+    if(r.nw<=0||r.nh<=0) throw new Error('Empty selection');
+    const can=await acRenderRegion(curPage, r.nx,r.ny,r.nw,r.nh, AC_MATCH_SCALE);
+    const b=acIsolateSymbol(can);
+    if(!b) throw new Error('No linework found in that box. Box a symbol, not empty space.');
+    if(b.w<6||b.h<6) throw new Error('That symbol is too small to match reliably. Try a larger box around it.');
+    _acRefThumb=b.canvas.toDataURL('image/png'); // shows exactly what will be matched
+    _acRef={page:curPage, setId:activeSetId, ...r};
+    _acStep='scan';
+    console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE);
+    acShowScanPrompt();
   }catch(err){
-    console.error('[OnSite] autocount characterize failed:', err);
-    acSetBody('<div class="ac-err">Could not analyze that selection.</div>'
+    console.error('[OnSite] autocount reference failed:', err);
+    acSetBody('<div class="ac-err">Could not use that selection.</div>'
       +'<div class="ac-feat" style="margin-top:4px">'+_acEsc(err&&err.message||'Unknown error')+'</div>'
       +'<div class="ac-actions"><button class="btn sm" onclick="acRetry()">Try again</button></div>');
   }finally{ _acBusy=false; }
 }
-// Crop the marquee rect (in #oc/#pc pixel space) out of the rendered page canvas;
-// return base64 PNG with the data: prefix stripped, as the endpoint expects.
-function acCropToPng(rect){
-  const pc=$('pc');
-  if(!pc||!pc.width) return null;
-  const x=Math.max(0,Math.round(rect.x)), y=Math.max(0,Math.round(rect.y));
-  const w=Math.min(pc.width-x,Math.round(rect.w)), h=Math.min(pc.height-y,Math.round(rect.h));
-  if(w<=0||h<=0) return null;
-  const off=document.createElement('canvas');
-  off.width=w; off.height=h;
-  const octx=off.getContext('2d');
-  octx.fillStyle='#fff'; octx.fillRect(0,0,w,h);
-  octx.drawImage(pc, x,y,w,h, 0,0,w,h);
-  const url=off.toDataURL('image/png');
-  const comma=url.indexOf(',');
-  return comma>=0?url.slice(comma+1):null;
+// Isolate the reference symbol on a rendered canvas (plain JS, no OpenCV needed).
+// Returns the symbol's bounds plus a cleaned crop canvas: white everywhere except
+// the symbol's own linework, so labels or walls caught in the box are not matched.
+function acIsolateSymbol(can){
+  const W=can.width, H=can.height;
+  const d=can.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const gray={cols:W, rows:H, data:new Uint8Array(W*H)};
+  for(let i=0,j=0;i<gray.data.length;i++,j+=4) gray.data[i]=(d[j]*299+d[j+1]*587+d[j+2]*114)/1000;
+  const b=acSymbolBounds(gray, 2, 2); // bridges gaps up to ~4px (about 2pt at the match scale)
+  if(!b) return null;
+  const out=document.createElement('canvas'); out.width=b.w; out.height=b.h;
+  const octx=out.getContext('2d',{willReadFrequently:true});
+  const img=octx.createImageData(b.w,b.h);
+  for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++){
+    const si=(b.y+y)*W+(b.x+x), oi=(y*b.w+x)*4;
+    const v=b.keep[si]?gray.data[si]:255;
+    img.data[oi]=img.data[oi+1]=img.data[oi+2]=v; img.data[oi+3]=255;
+  }
+  octx.putImageData(img,0,0);
+  return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out};
 }
-function acShowScanPrompt(ch){
-  const nm=(ch&&ch.suggested_name)?_acEsc(ch.suggested_name):'symbol';
-  let html='<div class="ac-name">'+AC_ICON+'<span>'+nm+'</span></div>';
-  html+='<div>Reference captured. Now <b>click two corners</b> around an area to scan for this symbol.</div>';
-  html+='<div class="ac-feat" style="margin-top:5px">Keep the area modest for now (about one screen). Drag to pan.</div>';
-  html+='<div class="ac-actions"><button class="btn sm" onclick="acRetry()">Redo reference</button></div>';
+function acRefThumbHtml(){
+  return _acRefThumb?'<img class="ac-ref" src="'+_acRefThumb+'" alt="Reference symbol"/>':'';
+}
+function acShowScanPrompt(){
+  let html='<div class="ac-name">'+acRefThumbHtml()+'<span>Reference captured</span></div>';
+  html+='<div><b>Click two corners</b> around an area to scan, or scan this whole page.</div>';
+  html+='<div class="ac-feat" style="margin-top:5px">Matching runs on your computer, no AI calls. Bigger areas take a few seconds.</div>';
+  html+='<div class="ac-actions">'
+    +'<button class="btn sm primary" onclick="acScanWholePage()">Scan whole page</button>'
+    +'<button class="btn sm" onclick="acRetry()">Redo reference</button></div>';
   acSetBody(html);
 }
-function acStartScan(){ _acStep='scan'; acShowScanPrompt(_acCharacter); }
+function acStartScan(){ _acStep='scan'; acShowScanPrompt(); }
+function acScanWholePage(){ acScanRegion({nx:0,ny:0,nw:1,nh:1}); }
+function acScanArea(rect){ acScanRegion(acRectToNorm(rect)); }
 
-// Confidence -> color band (read-only overlay)
+// Step 2: render reference + area at one shared scale, match, map back to the page.
+async function acScanRegion(area){
+  if(_acBusy) return;
+  if(!_acRef){ _acStep='ref'; acSetBody(acRefPromptHtml()); return; }
+  if(area.nw<=0||area.nh<=0) return;
+  _acBusy=true;
+  const t0=performance.now();
+  let scene=null, tmpl=null;
+  try{
+    if(!acCvReady()){
+      acSetBody('<div><span class="ac-spin"></span>Loading the matcher (one-time download, about 10 MB)...</div>');
+      await acLoadCv();
+    }
+    acSetBody('<div><span class="ac-spin"></span>Scanning...</div>');
+    await _acPaint();
+    const cv=window.cv;
+    const scale=await acScaleFor(curPage, area.nw, area.nh);
+    // Reference rendered at the same scale as the area, then trimmed to its linework
+    const refCan=await acRenderRegion(_acRef.page, _acRef.nx,_acRef.ny,_acRef.nw,_acRef.nh, scale);
+    const b=acIsolateSymbol(refCan);
+    if(!b) throw new Error('Reference has no linework at this scale');
+    const areaCan=await acRenderRegion(curPage, area.nx,area.ny,area.nw,area.nh, scale);
+    if(b.w>=areaCan.width||b.h>=areaCan.height) throw new Error('The scan area is smaller than the symbol. Box a larger area.');
+    await _acPaint();
+    tmpl=acCanvasToGray(cv, b.canvas); // cleaned symbol only
+    scene=acCanvasToGray(cv, areaCan);
+    const hits=acMatchCore(cv, scene, tmpl);
+    const W=areaCan.width, H=areaCan.height;
+    const mapped=hits.map(h=>({
+      x:area.nx+(h.x/W)*area.nw, y:area.ny+(h.y/H)*area.nh,
+      w:(h.w/W)*area.nw,         h:(h.h/H)*area.nh,
+      confidence:h.score, rotation:h.rotation, page:curPage, setId:activeSetId
+    }));
+    // Merge with earlier scans: overlapping boxes on the same page are the same symbol
+    let added=0;
+    mapped.forEach(m=>{
+      const dup=_acMatches.some(o=>o.page===m.page&&o.setId===m.setId&&acIoU(o,m)>AC_NMS_IOU);
+      if(!dup){ _acMatches.push(m); added++; }
+    });
+    _acStep='results';
+    const ms=Math.round(performance.now()-t0);
+    console.log('[OnSite] autocount scan -> '+hits.length+' matches ('+added+' new)  area '+W+'x'+H+' px @ scale '+scale.toFixed(2)+'  template '+b.w+'x'+b.h+'  '+ms+'ms',
+      hits.map(h=>({score:+h.score.toFixed(3), ncc:+h.ncc.toFixed(2), recall:+h.recall.toFixed(2), cell:+h.cellMin.toFixed(2), inner:+h.inner.toFixed(2), rot:h.rotation})));
+    redraw();
+    acShowMatches(hits.length, added);
+  }catch(err){
+    console.error('[OnSite] autocount scan failed:', err);
+    acSetBody('<div class="ac-err">Scan failed.</div>'
+      +'<div class="ac-feat" style="margin-top:4px">'+_acEsc(err&&err.message||String(err)||'Unknown error')+'</div>'
+      +'<div class="ac-actions"><button class="btn sm" onclick="acStartScan()">Try again</button>'
+      +'<button class="btn sm" onclick="acRetry()">New reference</button></div>');
+  }finally{
+    if(scene) scene.delete();
+    if(tmpl) tmpl.delete();
+    _acBusy=false;
+  }
+}
+
+// Verified score -> colour band
 function acConfColor(c){
   if(c==null) return 'rgb(120,120,120)';
-  if(c>=0.7) return 'rgb(30,150,70)';
-  if(c>=0.4) return 'rgb(200,140,20)';
+  if(c>=AC_GREEN) return 'rgb(30,150,70)';
+  if(c>=AC_AMBER) return 'rgb(200,140,20)';
   return 'rgb(200,60,50)';
 }
-// Draw current matches on the overlay, tracking zoom/pan via toCanvas (called from redraw).
+// Draw this page's matches on the overlay (called from redraw); tracks zoom/pan via toCanvas.
 function acDrawMatches(ctx){
   if(activeTool!=='autocount'||!_acMatches.length) return;
   ctx.save();
   _acMatches.forEach(m=>{
+    if(m.page!==curPage||m.setId!==activeSetId) return;
     const a=toCanvas({x:m.x,y:m.y}), b=toCanvas({x:m.x+m.w,y:m.y+m.h});
-    const x=Math.min(a.x,b.x), y=Math.min(a.y,b.y), w=Math.abs(b.x-a.x), h=Math.abs(b.y-a.y);
+    const pad=2;
+    const x=Math.min(a.x,b.x)-pad, y=Math.min(a.y,b.y)-pad, w=Math.abs(b.x-a.x)+pad*2, h=Math.abs(b.y-a.y)+pad*2;
     const col=acConfColor(m.confidence);
     ctx.lineWidth=2; ctx.strokeStyle=col;
-    ctx.setLineDash(m.partial?[5,4]:[]);
     ctx.fillStyle=col.replace('rgb(','rgba(').replace(')',',0.12)');
     ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
   });
-  ctx.setLineDash([]); ctx.restore();
+  ctx.restore();
 }
-// Scan one area (single tile) for the reference symbol; draw matches read-only.
-const AC_SCAN_SCALE=3.0; // fixed PDF render scale for scan tiles (about 2x the "100%" view; zoom-independent)
-const AC_TILE_MAX=1500;  // longest side (px) of the tile actually sent to the model
-
-// Render a page sub-region (given in normalized 0..1 page coords) straight from the
-// PDF at a fixed scale, capped at AC_TILE_MAX on the long side. Independent of the
-// on-screen zoom, so the same area always yields the same tile image.
-async function acRenderRegion(pageNum, nx, ny, nw, nh){
-  const pg=await pdfDoc.getPage(pageNum);
-  const base=pg.getViewport({scale:1});
-  const regionLong=Math.max(nw*base.width, nh*base.height); // region long side at scale 1
-  const targetLong=Math.min(AC_TILE_MAX, regionLong*AC_SCAN_SCALE);
-  const scale=Math.max(0.1, targetLong/Math.max(1,regionLong));
-  const vp=pg.getViewport({scale});
-  const rx=nx*vp.width, ry=ny*vp.height;
-  const W=Math.max(1,Math.round(nw*vp.width)), H=Math.max(1,Math.round(nh*vp.height));
-  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-  const ctx=cv.getContext('2d');
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
-  const regionVp=pg.getViewport({scale, offsetX:-rx, offsetY:-ry});
-  await pg.render({canvasContext:ctx, viewport:regionVp}).promise;
-  return cv;
-}
-
-async function acScanTile(rect){
-  if(_acBusy) return;
-  if(!_acRefImage||!_acCharacter){ _acStep='ref'; acSetBody(acRefPromptHtml()); return; }
-  _acBusy=true;
-  acSetBody('<div><span class="ac-spin"></span>Scanning the area...</div>');
-  try{
-    const pc=$('pc');
-    if(!pc||!pc.width||!pdfDoc) throw new Error('No page rendered');
-    // Marquee rect is in current #pc pixels; convert to zoom-independent normalized region.
-    let nx=rect.x/pc.width, ny=rect.y/pc.height, nw=rect.w/pc.width, nh=rect.h/pc.height;
-    nx=Math.max(0,Math.min(1,nx)); ny=Math.max(0,Math.min(1,ny));
-    nw=Math.max(0,Math.min(1-nx,nw)); nh=Math.max(0,Math.min(1-ny,nh));
-    if(nw<=0||nh<=0) throw new Error('Empty scan area');
-    // Render the region from the PDF at a fixed scale (not from the screen).
-    const off=await acRenderRegion(curPage, nx,ny,nw,nh);
-    const sentW=off.width, sentH=off.height;
-    const url=off.toDataURL('image/png'); const comma=url.indexOf(',');
-    const tileImage=comma>=0?url.slice(comma+1):null;
-    if(!tileImage) throw new Error('Could not read scan area');
-    const resp=await fetch('/api/symbols/scan-tile',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({tileImage, refImage:_acRefImage, character:_acCharacter})
-    });
-    const data=await resp.json().catch(()=>({}));
-    if(!resp.ok||!data.ok) throw new Error(data.error||('HTTP '+resp.status));
-    const raw=Array.isArray(data.matches)?data.matches:[];
-    // tile-pixel matches -> page-normalized boxes; the fixed scale cancels out
-    const mapped=raw.map(m=>({
-      x:nx+(m.x/sentW)*nw, y:ny+(m.y/sentH)*nh,
-      w:(m.w/sentW)*nw,    h:(m.h/sentH)*nh,
-      confidence:m.confidence, partial:!!m.partial, rotation:m.rotation
-    })).filter(m=>m.w>0&&m.h>0);
-    _acMatches=_acMatches.concat(mapped);
-    _acStep='results';
-    console.log('[OnSite] autocount scan-tile -> '+raw.length+' matches  tile '+sentW+'x'+sentH, raw);
-    redraw();
-    acShowMatches(mapped.length);
-  }catch(err){
-    console.error('[OnSite] autocount scan-tile failed:', err);
-    acSetBody('<div class="ac-err">Scan failed.</div>'
-      +'<div class="ac-feat" style="margin-top:4px">'+_acEsc(err&&err.message||'Unknown error')+'</div>'
-      +'<div class="ac-actions"><button class="btn sm" onclick="acStartScan()">Try again</button></div>');
-  }finally{ _acBusy=false; }
-}
-function acShowMatches(thisScan){
-  const total=_acMatches.length;
-  const hi=_acMatches.filter(m=>m.confidence>=0.7).length;
-  const md=_acMatches.filter(m=>m.confidence>=0.4&&m.confidence<0.7).length;
+function acShowMatches(thisScan, added){
+  const onPage=_acMatches.filter(m=>m.page===curPage&&m.setId===activeSetId);
+  const total=onPage.length;
+  const hi=onPage.filter(m=>m.confidence>=AC_GREEN).length;
+  const md=onPage.filter(m=>m.confidence>=AC_AMBER&&m.confidence<AC_GREEN).length;
   const lo=total-hi-md;
-  let html='<div class="ac-name">'+AC_ICON+'<span>'+thisScan+' found in this area</span></div>';
-  html+='<div class="ac-feat">Total shown: '+total+'  ('
-    +'<span style="color:rgb(30,150,70)">'+hi+' high</span>, '
-    +'<span style="color:rgb(200,140,20)">'+md+' med</span>, '
-    +'<span style="color:rgb(200,60,50)">'+lo+' low</span>)</div>';
-  html+='<div class="ac-feat" style="margin-top:4px">Boxes are colored by confidence. Read-only for now, nothing is added to your takeoff yet.</div>';
+  let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+thisScan+' found'+(added<thisScan?' ('+added+' new)':'')+'</span></div>';
+  html+='<div class="ac-feat">On this page: '+total+'  ('
+    +'<span style="color:rgb(30,150,70)">'+hi+' strong</span>, '
+    +'<span style="color:rgb(200,140,20)">'+md+' likely</span>, '
+    +'<span style="color:rgb(200,60,50)">'+lo+' weak</span>)</div>';
+  html+='<div class="ac-feat" style="margin-top:4px">Box another area to add to these, or scan the whole page. Read-only for now, nothing is added to your takeoff yet.</div>';
   html+='<div class="ac-actions">'
-    +'<button class="btn sm" onclick="acStartScan()">Scan another area</button>'
+    +'<button class="btn sm" onclick="acScanWholePage()">Scan whole page</button>'
     +'<button class="btn sm" onclick="acClearMatches()">Clear boxes</button>'
     +'<button class="btn sm" onclick="acRetry()">New reference</button></div>';
   acSetBody(html);
 }
 function acClearMatches(){ _acMatches=[]; redraw(); acStartScan(); }
-function acRetry(){ _acStep='ref'; _acRefImage=null; _acCharacter=null; _acBusy=false; _acMatches=[]; redraw(); acSetBody(acRefPromptHtml()); }
+function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; redraw(); acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ── AC_CORE_BEGIN ──
+// Template-matching core. Takes OpenCV and two single-channel 8-bit Mats
+// (scene + template, rendered at the SAME scale) and returns boxes in scene
+// pixels. No DOM access, so it can be exercised outside the browser.
+//
+// Two stages:
+//  1. Find:   normalized cross-correlation (cv.matchTemplate) at 0/90/180/270
+//             degrees, keeping local peaks. Generous, catches everything plausible.
+//  2. Verify: compare actual linework (1px tolerance).
+//             - recall: share of the template's ink present at that spot, overall
+//               AND per 3x3 cell, so a look-alike missing one small feature (a
+//               single receptacle vs a duplex) fails on that cell even though the
+//               shared circle dominates the overall total.
+//             - inner precision: share of ink in the middle of the box that the
+//               template accounts for, so a symbol with EXTRA interior detail
+//               (template = plain circle, scene = circle with bars) is marked down,
+//               while walls or labels touching the box edge are ignored.
+const AC_FIND_MIN=0.50;    // stage-1 correlation floor (loose on purpose)
+const AC_MIN_SCORE=0.75;   // final verified score floor; below this is discarded
+const AC_NMS_IOU=0.25;     // overlap above this = same symbol, keep the higher score
+const AC_INK=200;          // gray level below which a pixel counts as linework (catches faint anti-aliased lines)
+function acMatchCore(cv, sceneGray, tmplGray, opts){
+  opts=opts||{};
+  const minScore=opts.minScore!=null?opts.minScore:AC_MIN_SCORE;
+  const maxHits=opts.maxHits||3000;
+  const SW=sceneGray.cols, SH=sceneGray.rows;
+  const scene=new cv.Mat(), base=new cv.Mat();
+  const ks=new cv.Size(3,3);
+  cv.GaussianBlur(sceneGray, scene, ks, 0, 0, cv.BORDER_DEFAULT);
+  cv.GaussianBlur(tmplGray, base, ks, 0, 0, cv.BORDER_DEFAULT);
+  const sInk=acInkMask(sceneGray), sDil=acDilate(sInk, SW, SH);
+  const rots=[
+    {deg:0,   code:null},
+    {deg:90,  code:cv.ROTATE_90_CLOCKWISE},
+    {deg:180, code:cv.ROTATE_180},
+    {deg:270, code:cv.ROTATE_90_COUNTERCLOCKWISE}
+  ];
+  let cands=[];
+  try{
+    for(const r of rots){
+      const t=new cv.Mat(), tRaw=new cv.Mat();
+      if(r.code==null){ base.copyTo(t); tmplGray.copyTo(tRaw); }
+      else { cv.rotate(base, t, r.code); cv.rotate(tmplGray, tRaw, r.code); }
+      const TW=t.cols, TH=t.rows;
+      if(TW>SW||TH>SH){ t.delete(); tRaw.delete(); continue; }
+      const tInk=acInkMask(tRaw), tDil=acDilate(tInk, TW, TH);
+      let tCount=0; for(let i=0;i<tInk.length;i++) tCount+=tInk[i];
+      const cells=acCells(tInk,TW,TH,tCount);
+      tRaw.delete();
+      if(!tCount){ t.delete(); continue; }
+      const res=new cv.Mat();
+      cv.matchTemplate(scene, t, res, cv.TM_CCOEFF_NORMED);
+      t.delete();
+      const d=res.data32F, W=res.cols, H=res.rows;
+      for(let y=0;y<H;y++){
+        const row=y*W;
+        for(let x=0;x<W;x++){
+          const v=d[row+x];
+          if(!(v>=AC_FIND_MIN)) continue;
+          if(x>0&&d[row+x-1]>v) continue;
+          if(x<W-1&&d[row+x+1]>=v) continue;
+          if(y>0&&d[row-W+x]>v) continue;
+          if(y<H-1&&d[row+W+x]>=v) continue;
+          // stage 2: verify linework at this location
+          const v2=acVerify(tInk,tDil,cells,TW,TH,sInk,sDil,SW,x,y);
+          const score=v2.score;
+          if(score>=minScore) cands.push({x, y, w:TW, h:TH, score, ncc:v, recall:v2.recall, cellMin:v2.cellMin, inner:v2.inner, rotation:r.deg});
+        }
+      }
+      res.delete();
+    }
+  } finally { scene.delete(); base.delete(); }
+  // Greedy non-max suppression across all rotations, best verified score first
+  cands.sort((a,b)=>b.score-a.score);
+  const kept=[];
+  for(const c of cands){
+    let dup=false;
+    for(const k of kept){ if(acIoU(c,k)>AC_NMS_IOU){ dup=true; break; } }
+    if(!dup){ kept.push(c); if(kept.length>=maxHits) break; }
+  }
+  return kept;
+}
+// Split the template into a 3x3 grid; return cells holding a meaningful share of ink.
+function acCells(tInk,TW,TH,tCount){
+  const out=[], minInk=Math.max(3,tCount*0.03);
+  for(let cy=0;cy<3;cy++) for(let cx=0;cx<3;cx++){
+    const x0=Math.floor(cx*TW/3), x1=Math.floor((cx+1)*TW/3), y0=Math.floor(cy*TH/3), y1=Math.floor((cy+1)*TH/3);
+    let n=0; for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) n+=tInk[y*TW+x];
+    if(n>=minInk) out.push({x0,x1,y0,y1,n});
+  }
+  return out;
+}
+function acVerify(tInk,tDil,cells,TW,TH,sInk,sDil,SW,x,y){
+  let hitAll=0, tAll=0;
+  let cellMin=1;
+  for(const c of cells){
+    let hit=0;
+    for(let ty=c.y0;ty<c.y1;ty++){ const so=(y+ty)*SW+x, to=ty*TW;
+      for(let tx=c.x0;tx<c.x1;tx++){ if(tInk[to+tx]&&sDil[so+tx]) hit++; } }
+    hitAll+=hit; tAll+=c.n;
+    const r=hit/c.n; if(r<cellMin) cellMin=r;
+  }
+  const recall=tAll?hitAll/tAll:0;
+  // inner precision over the middle 60% of the box
+  const ix0=Math.floor(TW*0.2), ix1=Math.ceil(TW*0.8), iy0=Math.floor(TH*0.2), iy1=Math.ceil(TH*0.8);
+  let sIn=0, okIn=0;
+  for(let ty=iy0;ty<iy1;ty++){ const so=(y+ty)*SW+x, to=ty*TW;
+    for(let tx=ix0;tx<ix1;tx++){ if(sInk[so+tx]){ sIn++; if(tDil[to+tx]) okIn++; } } }
+  const inner=sIn?okIn/sIn:1;
+  const score=recall*cellMin*inner*inner;
+  return {score, recall, cellMin, inner};
+}
+function acInkMask(gray){
+  const d=gray.data, out=new Uint8Array(d.length);
+  for(let i=0;i<d.length;i++) out[i]=d[i]<AC_INK?1:0;
+  return out;
+}
+// 3x3 dilation (1px tolerance for anti-aliasing and rendering jitter)
+function acDilate(m, W, H){
+  const out=new Uint8Array(m.length);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    if(!m[y*W+x]) continue;
+    for(let dy=-1;dy<=1;dy++){ const yy=y+dy; if(yy<0||yy>=H) continue;
+      for(let dx=-1;dx<=1;dx++){ const xx=x+dx; if(xx<0||xx>=W) continue; out[yy*W+xx]=1; } }
+  }
+  return out;
+}
+function acIoU(a,b){
+  const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+  const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+  const iw=x2-x1, ih=y2-y1;
+  if(iw<=0||ih<=0) return 0;
+  const inter=iw*ih;
+  return inter/(a.w*a.h+b.w*b.h-inter);
+}
+// Isolate the symbol in a loosely boxed reference: take the linework connected to the
+// ink nearest the box centre (gaps up to `join` px are bridged, so a receptacle's
+// separate tab still counts), and drop everything else (a label, a wall, a wire).
+// Returns {x,y,w,h, keep} where keep[i]=1 for pixels belonging to the symbol, or null.
+function acSymbolBounds(gray, join, pad){
+  join=join==null?3:join; pad=pad==null?2:pad;
+  const d=gray.data, W=gray.cols, H=gray.rows, N=W*H;
+  const ink=new Uint8Array(N);
+  let any=false;
+  for(let i=0;i<N;i++){ if(d[i]<AC_INK){ ink[i]=1; any=true; } }
+  if(!any) return null;
+  // bridge small gaps: square dilation of radius `join`
+  const grow=new Uint8Array(N);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    if(!ink[y*W+x]) continue;
+    const y0=Math.max(0,y-join), y1=Math.min(H-1,y+join), x0=Math.max(0,x-join), x1=Math.min(W-1,x+join);
+    for(let yy=y0;yy<=y1;yy++){ const o=yy*W; for(let xx=x0;xx<=x1;xx++) grow[o+xx]=1; }
+  }
+  // seed = ink pixel nearest the centre of the box
+  const cx=W/2, cy=H/2; let seed=-1, best=1e18;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]){ const dd=(x-cx)*(x-cx)+(y-cy)*(y-cy); if(dd<best){ best=dd; seed=i; } } }
+  // flood fill the grown mask from the seed
+  const comp=new Uint8Array(N), stack=[seed]; comp[seed]=1;
+  while(stack.length){
+    const i=stack.pop(), x=i%W, y=(i/W)|0;
+    if(x>0&&grow[i-1]&&!comp[i-1]){ comp[i-1]=1; stack.push(i-1); }
+    if(x<W-1&&grow[i+1]&&!comp[i+1]){ comp[i+1]=1; stack.push(i+1); }
+    if(y>0&&grow[i-W]&&!comp[i-W]){ comp[i-W]=1; stack.push(i-W); }
+    if(y<H-1&&grow[i+W]&&!comp[i+W]){ comp[i+W]=1; stack.push(i+W); }
+  }
+  // keep = original ink inside the component, plus its soft anti-aliased edge
+  const keep=new Uint8Array(N);
+  let x0=W, y0=H, x1=-1, y1=-1;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const i=y*W+x;
+    if(comp[i]&&d[i]<250){ keep[i]=1; if(ink[i]){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  }
+  if(x1<0) return null;
+  x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W-1,x1+pad); y1=Math.min(H-1,y1+pad);
+  return {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1, keep, W};
+}
+// ── AC_CORE_END ──
 
 // ─── Scale presets ───
 function onScaleSel(){
@@ -3525,7 +3782,7 @@ function cvu(e){
              w:Math.abs(c2.x-_marqStart.x),h:Math.abs(c2.y-_marqStart.y)};
     if(_marqEl){_marqEl.remove();_marqEl=null;}
     _marqStart=null; _marqRect=null; mousedownPos=null;
-    if(r.w>6&&r.h>6){ if(_acStep==='scan') acScanTile(r); else acCharacterize(r); } // tiny box = cancel/restart
+    if(r.w>6&&r.h>6){ if(_acStep==='scan'||_acStep==='results') acScanArea(r); else acSetReference(r); } // tiny box = cancel/restart
     return;
   }
   if(activeTool==='drag-sel'){
