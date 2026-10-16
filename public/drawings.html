@@ -1324,7 +1324,8 @@ let _acStep=null;        // null | 'ref' (awaiting reference box) | 'scan' (awai
 let _acRef=null;         // reference symbol as a PDF region: {page,setId,nx,ny,nw,nh} (normalized 0..1)
 let _acRefThumb=null;    // data URL of the trimmed reference, shown in the chip
 let _acBusy=false;       // true while a capture or scan is running
-let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId}; read-only overlay
+let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId,flag,status}
+let _acLastScan=null;    // {found, added} from the most recent scan, for the chip
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2239,17 +2240,38 @@ async function acSetReference(rect){
   acSetBody('<div><span class="ac-spin"></span>Capturing the reference...</div>');
   try{
     if(!pdfDoc||!$('pc').width) throw new Error('No page rendered');
-    const r=acRectToNorm(rect);
+    let r=acRectToNorm(rect);
     if(r.nw<=0||r.nh<=0) throw new Error('Empty selection');
-    const can=await acRenderRegion(curPage, r.nx,r.ny,r.nw,r.nh, AC_MATCH_SCALE);
-    const b=acIsolateSymbol(can);
+    let can=await acRenderRegion(curPage, r.nx,r.ny,r.nw,r.nh, AC_MATCH_SCALE);
+    let b=acIsolateSymbol(can);
     if(!b) throw new Error('No linework found in that box. Box a symbol, not empty space.');
+    // Clipping guard: if the symbol runs into the edge of the box, the box probably cut
+    // part of it off. Look wider (half the box, then a full box, on every side): if the
+    // symbol then closes up inside the wider box and only grows modestly, use that. If
+    // it keeps running to the edge, it is joined to a wire or wall, so keep the user's
+    // box and ask them to check the thumbnail.
+    let refNote='';
+    if(acTouchesEdge(b,can)){
+      let fixed=false;
+      for(const grow of [0.5,1.0]){
+        const g={nx:Math.max(0,r.nx-r.nw*grow), ny:Math.max(0,r.ny-r.nh*grow)};
+        g.nw=Math.min(1,r.nx+r.nw*(1+grow))-g.nx; g.nh=Math.min(1,r.ny+r.nh*(1+grow))-g.ny;
+        const can2=await acRenderRegion(curPage, g.nx,g.ny,g.nw,g.nh, AC_MATCH_SCALE);
+        const b2=acIsolateSymbol(can2);
+        if(b2&&!acTouchesEdge(b2,can2)&&b2.w<=b.w*2&&b2.h<=b.h*2){
+          r=g; can=can2; b=b2; fixed=true;
+          refNote='Your box cut off part of the symbol, so the rest of it was included automatically. Check the thumbnail.';
+          break;
+        }
+      }
+      if(!fixed) refNote='This symbol touches the edge of your box. If the thumbnail is not the whole symbol, redo the reference with a slightly wider box.';
+    }
     if(b.w<6||b.h<6) throw new Error('That symbol is too small to match reliably. Try a larger box around it.');
     _acRefThumb=b.canvas.toDataURL('image/png'); // shows exactly what will be matched
     _acRef={page:curPage, setId:activeSetId, ...r};
     _acStep='scan';
-    console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE);
-    acShowScanPrompt();
+    console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE+(refNote?'  note: '+refNote:''));
+    acShowScanPrompt(refNote);
   }catch(err){
     console.error('[OnSite] autocount reference failed:', err);
     acSetBody('<div class="ac-err">Could not use that selection.</div>'
@@ -2278,11 +2300,16 @@ function acIsolateSymbol(can){
   octx.putImageData(img,0,0);
   return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out};
 }
+// True if the isolated symbol reaches the edge of the rendered box (bounds are padded by 2px)
+function acTouchesEdge(b, can){
+  return b.x<=0||b.y<=0||b.x+b.w>=can.width||b.y+b.h>=can.height;
+}
 function acRefThumbHtml(){
   return _acRefThumb?'<img class="ac-ref" src="'+_acRefThumb+'" alt="Reference symbol"/>':'';
 }
-function acShowScanPrompt(){
+function acShowScanPrompt(note){
   let html='<div class="ac-name">'+acRefThumbHtml()+'<span>Reference captured</span></div>';
+  if(note) html+='<div class="ac-feat" style="margin-bottom:5px;color:var(--amber)">'+_acEsc(note)+'</div>';
   html+='<div><b>Click two corners</b> around an area to scan, or scan this whole page.</div>';
   html+='<div class="ac-feat" style="margin-top:5px">Matching runs on your computer, no AI calls. Bigger areas take a few seconds.</div>';
   html+='<div class="ac-actions">'
@@ -2325,20 +2352,26 @@ async function acScanRegion(area){
     const mapped=hits.map(h=>({
       x:area.nx+(h.x/W)*area.nw, y:area.ny+(h.y/H)*area.nh,
       w:(h.w/W)*area.nw,         h:(h.h/H)*area.nh,
-      confidence:h.score, rotation:h.rotation, page:curPage, setId:activeSetId
+      confidence:h.score, rotation:h.rotation, page:curPage, setId:activeSetId,
+      flag:h.flag||null,
+      // Job 4 review state: strong, unflagged matches start accepted; everything else
+      // waits for a decision and never counts until accepted.
+      status:(h.score>=AC_GREEN&&!h.flag)?'accepted':'pending'
     }));
-    // Merge with earlier scans: overlapping boxes on the same page are the same symbol
+    // Merge with earlier scans: overlapping boxes on the same page are the same symbol.
+    // The earlier box (and any decision already made on it) is kept.
     let added=0;
     mapped.forEach(m=>{
-      const dup=_acMatches.some(o=>o.page===m.page&&o.setId===m.setId&&acIoU(o,m)>AC_NMS_IOU);
+      const dup=_acMatches.some(o=>o.page===m.page&&o.setId===m.setId&&acSameSpot(o,m));
       if(!dup){ _acMatches.push(m); added++; }
     });
     _acStep='results';
     const ms=Math.round(performance.now()-t0);
     console.log('[OnSite] autocount scan -> '+hits.length+' matches ('+added+' new)  area '+W+'x'+H+' px @ scale '+scale.toFixed(2)+'  template '+b.w+'x'+b.h+'  '+ms+'ms',
-      hits.map(h=>({score:+h.score.toFixed(3), ncc:+h.ncc.toFixed(2), recall:+h.recall.toFixed(2), cell:+h.cellMin.toFixed(2), inner:+h.inner.toFixed(2), rot:h.rotation})));
+      hits.map(h=>({score:+h.score.toFixed(3), ncc:+h.ncc.toFixed(2), recall:+h.recall.toFixed(2), cell:+h.cellMin.toFixed(2), inner:+h.inner.toFixed(2), extra:+(h.extra||0).toFixed(2), flag:h.flag||'', rot:h.rotation})));
+    _acLastScan={found:hits.length, added};
     redraw();
-    acShowMatches(hits.length, added);
+    acShowMatches();
   }catch(err){
     console.error('[OnSite] autocount scan failed:', err);
     acSetBody('<div class="ac-err">Scan failed.</div>'
@@ -2360,6 +2393,9 @@ function acConfColor(c){
   return 'rgb(200,60,50)';
 }
 // Draw this page's matches on the overlay (called from redraw); tracks zoom/pan via toCanvas.
+//   accepted -> solid green with a check mark (counts)
+//   pending  -> dashed, coloured by match strength (does not count until accepted)
+//   rejected -> grey, dashed, crossed out (never counts)
 function acDrawMatches(ctx){
   if(activeTool!=='autocount'||!_acMatches.length) return;
   ctx.save();
@@ -2368,33 +2404,83 @@ function acDrawMatches(ctx){
     const a=toCanvas({x:m.x,y:m.y}), b=toCanvas({x:m.x+m.w,y:m.y+m.h});
     const pad=2;
     const x=Math.min(a.x,b.x)-pad, y=Math.min(a.y,b.y)-pad, w=Math.abs(b.x-a.x)+pad*2, h=Math.abs(b.y-a.y)+pad*2;
-    const col=acConfColor(m.confidence);
-    ctx.lineWidth=2; ctx.strokeStyle=col;
-    ctx.fillStyle=col.replace('rgb(','rgba(').replace(')',',0.12)');
-    ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+    if(m.status==='accepted'){
+      const col='rgb(30,150,70)';
+      ctx.setLineDash([]); ctx.lineWidth=2.5; ctx.strokeStyle=col;
+      ctx.fillStyle='rgba(30,150,70,0.16)';
+      ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+      const r=Math.max(5,Math.min(9,w*0.22)), cx=x+w, cy=y;   // check badge, top-right corner
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5,r*0.3); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(cx-r*0.45,cy); ctx.lineTo(cx-r*0.1,cy+r*0.38); ctx.lineTo(cx+r*0.5,cy-r*0.35); ctx.stroke();
+      ctx.lineCap='butt';
+    } else if(m.status==='rejected'){
+      ctx.setLineDash([3,3]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(110,110,110,0.85)';
+      ctx.strokeRect(x,y,w,h);
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w,y+h); ctx.moveTo(x+w,y); ctx.lineTo(x,y+h); ctx.stroke();
+    } else {
+      const col=acConfColor(m.confidence);
+      ctx.setLineDash([5,3]); ctx.lineWidth=2; ctx.strokeStyle=col;
+      ctx.fillStyle=col.replace('rgb(','rgba(').replace(')',',0.10)');
+      ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+    }
   });
+  ctx.setLineDash([]);
   ctx.restore();
 }
-function acShowMatches(thisScan, added){
-  const onPage=_acMatches.filter(m=>m.page===curPage&&m.setId===activeSetId);
-  const total=onPage.length;
-  const hi=onPage.filter(m=>m.confidence>=AC_GREEN).length;
-  const md=onPage.filter(m=>m.confidence>=AC_AMBER&&m.confidence<AC_GREEN).length;
-  const lo=total-hi-md;
-  let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+thisScan+' found'+(added<thisScan?' ('+added+' new)':'')+'</span></div>';
-  html+='<div class="ac-feat">On this page: '+total+'  ('
-    +'<span style="color:rgb(30,150,70)">'+hi+' strong</span>, '
-    +'<span style="color:rgb(200,140,20)">'+md+' likely</span>, '
-    +'<span style="color:rgb(200,60,50)">'+lo+' weak</span>)</div>';
-  html+='<div class="ac-feat" style="margin-top:4px">Box another area to add to these, or scan the whole page. Read-only for now, nothing is added to your takeoff yet.</div>';
-  html+='<div class="ac-actions">'
-    +'<button class="btn sm" onclick="acScanWholePage()">Scan whole page</button>'
+// Hit-test a click/hover (normalized page point) against this page's match boxes.
+function acHitMatch(pt){
+  const oc=$('oc'); if(!oc.width) return null;
+  const px=4/oc.width, py=4/oc.height; // 4 canvas px of slop
+  for(let i=_acMatches.length-1;i>=0;i--){
+    const m=_acMatches[i];
+    if(m.page!==curPage||m.setId!==activeSetId) continue;
+    if(pt.x>=m.x-px&&pt.x<=m.x+m.w+px&&pt.y>=m.y-py&&pt.y<=m.y+m.h+py) return m;
+  }
+  return null;
+}
+// Click a box: undecided -> accepted -> rejected -> accepted ...
+function acToggleMatch(m){
+  m.status=(m.status==='accepted')?'rejected':'accepted';
+  redraw(); acShowMatches();
+}
+function _acOnPage(){ return _acMatches.filter(m=>m.page===curPage&&m.setId===activeSetId); }
+// Bulk-accept the yellow boxes. Flagged ones (extra linework attached, likely a quad or
+// other variant) are left for an individual click so they can't slip in by the batch.
+function acAcceptAmber(){
+  _acOnPage().forEach(m=>{ if(m.status==='pending'&&m.confidence>=AC_AMBER&&!m.flag) m.status='accepted'; });
+  redraw(); acShowMatches();
+}
+function acRejectPending(){
+  _acOnPage().forEach(m=>{ if(m.status==='pending') m.status='rejected'; });
+  redraw(); acShowMatches();
+}
+function acShowMatches(){
+  const onPage=_acOnPage();
+  const acc=onPage.filter(m=>m.status==='accepted').length;
+  const rej=onPage.filter(m=>m.status==='rejected').length;
+  const pend=onPage.filter(m=>m.status==='pending');
+  const pendAmber=pend.filter(m=>m.confidence>=AC_AMBER&&!m.flag).length;
+  const flagged=pend.filter(m=>m.flag==='extra').length;
+  const ls=_acLastScan||{found:onPage.length, added:onPage.length};
+  let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+acc+' accepted'+(pend.length?', '+pend.length+' to review':'')+'</span></div>';
+  html+='<div class="ac-feat">Last scan found '+ls.found+(ls.added<ls.found?' ('+ls.added+' new)':'')
+    +'. On this page: <span style="color:rgb(30,150,70)">'+acc+' accepted</span>, '
+    +'<span style="color:rgb(200,140,20)">'+pend.length+' undecided</span>, '
+    +'<span style="color:var(--muted)">'+rej+' rejected</span>.</div>';
+  if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
+  html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Undecided boxes never count. Box another area to add more. Nothing goes to your takeoff yet.</div>';
+  html+='<div class="ac-actions">';
+  if(pendAmber) html+='<button class="btn sm" onclick="acAcceptAmber()">Accept '+pendAmber+' yellow</button>';
+  if(pend.length) html+='<button class="btn sm" onclick="acRejectPending()">Reject '+pend.length+' undecided</button>';
+  html+='<button class="btn sm" onclick="acScanWholePage()">Scan whole page</button>'
     +'<button class="btn sm" onclick="acClearMatches()">Clear boxes</button>'
     +'<button class="btn sm" onclick="acRetry()">New reference</button></div>';
   acSetBody(html);
 }
-function acClearMatches(){ _acMatches=[]; redraw(); acStartScan(); }
-function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; redraw(); acSetBody(acRefPromptHtml()); }
+function acClearMatches(){ _acMatches=[]; _acLastScan=null; redraw(); acStartScan(); }
+function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; _acLastScan=null; redraw(); acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ── AC_CORE_BEGIN ──
@@ -2463,7 +2549,7 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
           // stage 2: verify linework at this location
           const v2=acVerify(tInk,tDil,cells,TW,TH,sInk,sDil,SW,x,y);
           const score=v2.score;
-          if(score>=minScore) cands.push({x, y, w:TW, h:TH, score, ncc:v, recall:v2.recall, cellMin:v2.cellMin, inner:v2.inner, rotation:r.deg});
+          if(score>=minScore) cands.push({x, y, w:TW, h:TH, score, ncc:v, recall:v2.recall, cellMin:v2.cellMin, inner:v2.inner, rotation:r.deg, tCount});
         }
       }
       res.delete();
@@ -2474,10 +2560,63 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
   const kept=[];
   for(const c of cands){
     let dup=false;
-    for(const k of kept){ if(acIoU(c,k)>AC_NMS_IOU){ dup=true; break; } }
+    for(const k of kept){ if(acSameSpot(c,k)){ dup=true; break; } }
     if(!dup){ kept.push(c); if(kept.length>=maxHits) break; }
   }
+  acFlagAttachedExtras(kept, sInk, sDil, SW, SH);
   return kept;
+}
+// Variants that CONTAIN the reference plus extra attached linework (a quad built from
+// two duplexes, a duplex with an above-counter mark) pass every check above, because
+// all of the reference is present. So look around each match for COMPACT linework that
+// is attached to the box but ends nearby: a second symbol body, a bar, a tick. Lines
+// that run on out of the search area (walls, wires, home runs) are ignored, since
+// receptacles normally sit on walls and have wiring. Compared against the typical
+// amount across this scan's own matches. Flagged matches are not dropped; they are
+// capped to amber/red so the review step puts them in front of you.
+const AC_EXTRA_FLAG=0.12;   // compact attached ink above typical (share of the symbol's own ink) = review
+const AC_EXTRA_RED=0.50;    // well above typical = likely a different symbol
+function acFlagAttachedExtras(kept, sInk, sDil, SW, SH){
+  if(!kept.length) return;
+  for(const c of kept) c.extra=acAttachedExtra(c, sInk, sDil, SW, SH);
+  const vals=kept.map(c=>c.extra).sort((a,b)=>a-b);
+  const typical=kept.length>=5?vals[Math.floor(vals.length/2)]:0;
+  for(const c of kept){
+    const over=c.extra-typical;
+    if(over>AC_EXTRA_RED){ c.flag='extra'; c.score=Math.min(c.score,0.79); }
+    else if(over>AC_EXTRA_FLAG){ c.flag='extra'; c.score=Math.min(c.score,0.85); }
+  }
+}
+function acAttachedExtra(c, sInk, sDil, SW, SH){
+  const m=Math.round(1.3*Math.max(c.w,c.h));
+  const rx0=c.x-m, ry0=c.y-m, rx1=c.x+c.w-1+m, ry1=c.y+c.h-1+m;   // search area (may extend past the scene)
+  const cx0=Math.max(0,rx0), cy0=Math.max(0,ry0), cx1=Math.min(SW-1,rx1), cy1=Math.min(SH-1,ry1);
+  const RW=cx1-cx0+1, RH=cy1-cy0+1;
+  const inBox=(gx,gy)=>gx>=c.x&&gx<c.x+c.w&&gy>=c.y&&gy<c.y+c.h;
+  const nearBox=(gx,gy)=>gx>=c.x-2&&gx<c.x+c.w+2&&gy>=c.y-2&&gy<c.y+c.h+2;
+  const label=new Uint8Array(RW*RH);
+  let extra=0;
+  for(let ly=0;ly<RH;ly++) for(let lx=0;lx<RW;lx++){
+    const gx=lx+cx0, gy=ly+cy0, li=ly*RW+lx;
+    if(label[li]||inBox(gx,gy)||!sDil[gy*SW+gx]) continue;
+    // flood one component of linework outside the box
+    let ink=0, touchesBox=false, escapes=false;
+    const stack=[li]; label[li]=1;
+    while(stack.length){
+      const ci=stack.pop(), x=ci%RW, y=(ci/RW)|0, X=x+cx0, Y=y+cy0;
+      if(sInk[Y*SW+X]) ink++;
+      if(nearBox(X,Y)) touchesBox=true;
+      if(X<=rx0||X>=rx1||Y<=ry0||Y>=ry1||X<=0||Y<=0||X>=SW-1||Y>=SH-1) escapes=true;
+      for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=RH) continue;
+        for(let dx=-1;dx<=1;dx++){ const nx=x+dx; if(nx<0||nx>=RW) continue;
+          const ni=ny*RW+nx; if(label[ni]) continue;
+          const NX=nx+cx0, NY=ny+cy0;
+          if(inBox(NX,NY)||!sDil[NY*SW+NX]) continue;
+          label[ni]=1; stack.push(ni); } }
+    }
+    if(touchesBox&&!escapes) extra+=ink;
+  }
+  return c.tCount?extra/c.tCount:0;
 }
 // Split the template into a 3x3 grid; return cells holding a meaningful share of ink.
 function acCells(tInk,TW,TH,tCount){
@@ -2523,6 +2662,14 @@ function acDilate(m, W, H){
       for(let dx=-1;dx<=1;dx++){ const xx=x+dx; if(xx<0||xx>=W) continue; out[yy*W+xx]=1; } }
   }
   return out;
+}
+// Two boxes are the same symbol if they overlap enough OR their centres nearly coincide
+// (different rotations of a non-square symbol give differently shaped boxes on one spot).
+function acSameSpot(a,b){
+  if(acIoU(a,b)>AC_NMS_IOU) return true;
+  const dx=(a.x+a.w/2)-(b.x+b.w/2), dy=(a.y+a.h/2)-(b.y+b.h/2);
+  const lim=0.5*Math.min(a.w,a.h,b.w,b.h);
+  return dx*dx+dy*dy<lim*lim;
 }
 function acIoU(a,b){
   const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
@@ -3748,6 +3895,9 @@ function cvm(e){
     return;
   }
   if(activeTool==='cal'&&calPts.length===1){redraw(pt);return;}
+  if(activeTool==='autocount'&&_acStep==='results'&&!_marqStart&&!isPanning){
+    $('cvw').style.cursor=acHitMatch(pt)?'pointer':'';
+  }
   tip.style.display='none';
 }
 
@@ -3771,6 +3921,9 @@ function cvu(e){
     if(wasPanning){ mousedownPos=null; return; } // that drag was a pan, not a corner click
     const pt=getCvPt(e);
     if(_marqStart==null){
+      // Review: a click on a match box toggles it instead of starting a new area box
+      const hitM=(_acStep==='results')?acHitMatch(pt):null;
+      if(hitM){ acToggleMatch(hitM); mousedownPos=null; return; }
       // first corner placed; cvm now rubber-bands a box to the cursor until the 2nd click
       _marqStart=toCanvas(pt);
       _marqRect=null; mousedownPos=null;
