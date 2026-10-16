@@ -2343,7 +2343,13 @@ async function acScanRegion(area){
     const b=acIsolateSymbol(refCan);
     if(!b) throw new Error('Reference has no linework at this scale');
     const areaCan=await acRenderRegion(curPage, area.nx,area.ny,area.nw,area.nh, scale);
-    if(b.w>=areaCan.width||b.h>=areaCan.height) throw new Error('The scan area is smaller than the symbol. Box a larger area.');
+    if(areaCan.width<b.w*1.5||areaCan.height<b.h*1.5){
+      // Too small to hold the symbol: almost always a review click that missed a box and
+      // then a second click. Ignore it quietly and put the chip back as it was.
+      toast('Area too small to scan, ignored');
+      if(_acStep==='results') acShowMatches(); else acShowScanPrompt();
+      return;
+    }
     await _acPaint();
     tmpl=acCanvasToGray(cv, b.canvas); // cleaned symbol only
     scene=acCanvasToGray(cv, areaCan);
@@ -2370,6 +2376,11 @@ async function acScanRegion(area){
     console.log('[OnSite] autocount scan -> '+hits.length+' matches ('+added+' new)  area '+W+'x'+H+' px @ scale '+scale.toFixed(2)+'  template '+b.w+'x'+b.h+'  '+ms+'ms',
       hits.map(h=>({score:+h.score.toFixed(3), ncc:+h.ncc.toFixed(2), recall:+h.recall.toFixed(2), cell:+h.cellMin.toFixed(2), inner:+h.inner.toFixed(2), extra:+(h.extra||0).toFixed(2), flag:h.flag||'', rot:h.rotation})));
     _acLastScan={found:hits.length, added};
+    const why={green:0, flaggedAttached:0, weakerYellow:0, weakerRed:0};
+    hits.forEach(h=>{ if(h.flag) why.flaggedAttached++; else if(h.score>=AC_GREEN) why.green++; else if(h.score>=AC_AMBER) why.weakerYellow++; else why.weakerRed++; });
+    console.log('[OnSite] autocount breakdown: '+why.green+' green, '+why.flaggedAttached+' flagged (attached linework), '+why.weakerYellow+' weaker yellow, '+why.weakerRed+' weaker red'
+      +'  | flagged extra values: '+hits.filter(h=>h.flag).map(h=>h.extra.toFixed(2)).join(',')
+      +'  | weaker scores: '+hits.filter(h=>!h.flag&&h.score<AC_GREEN).map(h=>h.score.toFixed(2)+'(rec '+h.recall.toFixed(2)+' cell '+h.cellMin.toFixed(2)+' in '+h.inner.toFixed(2)+')').join(', '));
     redraw();
     acShowMatches();
   }catch(err){
@@ -2432,7 +2443,8 @@ function acDrawMatches(ctx){
 // Hit-test a click/hover (normalized page point) against this page's match boxes.
 function acHitMatch(pt){
   const oc=$('oc'); if(!oc.width) return null;
-  const px=4/oc.width, py=4/oc.height; // 4 canvas px of slop
+  const r=oc.getBoundingClientRect(); if(!r.width) return null;
+  const px=8/r.width, py=8/r.height; // 8 screen px of slop, so near-misses still hit the box
   for(let i=_acMatches.length-1;i>=0;i--){
     const m=_acMatches[i];
     if(m.page!==curPage||m.setId!==activeSetId) continue;
@@ -2469,7 +2481,8 @@ function acShowMatches(){
     +'. On this page: <span style="color:rgb(30,150,70)">'+acc+' accepted</span>, '
     +'<span style="color:rgb(200,140,20)">'+pend.length+' undecided</span>, '
     +'<span style="color:var(--muted)">'+rej+' rejected</span>.</div>';
-  if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
+  if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' undecided have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
+  if(pend.length-flagged>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged)+' undecided are weaker matches.</div>';
   html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Undecided boxes never count. Box another area to add more. Nothing goes to your takeoff yet.</div>';
   html+='<div class="ac-actions">';
   if(pendAmber) html+='<button class="btn sm" onclick="acAcceptAmber()">Accept '+pendAmber+' yellow</button>';
@@ -4012,6 +4025,11 @@ function cvleave(e){
 
 // keyboard
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&activeTool==='autocount'&&_marqStart){
+    // first corner of an area placed by mistake: cancel just that, stay in Auto-Count
+    _marqStart=null; _marqRect=null; if(_marqEl){_marqEl.remove();_marqEl=null;}
+    return;
+  }
   if(e.key==='Escape'){
     if(isDrawing){isDrawing=false;curPts=[];redraw();}
     selectedMarker=null; _selectDragging=false;
