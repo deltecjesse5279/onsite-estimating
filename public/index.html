@@ -256,6 +256,9 @@ tr:hover .dbtn{opacity:1}
 #ac-chip .ac-spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:ac-spin .7s linear infinite;vertical-align:-2px;margin-right:5px}
 @keyframes ac-spin{to{transform:rotate(360deg)}}
 #ac-chip .ac-err{color:var(--danger,#c0392b);font-weight:600}
+#ac-chip .ac-push{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+#ac-chip .ac-target{flex:1;min-width:0;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg,#fff)}
+#ac-chip .ac-push .btn[disabled]{opacity:.45;cursor:default}
 #ac-chip .ac-ref{max-height:34px;max-width:70px;border:1px solid var(--border);border-radius:4px;background:#fff;padding:2px;image-rendering:pixelated;flex-shrink:0}
 /* toast */
 .toast{position:fixed;bottom:18px;right:18px;background:#1a1a18;color:#fff;padding:9px 14px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -1326,6 +1329,8 @@ let _acRefThumb=null;    // data URL of the trimmed reference, shown in the chip
 let _acBusy=false;       // true while a capture or scan is running
 let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId,flag,status}
 let _acLastScan=null;    // {found, added} from the most recent scan, for the chip
+let _acLastPush=null;    // {added, skipped, name} from the most recent push to the takeoff
+let _acHideCounted=false; // "New only" view: hide boxes on symbols already counted on some layer
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2119,6 +2124,13 @@ function cvte(e){
 }
 
 // ─── Tools ───
+// Picking or creating a layer normally switches to its drawing tool. While Auto-Count is
+// open that would throw away the review, so stay in Auto-Count and just refresh the chip
+// (the newly active layer becomes the push target).
+function setLayerTool(t){
+  if(activeTool==='autocount'){ if(_acStep==='results') acShowMatches(); return; }
+  setTool(t,true);
+}
 function setTool(t, silent){
   const leavingAutocount=(activeTool==='autocount'&&t!=='autocount');
   activeTool=t;
@@ -2182,7 +2194,7 @@ function acEnter(){
   acLoadCv().catch(()=>{}); // start the one-time download while the user boxes a reference
 }
 function acExit(){
-  _acStep=null; _acBusy=false; _acMatches=[];
+  _acStep=null; _acBusy=false; _acMatches=[]; _acLastPush=null;
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
   $('ac-chip').classList.remove('show');
@@ -2368,6 +2380,10 @@ async function acScanRegion(area){
       // waits for a decision and never counts until accepted.
       status:(h.score>=AC_GREEN&&!h.flag)?'accepted':'pending'
     }));
+    // Symbols that already carry a count point from ANY layer are marked "counted": shown
+    // in their own style, never pre-accepted, so a rescan shows only what is left and a
+    // look-alike cannot slip onto a second layer by accident. Click one to include it anyway.
+    mapped.forEach(m=>{ const by=acCountedBy(m); if(by.length){ m.status='counted'; m.countedBy=by; } });
     // Merge with earlier scans: overlapping boxes on the same page are the same symbol.
     // The earlier box (and any decision already made on it) is kept.
     let added=0;
@@ -2416,9 +2432,21 @@ function acDrawMatches(ctx){
   ctx.save();
   _acMatches.forEach(m=>{
     if(m.page!==curPage||m.setId!==activeSetId) return;
+    if(m.status==='counted'&&_acHideCounted) return;
     const a=toCanvas({x:m.x,y:m.y}), b=toCanvas({x:m.x+m.w,y:m.y+m.h});
     const pad=2;
     const x=Math.min(a.x,b.x)-pad, y=Math.min(a.y,b.y)-pad, w=Math.abs(b.x-a.x)+pad*2, h=Math.abs(b.y-a.y)+pad*2;
+    if(m.status==='counted'){
+      // already counted: thin slate outline + a dot in the colour of the layer that has it
+      ctx.setLineDash([]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(70,100,140,0.85)';
+      ctx.strokeRect(x,y,w,h);
+      const it=items.find(i=>m.countedBy&&i.id===m.countedBy[0]);
+      const r=Math.max(3.5,Math.min(6,w*0.16));
+      ctx.fillStyle=it?it.color:'rgb(70,100,140)';
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      return;
+    }
     if(m.status==='accepted'){
       const col='rgb(30,150,70)';
       ctx.setLineDash([]); ctx.lineWidth=2.5; ctx.strokeStyle=col;
@@ -2452,11 +2480,13 @@ function acHitMatch(pt){
   for(let i=_acMatches.length-1;i>=0;i--){
     const m=_acMatches[i];
     if(m.page!==curPage||m.setId!==activeSetId) continue;
+    if(m.status==='counted'&&_acHideCounted) continue;
     if(pt.x>=m.x-px&&pt.x<=m.x+m.w+px&&pt.y>=m.y-py&&pt.y<=m.y+m.h+py) return m;
   }
   return null;
 }
 // Click a box: undecided -> accepted -> rejected -> accepted ...
+// Click: undecided/counted -> accepted -> rejected -> accepted ...
 function acToggleMatch(m){
   m.status=(m.status==='accepted')?'rejected':'accepted';
   redraw(); acShowMatches();
@@ -2480,24 +2510,113 @@ function acShowMatches(){
   const pendAmber=pend.filter(m=>m.confidence>=AC_AMBER&&!m.flag).length;
   const flagged=pend.filter(m=>m.flag==='extra').length;
   const ls=_acLastScan||{found:onPage.length, added:onPage.length};
+  const counted=onPage.filter(m=>m.status==='counted');
+  const cNames=[...new Set(counted.flatMap(m=>m.countedBy||[]))].map(id=>{ const it=items.find(i=>i.id===id); return it?it.name:null; }).filter(Boolean);
   let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+acc+' accepted'+(pend.length?', '+pend.length+' to review':'')+'</span></div>';
+  if(_acLastPush) html+='<div class="ac-feat" style="margin-bottom:4px;color:rgb(30,150,70)">Added '+_acLastPush.added+' to '+_acEsc(_acLastPush.name)
+    +(_acLastPush.skipped?' ('+_acLastPush.skipped+' were already counted, skipped)':'')+'. Save to keep them.</div>';
   html+='<div class="ac-feat">Last scan found '+ls.found+(ls.added<ls.found?' ('+ls.added+' new)':'')
     +'. On this page: <span style="color:rgb(30,150,70)">'+acc+' accepted</span>, '
     +'<span style="color:rgb(200,140,20)">'+pend.length+' undecided</span>, '
-    +'<span style="color:var(--muted)">'+rej+' rejected</span>.</div>';
+    +'<span style="color:var(--muted)">'+rej+' rejected</span>'
+    +(counted.length?', <span style="color:rgb(70,100,140)">'+counted.length+' already counted</span>':'')+'.</div>';
+  if(counted.length) html+='<div class="ac-feat" style="margin-top:3px">Already counted on: '+cNames.map(_acEsc).join(', ')
+    +'. These are left out unless you click one to include it.'+(_acHideCounted?' (Hidden: showing new only.)':'')+'</div>';
+  if(!acc&&!pend.length&&counted.length&&!rej) html+='<div class="ac-feat" style="margin-top:3px;color:rgb(30,150,70)"><b>Everything found here is already counted.</b></div>';
   if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' undecided have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
   if(pend.length-flagged>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged)+' undecided are weaker matches.</div>';
-  html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Undecided boxes never count. Box another area to add more. Nothing goes to your takeoff yet.</div>';
+  html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Only accepted boxes are added; undecided ones never count.</div>';
+  html+=acPushHtml(acc);
   html+='<div class="ac-actions">';
   if(pendAmber) html+='<button class="btn sm" onclick="acAcceptAmber()">Accept '+pendAmber+' yellow</button>';
   if(pend.length) html+='<button class="btn sm" onclick="acRejectPending()">Reject '+pend.length+' undecided</button>';
+  if(counted.length) html+='<button class="btn sm" onclick="acToggleHideCounted()">'+(_acHideCounted?'Show counted':'New only')+'</button>';
   html+='<button class="btn sm" onclick="acScanWholePage()">Scan whole page</button>'
     +'<button class="btn sm" onclick="acClearMatches()">Clear boxes</button>'
     +'<button class="btn sm" onclick="acRetry()">New reference</button></div>';
   acSetBody(html);
 }
-function acClearMatches(){ _acMatches=[]; _acLastScan=null; redraw(); acStartScan(); }
-function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; _acLastScan=null; redraw(); acSetBody(acRefPromptHtml()); }
+// Layers (item ids) that already have a count point inside this box on this page/set.
+function acCountedBy(m){
+  const padX=m.w*0.15, padY=m.h*0.15, ids=[];
+  items.forEach(it=>{
+    const hit=(it.markups||[]).some(mk=>mk.type==='count'&&mk.page===m.page&&mSetId(mk)===m.setId
+      &&mk.pts.some(p=>p.x>=m.x-padX&&p.x<=m.x+m.w+padX&&p.y>=m.y-padY&&p.y<=m.y+m.h+padY));
+    if(hit) ids.push(it.id);
+  });
+  return ids;
+}
+function acToggleHideCounted(){ _acHideCounted=!_acHideCounted; redraw(); acShowMatches(); }
+
+// ─── Job 5: push accepted matches into the takeoff ───
+// A layer can take count markups unless it is a linear (run) layer.
+function acIsCountLayer(it){
+  if(!it) return false;
+  if(it.type==='linear') return false;
+  const u=((it.lib&&it.lib.unit)||'').toLowerCase();
+  return !['ft','m','lf'].includes(u);
+}
+let _acPushTarget=null;   // item id chosen in the chip; falls back to the active layer
+function acPushTargetIdx(){
+  if(_acPushTarget){
+    const i=items.findIndex(it=>it.id===_acPushTarget);
+    if(i>=0&&acIsCountLayer(items[i])) return i;
+  }
+  if(activeItemIdx!=null&&activeItemIdx>=0&&acIsCountLayer(items[activeItemIdx])) return activeItemIdx;
+  return -1;
+}
+function acPickTarget(v){
+  if(v==='__new'){ _acPushTarget=null; openNewLayerModal(); return; } // new layer becomes active -> target
+  _acPushTarget=v||null;
+  acShowMatches();
+}
+function acPushHtml(acc){
+  const tIdx=acPushTargetIdx();
+  const opts=items.map((it,i)=>acIsCountLayer(it)
+    ?'<option value="'+_acEsc(it.id)+'"'+(i===tIdx?' selected':'')+'>'+_acEsc(it.name)+'</option>':'').join('');
+  let html='<div class="ac-push">';
+  html+='<select class="ac-target" onchange="acPickTarget(this.value)">'
+    +(tIdx<0?'<option value="" selected>Choose a layer...</option>':'')
+    +opts+'<option value="__new">+ New layer...</option></select>';
+  html+='<button class="btn sm primary" onclick="acPushAccepted()"'+((acc&&tIdx>=0)?'':' disabled')+'>Add '+acc+' to takeoff</button>';
+  html+='</div>';
+  return html;
+}
+// Accepted boxes on this page become count points (box centres) on the target layer,
+// tagged with this page and drawing set, exactly like hand-placed counts. A box that
+// already has a count point of that layer inside it is skipped, so pushing twice, or
+// pushing where you already counted by hand, never double-counts. Pushed boxes leave
+// the overlay; undecided and rejected ones stay.
+function acPushAccepted(){
+  const tIdx=acPushTargetIdx();
+  if(tIdx<0){ toast('Choose a count layer to add these to'); return; }
+  const item=items[tIdx];
+  const acc=_acOnPage().filter(m=>m.status==='accepted');
+  if(!acc.length){ toast('Nothing accepted to add'); return; }
+  let mk=item.markups.find(x=>x.type==='count'&&x.page===curPage&&mSetId(x)===activeSetId);
+  const existing=mk?mk.pts.slice():[];
+  let added=0, skipped=0;
+  const pushed=new Set();
+  acc.forEach(m=>{
+    const padX=m.w*0.15, padY=m.h*0.15;
+    const dup=existing.some(p=>p.x>=m.x-padX&&p.x<=m.x+m.w+padX&&p.y>=m.y-padY&&p.y<=m.y+m.h+padY);
+    pushed.add(m);
+    if(dup){ skipped++; return; }
+    const pt={x:m.x+m.w/2, y:m.y+m.h/2};
+    if(!mk){ mk={type:'count',value:0,unit:item.lib.unit||'ea',pts:[],page:curPage,setId:activeSetId}; item.markups.push(mk); }
+    mk.pts.push(pt); existing.push(pt); added++;
+  });
+  if(mk) mk.value=mk.pts.length;
+  _acMatches=_acMatches.filter(m=>!pushed.has(m));
+  _acPushTarget=item.id;
+  console.log('[OnSite] autocount push -> '+added+' added to "'+item.name+'" page '+curPage+' set '+activeSetId+(skipped?', '+skipped+' skipped (already counted)':''));
+  _acLastPush={added, skipped, name:item.name};
+  renderGroups(); updateThumbMarkers(); redraw();
+  toast('Added '+added+' to '+item.name+(skipped?' ('+skipped+' already counted)':''));
+  acShowMatches();
+}
+function acClearMatches(){ _acMatches=[]; _acLastScan=null; _acLastPush=null; redraw(); acStartScan(); }
+function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; _acLastScan=null; _acLastPush=null; redraw(); acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ── AC_CORE_BEGIN ──
@@ -3447,7 +3566,7 @@ function selectItem(ref){
   }
   activeItemIdx=idx;
   const isLinear=['ft','m','lf'].includes((libItem.unit||'').toLowerCase());
-  setTool(isLinear?'measure':'count',true);
+  setLayerTool(isLinear?'measure':'count');
   renderGroups();
   toast('Active: '+(libItem.code||libItem.description)+' — '+(isLinear?'draw runs':'click to count'));
 }
@@ -3682,7 +3801,7 @@ function confirmNewLayer(){
     gci++;
     activeItemIdx=items.length-1;
     const isLinear=_nlType==='linear'||['ft','m','lf'].includes(unitVal);
-    setTool(isLinear?'measure':'count',true);
+    setLayerTool(isLinear?'measure':'count');
     closeMo('layer-mo');
     renderGroups();
     toast('Layer ready \u2014 '+(isLinear?'draw runs on the drawing':'click the drawing to count'));
@@ -4243,7 +4362,7 @@ function clickItemHdr(idx,e){
     // Activate this layer and restore its drawing tool
     activeItemIdx=idx;
     collapsedItems.delete(it.id);
-    setTool(expectedTool,true);
+    setLayerTool(expectedTool);
     renderGroups();
     toast('Active: '+it.name);
   }
