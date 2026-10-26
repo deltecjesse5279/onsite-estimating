@@ -256,6 +256,9 @@ tr:hover .dbtn{opacity:1}
 #ac-chip .ac-spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:ac-spin .7s linear infinite;vertical-align:-2px;margin-right:5px}
 @keyframes ac-spin{to{transform:rotate(360deg)}}
 #ac-chip .ac-err{color:var(--danger,#c0392b);font-weight:600}
+#ac-chip .ac-push{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+#ac-chip .ac-target{flex:1;min-width:0;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg,#fff)}
+#ac-chip .ac-push .btn[disabled]{opacity:.45;cursor:default}
 #ac-chip .ac-ref{max-height:34px;max-width:70px;border:1px solid var(--border);border-radius:4px;background:#fff;padding:2px;image-rendering:pixelated;flex-shrink:0}
 /* toast */
 .toast{position:fixed;bottom:18px;right:18px;background:#1a1a18;color:#fff;padding:9px 14px;border-radius:var(--radius);font-size:13px;z-index:600;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -1326,6 +1329,9 @@ let _acRefThumb=null;    // data URL of the trimmed reference, shown in the chip
 let _acBusy=false;       // true while a capture or scan is running
 let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId,flag,status}
 let _acLastScan=null;    // {found, added} from the most recent scan, for the chip
+let _acSatInfo=null;     // {used, consistent} for nearby letters beside the reference symbol
+let _acLastPush=null;    // {added, skipped, name} from the most recent push to the takeoff
+let _acHideCounted=false; // "New only" view: hide boxes on symbols already counted on some layer
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
 let _selPts=[];
 // layer detail card active tab: 'summary' | 'drawings'
@@ -2119,6 +2125,13 @@ function cvte(e){
 }
 
 // ─── Tools ───
+// Picking or creating a layer normally switches to its drawing tool. While Auto-Count is
+// open that would throw away the review, so stay in Auto-Count and just refresh the chip
+// (the newly active layer becomes the push target).
+function setLayerTool(t){
+  if(activeTool==='autocount'){ if(_acStep==='results') acShowMatches(); return; }
+  setTool(t,true);
+}
 function setTool(t, silent){
   const leavingAutocount=(activeTool==='autocount'&&t!=='autocount');
   activeTool=t;
@@ -2182,7 +2195,7 @@ function acEnter(){
   acLoadCv().catch(()=>{}); // start the one-time download while the user boxes a reference
 }
 function acExit(){
-  _acStep=null; _acBusy=false; _acMatches=[];
+  _acStep=null; _acBusy=false; _acMatches=[]; _acLastPush=null;
   if(_marqEl){_marqEl.remove();_marqEl=null;}
   _marqStart=null; _marqRect=null;
   $('ac-chip').classList.remove('show');
@@ -2267,10 +2280,10 @@ async function acSetReference(rect){
       if(!fixed) refNote='This symbol touches the edge of your box. If the thumbnail is not the whole symbol, redo the reference with a slightly wider box.';
     }
     if(b.w<6||b.h<6) throw new Error('That symbol is too small to match reliably. Try a larger box around it.');
-    _acRefThumb=b.canvas.toDataURL('image/png'); // shows exactly what will be matched
+    _acRefThumb=b.thumb.toDataURL('image/png'); // shows exactly what will be matched (blue = nearby letters, kept only if they repeat)
     _acRef={page:curPage, setId:activeSetId, ...r};
     _acStep='scan';
-    console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE+(refNote?'  note: '+refNote:''));
+    console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE+'  ink cut '+b.cut+(refNote?'  note: '+refNote:''));
     acShowScanPrompt(refNote);
   }catch(err){
     console.error('[OnSite] autocount reference failed:', err);
@@ -2287,18 +2300,31 @@ function acIsolateSymbol(can){
   const d=can.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const gray={cols:W, rows:H, data:new Uint8Array(W*H)};
   for(let i=0,j=0;i<gray.data.length;i++,j+=4) gray.data[i]=(d[j]*299+d[j+1]*587+d[j+2]*114)/1000;
-  const b=acSymbolBounds(gray, 2, 2); // bridges gaps up to ~4px (about 2pt at the match scale)
+  // Ink cut from the symbol itself, so lighter background (gray walls, room names) is
+  // dropped. Core = linework at the centre plus anything enclosing or enclosed by it;
+  // satellites = small pieces beside it (letters like "SD", or a circuit label), which
+  // the scan keeps only if they repeat on the other matches.
+  const cut=acInkCut(gray);
+  const b=acSymbolBounds(gray, 1, 2, cut);
   if(!b) return null;
   const out=document.createElement('canvas'); out.width=b.w; out.height=b.h;
   const octx=out.getContext('2d',{willReadFrequently:true});
   const img=octx.createImageData(b.w,b.h);
   for(let y=0;y<b.h;y++) for(let x=0;x<b.w;x++){
     const si=(b.y+y)*W+(b.x+x), oi=(y*b.w+x)*4;
-    const v=b.keep[si]?gray.data[si]:255;
+    const v=(b.keep[si]&&gray.data[si]<cut)?gray.data[si]:255;
     img.data[oi]=img.data[oi+1]=img.data[oi+2]=v; img.data[oi+3]=255;
   }
   octx.putImageData(img,0,0);
-  return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out};
+  // Thumbnail: core in black, satellites in blue, on one canvas covering both
+  let tx0=0, ty0=0, tx1=b.w-1, ty1=b.h-1;
+  b.sats.forEach(st=>st.pts.forEach(([px,py])=>{ tx0=Math.min(tx0,px); ty0=Math.min(ty0,py); tx1=Math.max(tx1,px); ty1=Math.max(ty1,py); }));
+  const th=document.createElement('canvas'); th.width=tx1-tx0+3; th.height=ty1-ty0+3;
+  const tctx=th.getContext('2d'); tctx.fillStyle='#fff'; tctx.fillRect(0,0,th.width,th.height);
+  tctx.drawImage(out, 1-tx0, 1-ty0);
+  tctx.fillStyle='rgb(40,90,200)';
+  b.sats.forEach(st=>st.pts.forEach(([px,py])=>tctx.fillRect(px-tx0+1,py-ty0+1,1,1)));
+  return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out, thumb:th, sats:b.sats, cut};
 }
 // True if the isolated symbol reaches the edge of the rendered box (bounds are padded by 2px)
 function acTouchesEdge(b, can){
@@ -2353,7 +2379,8 @@ async function acScanRegion(area){
     await _acPaint();
     tmpl=acCanvasToGray(cv, b.canvas); // cleaned symbol only
     scene=acCanvasToGray(cv, areaCan);
-    const hits=acMatchCore(cv, scene, tmpl);
+    const hits=acMatchCore(cv, scene, tmpl, {ink:b.cut, sats:b.sats});
+    _acSatInfo=(hits.satInfo&&hits.satInfo.length)?hits.satInfo[0]:null;
     const W=areaCan.width, H=areaCan.height;
     const mapped=hits.map(h=>({
       x:area.nx+(h.x/W)*area.nw, y:area.ny+(h.y/H)*area.nh,
@@ -2364,6 +2391,10 @@ async function acScanRegion(area){
       // waits for a decision and never counts until accepted.
       status:(h.score>=AC_GREEN&&!h.flag)?'accepted':'pending'
     }));
+    // Symbols that already carry a count point from ANY layer are marked "counted": shown
+    // in their own style, never pre-accepted, so a rescan shows only what is left and a
+    // look-alike cannot slip onto a second layer by accident. Click one to include it anyway.
+    mapped.forEach(m=>{ const by=acCountedBy(m); if(by.length){ m.status='counted'; m.countedBy=by; } });
     // Merge with earlier scans: overlapping boxes on the same page are the same symbol.
     // The earlier box (and any decision already made on it) is kept.
     let added=0;
@@ -2412,9 +2443,21 @@ function acDrawMatches(ctx){
   ctx.save();
   _acMatches.forEach(m=>{
     if(m.page!==curPage||m.setId!==activeSetId) return;
+    if(m.status==='counted'&&_acHideCounted) return;
     const a=toCanvas({x:m.x,y:m.y}), b=toCanvas({x:m.x+m.w,y:m.y+m.h});
     const pad=2;
     const x=Math.min(a.x,b.x)-pad, y=Math.min(a.y,b.y)-pad, w=Math.abs(b.x-a.x)+pad*2, h=Math.abs(b.y-a.y)+pad*2;
+    if(m.status==='counted'){
+      // already counted: thin slate outline + a dot in the colour of the layer that has it
+      ctx.setLineDash([]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(70,100,140,0.85)';
+      ctx.strokeRect(x,y,w,h);
+      const it=items.find(i=>m.countedBy&&i.id===m.countedBy[0]);
+      const r=Math.max(3.5,Math.min(6,w*0.16));
+      ctx.fillStyle=it?it.color:'rgb(70,100,140)';
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      return;
+    }
     if(m.status==='accepted'){
       const col='rgb(30,150,70)';
       ctx.setLineDash([]); ctx.lineWidth=2.5; ctx.strokeStyle=col;
@@ -2448,11 +2491,13 @@ function acHitMatch(pt){
   for(let i=_acMatches.length-1;i>=0;i--){
     const m=_acMatches[i];
     if(m.page!==curPage||m.setId!==activeSetId) continue;
+    if(m.status==='counted'&&_acHideCounted) continue;
     if(pt.x>=m.x-px&&pt.x<=m.x+m.w+px&&pt.y>=m.y-py&&pt.y<=m.y+m.h+py) return m;
   }
   return null;
 }
 // Click a box: undecided -> accepted -> rejected -> accepted ...
+// Click: undecided/counted -> accepted -> rejected -> accepted ...
 function acToggleMatch(m){
   m.status=(m.status==='accepted')?'rejected':'accepted';
   redraw(); acShowMatches();
@@ -2476,24 +2521,119 @@ function acShowMatches(){
   const pendAmber=pend.filter(m=>m.confidence>=AC_AMBER&&!m.flag).length;
   const flagged=pend.filter(m=>m.flag==='extra').length;
   const ls=_acLastScan||{found:onPage.length, added:onPage.length};
+  const satNote=_acSatInfo?(_acSatInfo.used
+      ?'The letters beside the symbol (blue in the thumbnail) repeat on the matches, so they are treated as part of it.'
+      :'The text beside the symbol (blue in the thumbnail) does not repeat, so it was treated as a label and ignored.'):'';
+  const counted=onPage.filter(m=>m.status==='counted');
+  const cNames=[...new Set(counted.flatMap(m=>m.countedBy||[]))].map(id=>{ const it=items.find(i=>i.id===id); return it?it.name:null; }).filter(Boolean);
   let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+acc+' accepted'+(pend.length?', '+pend.length+' to review':'')+'</span></div>';
+  if(_acLastPush) html+='<div class="ac-feat" style="margin-bottom:4px;color:rgb(30,150,70)">Added '+_acLastPush.added+' to '+_acEsc(_acLastPush.name)
+    +(_acLastPush.skipped?' ('+_acLastPush.skipped+' were already counted, skipped)':'')+'. Save to keep them.</div>';
   html+='<div class="ac-feat">Last scan found '+ls.found+(ls.added<ls.found?' ('+ls.added+' new)':'')
     +'. On this page: <span style="color:rgb(30,150,70)">'+acc+' accepted</span>, '
     +'<span style="color:rgb(200,140,20)">'+pend.length+' undecided</span>, '
-    +'<span style="color:var(--muted)">'+rej+' rejected</span>.</div>';
+    +'<span style="color:var(--muted)">'+rej+' rejected</span>'
+    +(counted.length?', <span style="color:rgb(70,100,140)">'+counted.length+' already counted</span>':'')+'.</div>';
+  if(counted.length) html+='<div class="ac-feat" style="margin-top:3px">Already counted on: '+cNames.map(_acEsc).join(', ')
+    +'. These are left out unless you click one to include it.'+(_acHideCounted?' (Hidden: showing new only.)':'')+'</div>';
+  if(!acc&&!pend.length&&counted.length&&!rej) html+='<div class="ac-feat" style="margin-top:3px;color:rgb(30,150,70)"><b>Everything found here is already counted.</b></div>';
+  if(satNote) html+='<div class="ac-feat" style="margin-top:3px">'+satNote+'</div>';
   if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' undecided have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
-  if(pend.length-flagged>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged)+' undecided are weaker matches.</div>';
-  html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Undecided boxes never count. Box another area to add more. Nothing goes to your takeoff yet.</div>';
+  const satFlag=pend.filter(m=>m.flag==='sat').length;
+  if(satFlag) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+satFlag+' undecided are missing the letters beside the symbol, so they may be a different device. Click each one to decide.</div>';
+  if(pend.length-flagged-satFlag>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged-satFlag)+' undecided are weaker matches.</div>';
+  html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Only accepted boxes are added; undecided ones never count.</div>';
+  html+=acPushHtml(acc);
   html+='<div class="ac-actions">';
   if(pendAmber) html+='<button class="btn sm" onclick="acAcceptAmber()">Accept '+pendAmber+' yellow</button>';
   if(pend.length) html+='<button class="btn sm" onclick="acRejectPending()">Reject '+pend.length+' undecided</button>';
+  if(counted.length) html+='<button class="btn sm" onclick="acToggleHideCounted()">'+(_acHideCounted?'Show counted':'New only')+'</button>';
   html+='<button class="btn sm" onclick="acScanWholePage()">Scan whole page</button>'
     +'<button class="btn sm" onclick="acClearMatches()">Clear boxes</button>'
     +'<button class="btn sm" onclick="acRetry()">New reference</button></div>';
   acSetBody(html);
 }
-function acClearMatches(){ _acMatches=[]; _acLastScan=null; redraw(); acStartScan(); }
-function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; _acLastScan=null; redraw(); acSetBody(acRefPromptHtml()); }
+// Layers (item ids) that already have a count point inside this box on this page/set.
+function acCountedBy(m){
+  const padX=m.w*0.15, padY=m.h*0.15, ids=[];
+  items.forEach(it=>{
+    const hit=(it.markups||[]).some(mk=>mk.type==='count'&&mk.page===m.page&&mSetId(mk)===m.setId
+      &&mk.pts.some(p=>p.x>=m.x-padX&&p.x<=m.x+m.w+padX&&p.y>=m.y-padY&&p.y<=m.y+m.h+padY));
+    if(hit) ids.push(it.id);
+  });
+  return ids;
+}
+function acToggleHideCounted(){ _acHideCounted=!_acHideCounted; redraw(); acShowMatches(); }
+
+// ─── Job 5: push accepted matches into the takeoff ───
+// A layer can take count markups unless it is a linear (run) layer.
+function acIsCountLayer(it){
+  if(!it) return false;
+  if(it.type==='linear') return false;
+  const u=((it.lib&&it.lib.unit)||'').toLowerCase();
+  return !['ft','m','lf'].includes(u);
+}
+let _acPushTarget=null;   // item id chosen in the chip; falls back to the active layer
+function acPushTargetIdx(){
+  if(_acPushTarget){
+    const i=items.findIndex(it=>it.id===_acPushTarget);
+    if(i>=0&&acIsCountLayer(items[i])) return i;
+  }
+  if(activeItemIdx!=null&&activeItemIdx>=0&&acIsCountLayer(items[activeItemIdx])) return activeItemIdx;
+  return -1;
+}
+function acPickTarget(v){
+  if(v==='__new'){ _acPushTarget=null; openNewLayerModal(); return; } // new layer becomes active -> target
+  _acPushTarget=v||null;
+  acShowMatches();
+}
+function acPushHtml(acc){
+  const tIdx=acPushTargetIdx();
+  const opts=items.map((it,i)=>acIsCountLayer(it)
+    ?'<option value="'+_acEsc(it.id)+'"'+(i===tIdx?' selected':'')+'>'+_acEsc(it.name)+'</option>':'').join('');
+  let html='<div class="ac-push">';
+  html+='<select class="ac-target" onchange="acPickTarget(this.value)">'
+    +(tIdx<0?'<option value="" selected>Choose a layer...</option>':'')
+    +opts+'<option value="__new">+ New layer...</option></select>';
+  html+='<button class="btn sm primary" onclick="acPushAccepted()"'+((acc&&tIdx>=0)?'':' disabled')+'>Add '+acc+' to takeoff</button>';
+  html+='</div>';
+  return html;
+}
+// Accepted boxes on this page become count points (box centres) on the target layer,
+// tagged with this page and drawing set, exactly like hand-placed counts. A box that
+// already has a count point of that layer inside it is skipped, so pushing twice, or
+// pushing where you already counted by hand, never double-counts. Pushed boxes leave
+// the overlay; undecided and rejected ones stay.
+function acPushAccepted(){
+  const tIdx=acPushTargetIdx();
+  if(tIdx<0){ toast('Choose a count layer to add these to'); return; }
+  const item=items[tIdx];
+  const acc=_acOnPage().filter(m=>m.status==='accepted');
+  if(!acc.length){ toast('Nothing accepted to add'); return; }
+  let mk=item.markups.find(x=>x.type==='count'&&x.page===curPage&&mSetId(x)===activeSetId);
+  const existing=mk?mk.pts.slice():[];
+  let added=0, skipped=0;
+  const pushed=new Set();
+  acc.forEach(m=>{
+    const padX=m.w*0.15, padY=m.h*0.15;
+    const dup=existing.some(p=>p.x>=m.x-padX&&p.x<=m.x+m.w+padX&&p.y>=m.y-padY&&p.y<=m.y+m.h+padY);
+    pushed.add(m);
+    if(dup){ skipped++; return; }
+    const pt={x:m.x+m.w/2, y:m.y+m.h/2};
+    if(!mk){ mk={type:'count',value:0,unit:item.lib.unit||'ea',pts:[],page:curPage,setId:activeSetId}; item.markups.push(mk); }
+    mk.pts.push(pt); existing.push(pt); added++;
+  });
+  if(mk) mk.value=mk.pts.length;
+  _acMatches=_acMatches.filter(m=>!pushed.has(m));
+  _acPushTarget=item.id;
+  console.log('[OnSite] autocount push -> '+added+' added to "'+item.name+'" page '+curPage+' set '+activeSetId+(skipped?', '+skipped+' skipped (already counted)':''));
+  _acLastPush={added, skipped, name:item.name};
+  renderGroups(); updateThumbMarkers(); redraw();
+  toast('Added '+added+' to '+item.name+(skipped?' ('+skipped+' already counted)':''));
+  acShowMatches();
+}
+function acClearMatches(){ _acMatches=[]; _acLastScan=null; _acLastPush=null; redraw(); acStartScan(); }
+function acRetry(){ _acStep='ref'; _acRef=null; _acRefThumb=null; _acBusy=false; _acMatches=[]; _acLastScan=null; _acLastPush=null; redraw(); acSetBody(acRefPromptHtml()); }
 function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ── AC_CORE_BEGIN ──
@@ -2516,17 +2656,40 @@ function _acEsc(v){ return String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp
 const AC_FIND_MIN=0.50;    // stage-1 correlation floor (loose on purpose)
 const AC_MIN_SCORE=0.75;   // final verified score floor; below this is discarded
 const AC_NMS_IOU=0.25;     // overlap above this = same symbol, keep the higher score
-const AC_INK=200;          // gray level below which a pixel counts as linework (catches faint anti-aliased lines)
+const AC_INK=200;          // default ink cut; normally replaced per reference by acInkCut()
+// Pick the ink cut from the reference symbol itself: anything clearly lighter than the
+// symbol's own linework (gray walls, gray room names, hatching, shaded areas) is treated
+// as background and ignored everywhere, so a black receptacle sitting on a gray wall
+// matches like one in open space. Black symbols -> cut ~140; gray symbols keep ~200.
+function acInkCut(gray){
+  const d=gray.data, hist=new Uint32Array(256);
+  for(let i=0;i<d.length;i++) hist[d[i]]++;
+  // darkest level that at least 0.5% of the box's dark pixels reach
+  let dark=0, total=0; for(let v=0;v<200;v++) total+=hist[v];
+  if(!total) return AC_INK;
+  let acc=0; for(let v=0;v<200;v++){ acc+=hist[v]; if(acc>=total*0.05){ dark=v; break; } }
+  return Math.round(Math.min(200, Math.max(110, dark+0.55*(255-dark))));
+}
+// Copy of a gray Mat with everything at or lighter than the cut pushed to white.
+function acClean(cv, gray, cut){
+  const out=gray.clone(), d=out.data;
+  for(let i=0;i<d.length;i++) if(d[i]>=cut) d[i]=255;
+  return out;
+}
 function acMatchCore(cv, sceneGray, tmplGray, opts){
   opts=opts||{};
   const minScore=opts.minScore!=null?opts.minScore:AC_MIN_SCORE;
   const maxHits=opts.maxHits||3000;
+  const ink=opts.ink||AC_INK;
   const SW=sceneGray.cols, SH=sceneGray.rows;
+  // background linework lighter than the symbol is removed before anything else
+  const sClean=acClean(cv, sceneGray, ink), tClean=acClean(cv, tmplGray, ink);
   const scene=new cv.Mat(), base=new cv.Mat();
   const ks=new cv.Size(3,3);
-  cv.GaussianBlur(sceneGray, scene, ks, 0, 0, cv.BORDER_DEFAULT);
-  cv.GaussianBlur(tmplGray, base, ks, 0, 0, cv.BORDER_DEFAULT);
-  const sInk=acInkMask(sceneGray), sDil=acDilate(sInk, SW, SH);
+  cv.GaussianBlur(sClean, scene, ks, 0, 0, cv.BORDER_DEFAULT);
+  cv.GaussianBlur(tClean, base, ks, 0, 0, cv.BORDER_DEFAULT);
+  const sInk=acInkMask(sClean, ink), sDil=acDilate(sInk, SW, SH);
+  sClean.delete();
   const rots=[
     {deg:0,   code:null},
     {deg:90,  code:cv.ROTATE_90_CLOCKWISE},
@@ -2537,11 +2700,11 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
   try{
     for(const r of rots){
       const t=new cv.Mat(), tRaw=new cv.Mat();
-      if(r.code==null){ base.copyTo(t); tmplGray.copyTo(tRaw); }
-      else { cv.rotate(base, t, r.code); cv.rotate(tmplGray, tRaw, r.code); }
+      if(r.code==null){ base.copyTo(t); tClean.copyTo(tRaw); }
+      else { cv.rotate(base, t, r.code); cv.rotate(tClean, tRaw, r.code); }
       const TW=t.cols, TH=t.rows;
       if(TW>SW||TH>SH){ t.delete(); tRaw.delete(); continue; }
-      const tInk=acInkMask(tRaw), tDil=acDilate(tInk, TW, TH);
+      const tInk=acInkMask(tRaw, ink), tDil=acDilate(tInk, TW, TH);
       let tCount=0; for(let i=0;i<tInk.length;i++) tCount+=tInk[i];
       const cells=acCells(tInk,TW,TH,tCount);
       tRaw.delete();
@@ -2567,7 +2730,7 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
       }
       res.delete();
     }
-  } finally { scene.delete(); base.delete(); }
+  } finally { scene.delete(); base.delete(); tClean.delete(); }
   // Greedy non-max suppression across all rotations, best verified score first
   cands.sort((a,b)=>b.score-a.score);
   const kept=[];
@@ -2577,6 +2740,27 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
     if(!dup){ kept.push(c); if(kept.length>=maxHits) break; }
   }
   acFlagAttachedExtras(kept, sInk, sDil, SW, SH);
+  // Satellites (e.g. "SD" beside a smoke detector, or a circuit label the box caught):
+  // if they appear in the same spot on most strong matches they are part of the symbol,
+  // so matches missing them may be a different symbol (a heat detector "HD"). Those are
+  // never dropped silently: they are capped to red/amber so they come up for review.
+  // If the letters do not repeat, they were a label: ignore them.
+  kept.satInfo=[];
+  (opts.sats||[]).forEach(sat=>{
+    const strong=kept.filter(h=>h.score>=0.9);
+    kept.forEach(h=>{ h._sr=acSatRecall(sat,h,tmplGray.cols,tmplGray.rows,sInk,sDil,SW,SH); });
+    const consistent=strong.length?strong.filter(h=>h._sr>=0.75).length/strong.length:1;
+    const used=consistent>=0.7;
+    kept.satInfo.push({used, consistent:+consistent.toFixed(2)});
+    if(!used) return;
+    kept.forEach(h=>{
+      h.satRecall=Math.min(h.satRecall==null?1:h.satRecall, h._sr);
+      // the same letters reproduce almost exactly (0.98-1.0 on real sheets); "HD" or "CO"
+      // beside the same circle scores ~0.8-0.9, so the bar is set high
+      if(h._sr<0.75){ h.score=Math.min(h.score,0.79); h.flag='sat'; }
+      else if(h._sr<0.93){ h.score=Math.min(h.score,0.85); h.flag=h.flag||'sat'; }
+    });
+  });
   return kept;
 }
 // Variants that CONTAIN the reference plus extra attached linework (a quad built from
@@ -2584,7 +2768,8 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
 // all of the reference is present. So look around each match for COMPACT linework that
 // is attached to the box but ends nearby: a second symbol body, a bar, a tick. Lines
 // that run on out of the search area (walls, wires, home runs) are ignored, since
-// receptacles normally sit on walls and have wiring. Compared against the typical
+// receptacles normally sit on walls and have wiring. Small pieces such as a circuit
+// label glyph touching a line end are ignored too. Compared against the typical
 // amount across this scan's own matches. Flagged matches are not dropped; they are
 // capped to amber/red so the review step puts them in front of you.
 const AC_EXTRA_FLAG=0.12;   // compact attached ink above typical (share of the symbol's own ink) = review
@@ -2614,10 +2799,11 @@ function acAttachedExtra(c, sInk, sDil, SW, SH){
     if(label[li]||inBox(gx,gy)||!sDil[gy*SW+gx]) continue;
     // flood one component of linework outside the box
     let ink=0, touchesBox=false, escapes=false;
+    let bx0=1e9, by0=1e9, bx1=-1, by1=-1;
     const stack=[li]; label[li]=1;
     while(stack.length){
       const ci=stack.pop(), x=ci%RW, y=(ci/RW)|0, X=x+cx0, Y=y+cy0;
-      if(sInk[Y*SW+X]) ink++;
+      if(sInk[Y*SW+X]){ ink++; if(X<bx0)bx0=X; if(X>bx1)bx1=X; if(Y<by0)by0=Y; if(Y>by1)by1=Y; }
       if(nearBox(X,Y)) touchesBox=true;
       if(X<=rx0||X>=rx1||Y<=ry0||Y>=ry1||X<=0||Y<=0||X>=SW-1||Y>=SH-1) escapes=true;
       for(let dy=-1;dy<=1;dy++){ const ny=y+dy; if(ny<0||ny>=RH) continue;
@@ -2627,7 +2813,10 @@ function acAttachedExtra(c, sInk, sDil, SW, SH){
           if(inBox(NX,NY)||!sDil[NY*SW+NX]) continue;
           label[ni]=1; stack.push(ni); } }
     }
-    if(touchesBox&&!escapes) extra+=ink;
+    // Only symbol-sized pieces count: a second circle or a bar spans most of the symbol's
+    // size, while a circuit-label glyph or a tick touching the line end is much smaller.
+    const big=bx1>=0&&Math.max(bx1-bx0+1, by1-by0+1)>=0.5*Math.max(c.w,c.h);
+    if(touchesBox&&!escapes&&big) extra+=ink;
   }
   return c.tCount?extra/c.tCount:0;
 }
@@ -2661,9 +2850,10 @@ function acVerify(tInk,tDil,cells,TW,TH,sInk,sDil,SW,x,y){
   const score=recall*cellMin*inner*inner;
   return {score, recall, cellMin, inner};
 }
-function acInkMask(gray){
+function acInkMask(gray, ink){
+  ink=ink||AC_INK;
   const d=gray.data, out=new Uint8Array(d.length);
-  for(let i=0;i<d.length;i++) out[i]=d[i]<AC_INK?1:0;
+  for(let i=0;i<d.length;i++) out[i]=d[i]<ink?1:0;
   return out;
 }
 // 3x3 dilation (1px tolerance for anti-aliasing and rendering jitter)
@@ -2692,16 +2882,23 @@ function acIoU(a,b){
   const inter=iw*ih;
   return inter/(a.w*a.h+b.w*b.h-inter);
 }
-// Isolate the symbol in a loosely boxed reference: take the linework connected to the
-// ink nearest the box centre (gaps up to `join` px are bridged, so a receptacle's
-// separate tab still counts), and drop everything else (a label, a wall, a wire).
-// Returns {x,y,w,h, keep} where keep[i]=1 for pixels belonging to the symbol, or null.
-function acSymbolBounds(gray, join, pad){
-  join=join==null?3:join; pad=pad==null?2:pad;
+// Isolate the symbol in a loosely boxed reference. Linework is split into connected
+// pieces (gaps up to `join` px bridged). The symbol is built from:
+//  - core: the piece nearest the box centre, plus any piece whose extent overlaps it,
+//    repeated until stable. This pulls in a box around a letter (pull station "F" in a
+//    square) or a letter inside a circle, whichever one the centre lands on.
+//  - satellites: smaller pieces lying wholly inside the user's box close beside the
+//    core, like the "SD" next to a smoke detector. They might be part of the symbol or
+//    might be a circuit label; acMatchCore decides by checking whether they show up in
+//    the same spot on the other matches.
+// Returns {x,y,w,h (core bounds, padded), keep (core pixels, box coords), sats:[{pts:[[x,y]..]}]
+// with sat points relative to the core bounds' top-left}, or null.
+function acSymbolBounds(gray, join, pad, cut){
+  join=join==null?1:join; pad=pad==null?2:pad; cut=cut||AC_INK;
   const d=gray.data, W=gray.cols, H=gray.rows, N=W*H;
   const ink=new Uint8Array(N);
   let any=false;
-  for(let i=0;i<N;i++){ if(d[i]<AC_INK){ ink[i]=1; any=true; } }
+  for(let i=0;i<N;i++){ if(d[i]<cut){ ink[i]=1; any=true; } }
   if(!any) return null;
   // bridge small gaps: square dilation of radius `join`
   const grow=new Uint8Array(N);
@@ -2710,28 +2907,105 @@ function acSymbolBounds(gray, join, pad){
     const y0=Math.max(0,y-join), y1=Math.min(H-1,y+join), x0=Math.max(0,x-join), x1=Math.min(W-1,x+join);
     for(let yy=y0;yy<=y1;yy++){ const o=yy*W; for(let xx=x0;xx<=x1;xx++) grow[o+xx]=1; }
   }
-  // seed = ink pixel nearest the centre of the box
-  const cx=W/2, cy=H/2; let seed=-1, best=1e18;
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]){ const dd=(x-cx)*(x-cx)+(y-cy)*(y-cy); if(dd<best){ best=dd; seed=i; } } }
-  // flood fill the grown mask from the seed
-  const comp=new Uint8Array(N), stack=[seed]; comp[seed]=1;
-  while(stack.length){
-    const i=stack.pop(), x=i%W, y=(i/W)|0;
-    if(x>0&&grow[i-1]&&!comp[i-1]){ comp[i-1]=1; stack.push(i-1); }
-    if(x<W-1&&grow[i+1]&&!comp[i+1]){ comp[i+1]=1; stack.push(i+1); }
-    if(y>0&&grow[i-W]&&!comp[i-W]){ comp[i-W]=1; stack.push(i-W); }
-    if(y<H-1&&grow[i+W]&&!comp[i+W]){ comp[i+W]=1; stack.push(i+W); }
+  // label connected pieces of the grown mask; record each piece's ink bounds
+  const lab=new Int32Array(N); const comps=[];
+  for(let i0=0;i0<N;i0++){
+    if(!grow[i0]||lab[i0]) continue;
+    const id=comps.length+1, c={id, x0:W, y0:H, x1:-1, y1:-1, n:0, edge:false};
+    const st=[i0]; lab[i0]=id;
+    while(st.length){
+      const i=st.pop(), x=i%W, y=(i/W)|0;
+      if(ink[i]){ c.n++; if(x<c.x0)c.x0=x; if(x>c.x1)c.x1=x; if(y<c.y0)c.y0=y; if(y>c.y1)c.y1=y;
+        if(x===0||y===0||x===W-1||y===H-1) c.edge=true; }
+      if(x>0&&grow[i-1]&&!lab[i-1]){ lab[i-1]=id; st.push(i-1); }
+      if(x<W-1&&grow[i+1]&&!lab[i+1]){ lab[i+1]=id; st.push(i+1); }
+      if(y>0&&grow[i-W]&&!lab[i-W]){ lab[i-W]=id; st.push(i-W); }
+      if(y<H-1&&grow[i+W]&&!lab[i+W]){ lab[i+W]=id; st.push(i+W); }
+    }
+    if(c.n) comps.push(c);
   }
-  // keep = original ink inside the component, plus its soft anti-aliased edge
+  if(!comps.length) return null;
+  // seed = piece holding the ink pixel nearest the box centre
+  const cx=W/2, cy=H/2; let seed=null, best=1e18;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]){ const dd=(x-cx)*(x-cx)+(y-cy)*(y-cy); if(dd<best){ best=dd; seed=comps[lab[i]-1]; } } }
+  // core: grow by overlapping extents
+  const inCore=new Set([seed.id]);
+  let bx0=seed.x0, by0=seed.y0, bx1=seed.x1, by1=seed.y1, changed=true;
+  while(changed){
+    changed=false;
+    for(const c of comps){
+      if(inCore.has(c.id)) continue;
+      if(c.x1>=bx0&&c.x0<=bx1&&c.y1>=by0&&c.y0<=by1){
+        inCore.add(c.id); changed=true;
+        bx0=Math.min(bx0,c.x0); by0=Math.min(by0,c.y0); bx1=Math.max(bx1,c.x1); by1=Math.max(by1,c.y1);
+      }
+    }
+  }
   const keep=new Uint8Array(N);
-  let x0=W, y0=H, x1=-1, y1=-1;
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
-    const i=y*W+x;
-    if(comp[i]&&d[i]<250){ keep[i]=1; if(ink[i]){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  for(let i=0;i<N;i++) if(ink[i]&&inCore.has(lab[i])) keep[i]=1;
+  const x0=Math.max(0,bx0-pad), y0=Math.max(0,by0-pad), x1=Math.min(W-1,bx1+pad), y1=Math.min(H-1,by1+pad);
+  // satellites: smaller pieces wholly inside the box, close beside the core (chained,
+  // so "S" then "D" both count)
+  const size=Math.max(bx1-bx0+1, by1-by0+1), reach=size;
+  const satIds=new Set();
+  let sx0=bx0, sy0=by0, sx1=bx1, sy1=by1; changed=true;
+  while(changed){
+    changed=false;
+    for(const c of comps){
+      if(inCore.has(c.id)||satIds.has(c.id)||c.edge) continue;
+      if(Math.max(c.x1-c.x0+1, c.y1-c.y0+1)>size) continue;          // not bigger than the symbol
+      const gx=Math.max(0, sx0-c.x1, c.x0-sx1), gy=Math.max(0, sy0-c.y1, c.y0-sy1);
+      if(Math.max(gx,gy)<=Math.max(3, size*0.25) && (c.x0>=bx0-reach&&c.x1<=bx1+reach&&c.y0>=by0-reach&&c.y1<=by1+reach)){
+        satIds.add(c.id); changed=true;
+        sx0=Math.min(sx0,c.x0); sy0=Math.min(sy0,c.y0); sx1=Math.max(sx1,c.x1); sy1=Math.max(sy1,c.y1);
+      }
+    }
   }
-  if(x1<0) return null;
-  x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W-1,x1+pad); y1=Math.min(H-1,y1+pad);
-  return {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1, keep, W};
+  // group satellites that touch each other into one (letters of one word)
+  const sats=[];
+  if(satIds.size){
+    const pts=[];
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]&&satIds.has(lab[i])) pts.push([x-x0, y-y0]); }
+    sats.push({pts, n:satIds.size});
+  }
+  return {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1, keep, W, sats};
+}
+// How well a satellite (letters beside the symbol) is reproduced beside a match:
+// min(recall, precision). Recall = share of the satellite's ink present (1px tolerance);
+// precision = share of the ink in that spot that the satellite explains, so "HD" or "CO"
+// beside the same circle does not pass for "SD". Offsets are taken from the core's centre
+// and tried at all four quarter turns, keeping the best: a symmetric symbol (a circle with
+// an X) can match at any rotation while its letters stay where they were drawn.
+function acSatRecall(sat, hit, baseW, baseH, sInk, sDil, SW, SH){
+  if(!sat.pts.length) return 1;
+  const bcx=(baseW-1)/2, bcy=(baseH-1)/2, hcx=hit.x+(hit.w-1)/2, hcy=hit.y+(hit.h-1)/2;
+  let best=0;
+  for(const deg of [0,90,180,270]){
+    const mapped=[]; let ok=0, x0=1e9, y0=1e9, x1=-1, y1=-1;
+    for(const [px,py] of sat.pts){
+      const dx=px-bcx, dy=py-bcy;
+      const [rx,ry]=deg===90?[-dy,dx]:deg===180?[-dx,-dy]:deg===270?[dy,-dx]:[dx,dy];
+      const X=Math.round(hcx+rx), Y=Math.round(hcy+ry);
+      mapped.push([X,Y]);
+      if(X<x0)x0=X; if(X>x1)x1=X; if(Y<y0)y0=Y; if(Y>y1)y1=Y;
+      if(X>=0&&Y>=0&&X<SW&&Y<SH&&sDil[Y*SW+X]) ok++;
+    }
+    const recall=ok/sat.pts.length;
+    if(recall<=best) continue;
+    // precision over the satellite's own footprint
+    const RW=x1-x0+3, RH=y1-y0+3, near=new Uint8Array(RW*RH);
+    for(const [X,Y] of mapped) for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      const lx=X-x0+1+dx, ly=Y-y0+1+dy; if(lx>=0&&ly>=0&&lx<RW&&ly<RH) near[ly*RW+lx]=1; }
+    let tot=0, expl=0;
+    for(let Y=y0;Y<=y1;Y++) for(let X=x0;X<=x1;X++){
+      if(X<0||Y<0||X>=SW||Y>=SH||!sInk[Y*SW+X]) continue;
+      tot++; if(near[(Y-y0+1)*RW+(X-x0+1)]) expl++;
+    }
+    const precision=tot?expl/tot:0;
+    best=Math.max(best, Math.min(recall, precision));
+    if(best>=0.99) break;
+  }
+  return best;
 }
 // ── AC_CORE_END ──
 
@@ -3414,7 +3688,7 @@ function selectItem(ref){
   }
   activeItemIdx=idx;
   const isLinear=['ft','m','lf'].includes((libItem.unit||'').toLowerCase());
-  setTool(isLinear?'measure':'count',true);
+  setLayerTool(isLinear?'measure':'count');
   renderGroups();
   toast('Active: '+(libItem.code||libItem.description)+' — '+(isLinear?'draw runs':'click to count'));
 }
@@ -3649,7 +3923,7 @@ function confirmNewLayer(){
     gci++;
     activeItemIdx=items.length-1;
     const isLinear=_nlType==='linear'||['ft','m','lf'].includes(unitVal);
-    setTool(isLinear?'measure':'count',true);
+    setLayerTool(isLinear?'measure':'count');
     closeMo('layer-mo');
     renderGroups();
     toast('Layer ready \u2014 '+(isLinear?'draw runs on the drawing':'click the drawing to count'));
@@ -4210,7 +4484,7 @@ function clickItemHdr(idx,e){
     // Activate this layer and restore its drawing tool
     activeItemIdx=idx;
     collapsedItems.delete(it.id);
-    setTool(expectedTool,true);
+    setLayerTool(expectedTool);
     renderGroups();
     toast('Active: '+it.name);
   }
