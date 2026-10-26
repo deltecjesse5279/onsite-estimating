@@ -1329,6 +1329,7 @@ let _acRefThumb=null;    // data URL of the trimmed reference, shown in the chip
 let _acBusy=false;       // true while a capture or scan is running
 let _acMatches=[];       // matches (page-normalized) {x,y,w,h,confidence,rotation,page,setId,flag,status}
 let _acLastScan=null;    // {found, added} from the most recent scan, for the chip
+let _acSatInfo=null;     // {used, consistent} for nearby letters beside the reference symbol
 let _acLastPush=null;    // {added, skipped, name} from the most recent push to the takeoff
 let _acHideCounted=false; // "New only" view: hide boxes on symbols already counted on some layer
 // selected count points: [{itemIdx, markupIdx, ptIdx}]
@@ -2279,7 +2280,7 @@ async function acSetReference(rect){
       if(!fixed) refNote='This symbol touches the edge of your box. If the thumbnail is not the whole symbol, redo the reference with a slightly wider box.';
     }
     if(b.w<6||b.h<6) throw new Error('That symbol is too small to match reliably. Try a larger box around it.');
-    _acRefThumb=b.canvas.toDataURL('image/png'); // shows exactly what will be matched
+    _acRefThumb=b.thumb.toDataURL('image/png'); // shows exactly what will be matched (blue = nearby letters, kept only if they repeat)
     _acRef={page:curPage, setId:activeSetId, ...r};
     _acStep='scan';
     console.log('[OnSite] autocount reference set', _acRef, 'trimmed '+b.w+'x'+b.h+' px @ scale '+AC_MATCH_SCALE+'  ink cut '+b.cut+(refNote?'  note: '+refNote:''));
@@ -2300,8 +2301,9 @@ function acIsolateSymbol(can){
   const gray={cols:W, rows:H, data:new Uint8Array(W*H)};
   for(let i=0,j=0;i<gray.data.length;i++,j+=4) gray.data[i]=(d[j]*299+d[j+1]*587+d[j+2]*114)/1000;
   // Ink cut from the symbol itself, so lighter background (gray walls, room names) is
-  // dropped; then keep only linework touching the symbol (gaps up to ~3px bridged), so a
-  // circuit label a few pixels away is left out.
+  // dropped. Core = linework at the centre plus anything enclosing or enclosed by it;
+  // satellites = small pieces beside it (letters like "SD", or a circuit label), which
+  // the scan keeps only if they repeat on the other matches.
   const cut=acInkCut(gray);
   const b=acSymbolBounds(gray, 1, 2, cut);
   if(!b) return null;
@@ -2314,7 +2316,15 @@ function acIsolateSymbol(can){
     img.data[oi]=img.data[oi+1]=img.data[oi+2]=v; img.data[oi+3]=255;
   }
   octx.putImageData(img,0,0);
-  return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out, cut};
+  // Thumbnail: core in black, satellites in blue, on one canvas covering both
+  let tx0=0, ty0=0, tx1=b.w-1, ty1=b.h-1;
+  b.sats.forEach(st=>st.pts.forEach(([px,py])=>{ tx0=Math.min(tx0,px); ty0=Math.min(ty0,py); tx1=Math.max(tx1,px); ty1=Math.max(ty1,py); }));
+  const th=document.createElement('canvas'); th.width=tx1-tx0+3; th.height=ty1-ty0+3;
+  const tctx=th.getContext('2d'); tctx.fillStyle='#fff'; tctx.fillRect(0,0,th.width,th.height);
+  tctx.drawImage(out, 1-tx0, 1-ty0);
+  tctx.fillStyle='rgb(40,90,200)';
+  b.sats.forEach(st=>st.pts.forEach(([px,py])=>tctx.fillRect(px-tx0+1,py-ty0+1,1,1)));
+  return {x:b.x, y:b.y, w:b.w, h:b.h, canvas:out, thumb:th, sats:b.sats, cut};
 }
 // True if the isolated symbol reaches the edge of the rendered box (bounds are padded by 2px)
 function acTouchesEdge(b, can){
@@ -2369,7 +2379,8 @@ async function acScanRegion(area){
     await _acPaint();
     tmpl=acCanvasToGray(cv, b.canvas); // cleaned symbol only
     scene=acCanvasToGray(cv, areaCan);
-    const hits=acMatchCore(cv, scene, tmpl, {ink:b.cut});
+    const hits=acMatchCore(cv, scene, tmpl, {ink:b.cut, sats:b.sats});
+    _acSatInfo=(hits.satInfo&&hits.satInfo.length)?hits.satInfo[0]:null;
     const W=areaCan.width, H=areaCan.height;
     const mapped=hits.map(h=>({
       x:area.nx+(h.x/W)*area.nw, y:area.ny+(h.y/H)*area.nh,
@@ -2510,6 +2521,9 @@ function acShowMatches(){
   const pendAmber=pend.filter(m=>m.confidence>=AC_AMBER&&!m.flag).length;
   const flagged=pend.filter(m=>m.flag==='extra').length;
   const ls=_acLastScan||{found:onPage.length, added:onPage.length};
+  const satNote=_acSatInfo?(_acSatInfo.used
+      ?'The letters beside the symbol (blue in the thumbnail) repeat on the matches, so they are treated as part of it.'
+      :'The text beside the symbol (blue in the thumbnail) does not repeat, so it was treated as a label and ignored.'):'';
   const counted=onPage.filter(m=>m.status==='counted');
   const cNames=[...new Set(counted.flatMap(m=>m.countedBy||[]))].map(id=>{ const it=items.find(i=>i.id===id); return it?it.name:null; }).filter(Boolean);
   let html='<div class="ac-name">'+acRefThumbHtml()+'<span>'+acc+' accepted'+(pend.length?', '+pend.length+' to review':'')+'</span></div>';
@@ -2523,8 +2537,11 @@ function acShowMatches(){
   if(counted.length) html+='<div class="ac-feat" style="margin-top:3px">Already counted on: '+cNames.map(_acEsc).join(', ')
     +'. These are left out unless you click one to include it.'+(_acHideCounted?' (Hidden: showing new only.)':'')+'</div>';
   if(!acc&&!pend.length&&counted.length&&!rej) html+='<div class="ac-feat" style="margin-top:3px;color:rgb(30,150,70)"><b>Everything found here is already counted.</b></div>';
+  if(satNote) html+='<div class="ac-feat" style="margin-top:3px">'+satNote+'</div>';
   if(flagged) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+flagged+' undecided have extra linework attached (possibly a quad or another variant). Click each one to decide; they are left out of bulk accept.</div>';
-  if(pend.length-flagged>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged)+' undecided are weaker matches.</div>';
+  const satFlag=pend.filter(m=>m.flag==='sat').length;
+  if(satFlag) html+='<div class="ac-feat" style="margin-top:3px;color:var(--amber)">'+satFlag+' undecided are missing the letters beside the symbol, so they may be a different device. Click each one to decide.</div>';
+  if(pend.length-flagged-satFlag>0) html+='<div class="ac-feat" style="margin-top:3px">'+(pend.length-flagged-satFlag)+' undecided are weaker matches.</div>';
   html+='<div class="ac-feat" style="margin-top:4px">Click a box to accept or reject it. Only accepted boxes are added; undecided ones never count.</div>';
   html+=acPushHtml(acc);
   html+='<div class="ac-actions">';
@@ -2723,6 +2740,27 @@ function acMatchCore(cv, sceneGray, tmplGray, opts){
     if(!dup){ kept.push(c); if(kept.length>=maxHits) break; }
   }
   acFlagAttachedExtras(kept, sInk, sDil, SW, SH);
+  // Satellites (e.g. "SD" beside a smoke detector, or a circuit label the box caught):
+  // if they appear in the same spot on most strong matches they are part of the symbol,
+  // so matches missing them may be a different symbol (a heat detector "HD"). Those are
+  // never dropped silently: they are capped to red/amber so they come up for review.
+  // If the letters do not repeat, they were a label: ignore them.
+  kept.satInfo=[];
+  (opts.sats||[]).forEach(sat=>{
+    const strong=kept.filter(h=>h.score>=0.9);
+    kept.forEach(h=>{ h._sr=acSatRecall(sat,h,tmplGray.cols,tmplGray.rows,sInk,sDil,SW,SH); });
+    const consistent=strong.length?strong.filter(h=>h._sr>=0.75).length/strong.length:1;
+    const used=consistent>=0.7;
+    kept.satInfo.push({used, consistent:+consistent.toFixed(2)});
+    if(!used) return;
+    kept.forEach(h=>{
+      h.satRecall=Math.min(h.satRecall==null?1:h.satRecall, h._sr);
+      // the same letters reproduce almost exactly (0.98-1.0 on real sheets); "HD" or "CO"
+      // beside the same circle scores ~0.8-0.9, so the bar is set high
+      if(h._sr<0.75){ h.score=Math.min(h.score,0.79); h.flag='sat'; }
+      else if(h._sr<0.93){ h.score=Math.min(h.score,0.85); h.flag=h.flag||'sat'; }
+    });
+  });
   return kept;
 }
 // Variants that CONTAIN the reference plus extra attached linework (a quad built from
@@ -2844,12 +2882,19 @@ function acIoU(a,b){
   const inter=iw*ih;
   return inter/(a.w*a.h+b.w*b.h-inter);
 }
-// Isolate the symbol in a loosely boxed reference: take the linework connected to the
-// ink nearest the box centre (gaps up to `join` px are bridged, so a receptacle's
-// separate tab still counts), and drop everything else (a label, a wall, a wire).
-// Returns {x,y,w,h, keep} where keep[i]=1 for pixels belonging to the symbol, or null.
+// Isolate the symbol in a loosely boxed reference. Linework is split into connected
+// pieces (gaps up to `join` px bridged). The symbol is built from:
+//  - core: the piece nearest the box centre, plus any piece whose extent overlaps it,
+//    repeated until stable. This pulls in a box around a letter (pull station "F" in a
+//    square) or a letter inside a circle, whichever one the centre lands on.
+//  - satellites: smaller pieces lying wholly inside the user's box close beside the
+//    core, like the "SD" next to a smoke detector. They might be part of the symbol or
+//    might be a circuit label; acMatchCore decides by checking whether they show up in
+//    the same spot on the other matches.
+// Returns {x,y,w,h (core bounds, padded), keep (core pixels, box coords), sats:[{pts:[[x,y]..]}]
+// with sat points relative to the core bounds' top-left}, or null.
 function acSymbolBounds(gray, join, pad, cut){
-  join=join==null?3:join; pad=pad==null?2:pad; cut=cut||AC_INK;
+  join=join==null?1:join; pad=pad==null?2:pad; cut=cut||AC_INK;
   const d=gray.data, W=gray.cols, H=gray.rows, N=W*H;
   const ink=new Uint8Array(N);
   let any=false;
@@ -2862,28 +2907,105 @@ function acSymbolBounds(gray, join, pad, cut){
     const y0=Math.max(0,y-join), y1=Math.min(H-1,y+join), x0=Math.max(0,x-join), x1=Math.min(W-1,x+join);
     for(let yy=y0;yy<=y1;yy++){ const o=yy*W; for(let xx=x0;xx<=x1;xx++) grow[o+xx]=1; }
   }
-  // seed = ink pixel nearest the centre of the box
-  const cx=W/2, cy=H/2; let seed=-1, best=1e18;
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]){ const dd=(x-cx)*(x-cx)+(y-cy)*(y-cy); if(dd<best){ best=dd; seed=i; } } }
-  // flood fill the grown mask from the seed
-  const comp=new Uint8Array(N), stack=[seed]; comp[seed]=1;
-  while(stack.length){
-    const i=stack.pop(), x=i%W, y=(i/W)|0;
-    if(x>0&&grow[i-1]&&!comp[i-1]){ comp[i-1]=1; stack.push(i-1); }
-    if(x<W-1&&grow[i+1]&&!comp[i+1]){ comp[i+1]=1; stack.push(i+1); }
-    if(y>0&&grow[i-W]&&!comp[i-W]){ comp[i-W]=1; stack.push(i-W); }
-    if(y<H-1&&grow[i+W]&&!comp[i+W]){ comp[i+W]=1; stack.push(i+W); }
+  // label connected pieces of the grown mask; record each piece's ink bounds
+  const lab=new Int32Array(N); const comps=[];
+  for(let i0=0;i0<N;i0++){
+    if(!grow[i0]||lab[i0]) continue;
+    const id=comps.length+1, c={id, x0:W, y0:H, x1:-1, y1:-1, n:0, edge:false};
+    const st=[i0]; lab[i0]=id;
+    while(st.length){
+      const i=st.pop(), x=i%W, y=(i/W)|0;
+      if(ink[i]){ c.n++; if(x<c.x0)c.x0=x; if(x>c.x1)c.x1=x; if(y<c.y0)c.y0=y; if(y>c.y1)c.y1=y;
+        if(x===0||y===0||x===W-1||y===H-1) c.edge=true; }
+      if(x>0&&grow[i-1]&&!lab[i-1]){ lab[i-1]=id; st.push(i-1); }
+      if(x<W-1&&grow[i+1]&&!lab[i+1]){ lab[i+1]=id; st.push(i+1); }
+      if(y>0&&grow[i-W]&&!lab[i-W]){ lab[i-W]=id; st.push(i-W); }
+      if(y<H-1&&grow[i+W]&&!lab[i+W]){ lab[i+W]=id; st.push(i+W); }
+    }
+    if(c.n) comps.push(c);
   }
-  // keep = original ink inside the component, plus its soft anti-aliased edge
+  if(!comps.length) return null;
+  // seed = piece holding the ink pixel nearest the box centre
+  const cx=W/2, cy=H/2; let seed=null, best=1e18;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]){ const dd=(x-cx)*(x-cx)+(y-cy)*(y-cy); if(dd<best){ best=dd; seed=comps[lab[i]-1]; } } }
+  // core: grow by overlapping extents
+  const inCore=new Set([seed.id]);
+  let bx0=seed.x0, by0=seed.y0, bx1=seed.x1, by1=seed.y1, changed=true;
+  while(changed){
+    changed=false;
+    for(const c of comps){
+      if(inCore.has(c.id)) continue;
+      if(c.x1>=bx0&&c.x0<=bx1&&c.y1>=by0&&c.y0<=by1){
+        inCore.add(c.id); changed=true;
+        bx0=Math.min(bx0,c.x0); by0=Math.min(by0,c.y0); bx1=Math.max(bx1,c.x1); by1=Math.max(by1,c.y1);
+      }
+    }
+  }
   const keep=new Uint8Array(N);
-  let x0=W, y0=H, x1=-1, y1=-1;
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
-    const i=y*W+x;
-    if(comp[i]&&d[i]<cut){ keep[i]=1; if(ink[i]){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
+  for(let i=0;i<N;i++) if(ink[i]&&inCore.has(lab[i])) keep[i]=1;
+  const x0=Math.max(0,bx0-pad), y0=Math.max(0,by0-pad), x1=Math.min(W-1,bx1+pad), y1=Math.min(H-1,by1+pad);
+  // satellites: smaller pieces wholly inside the box, close beside the core (chained,
+  // so "S" then "D" both count)
+  const size=Math.max(bx1-bx0+1, by1-by0+1), reach=size;
+  const satIds=new Set();
+  let sx0=bx0, sy0=by0, sx1=bx1, sy1=by1; changed=true;
+  while(changed){
+    changed=false;
+    for(const c of comps){
+      if(inCore.has(c.id)||satIds.has(c.id)||c.edge) continue;
+      if(Math.max(c.x1-c.x0+1, c.y1-c.y0+1)>size) continue;          // not bigger than the symbol
+      const gx=Math.max(0, sx0-c.x1, c.x0-sx1), gy=Math.max(0, sy0-c.y1, c.y0-sy1);
+      if(Math.max(gx,gy)<=Math.max(3, size*0.25) && (c.x0>=bx0-reach&&c.x1<=bx1+reach&&c.y0>=by0-reach&&c.y1<=by1+reach)){
+        satIds.add(c.id); changed=true;
+        sx0=Math.min(sx0,c.x0); sy0=Math.min(sy0,c.y0); sx1=Math.max(sx1,c.x1); sy1=Math.max(sy1,c.y1);
+      }
+    }
   }
-  if(x1<0) return null;
-  x0=Math.max(0,x0-pad); y0=Math.max(0,y0-pad); x1=Math.min(W-1,x1+pad); y1=Math.min(H-1,y1+pad);
-  return {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1, keep, W};
+  // group satellites that touch each other into one (letters of one word)
+  const sats=[];
+  if(satIds.size){
+    const pts=[];
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const i=y*W+x; if(ink[i]&&satIds.has(lab[i])) pts.push([x-x0, y-y0]); }
+    sats.push({pts, n:satIds.size});
+  }
+  return {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1, keep, W, sats};
+}
+// How well a satellite (letters beside the symbol) is reproduced beside a match:
+// min(recall, precision). Recall = share of the satellite's ink present (1px tolerance);
+// precision = share of the ink in that spot that the satellite explains, so "HD" or "CO"
+// beside the same circle does not pass for "SD". Offsets are taken from the core's centre
+// and tried at all four quarter turns, keeping the best: a symmetric symbol (a circle with
+// an X) can match at any rotation while its letters stay where they were drawn.
+function acSatRecall(sat, hit, baseW, baseH, sInk, sDil, SW, SH){
+  if(!sat.pts.length) return 1;
+  const bcx=(baseW-1)/2, bcy=(baseH-1)/2, hcx=hit.x+(hit.w-1)/2, hcy=hit.y+(hit.h-1)/2;
+  let best=0;
+  for(const deg of [0,90,180,270]){
+    const mapped=[]; let ok=0, x0=1e9, y0=1e9, x1=-1, y1=-1;
+    for(const [px,py] of sat.pts){
+      const dx=px-bcx, dy=py-bcy;
+      const [rx,ry]=deg===90?[-dy,dx]:deg===180?[-dx,-dy]:deg===270?[dy,-dx]:[dx,dy];
+      const X=Math.round(hcx+rx), Y=Math.round(hcy+ry);
+      mapped.push([X,Y]);
+      if(X<x0)x0=X; if(X>x1)x1=X; if(Y<y0)y0=Y; if(Y>y1)y1=Y;
+      if(X>=0&&Y>=0&&X<SW&&Y<SH&&sDil[Y*SW+X]) ok++;
+    }
+    const recall=ok/sat.pts.length;
+    if(recall<=best) continue;
+    // precision over the satellite's own footprint
+    const RW=x1-x0+3, RH=y1-y0+3, near=new Uint8Array(RW*RH);
+    for(const [X,Y] of mapped) for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      const lx=X-x0+1+dx, ly=Y-y0+1+dy; if(lx>=0&&ly>=0&&lx<RW&&ly<RH) near[ly*RW+lx]=1; }
+    let tot=0, expl=0;
+    for(let Y=y0;Y<=y1;Y++) for(let X=x0;X<=x1;X++){
+      if(X<0||Y<0||X>=SW||Y>=SH||!sInk[Y*SW+X]) continue;
+      tot++; if(near[(Y-y0+1)*RW+(X-x0+1)]) expl++;
+    }
+    const precision=tot?expl/tot:0;
+    best=Math.max(best, Math.min(recall, precision));
+    if(best>=0.99) break;
+  }
+  return best;
 }
 // ── AC_CORE_END ──
 
