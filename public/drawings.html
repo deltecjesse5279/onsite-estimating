@@ -256,6 +256,10 @@ tr:hover .dbtn{opacity:1}
 #ac-chip .ac-spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:ac-spin .7s linear infinite;vertical-align:-2px;margin-right:5px}
 @keyframes ac-spin{to{transform:rotate(360deg)}}
 #ac-chip .ac-err{color:var(--danger,#c0392b);font-weight:600}
+.ds-save-ind{font-size:11px;color:var(--muted);white-space:nowrap}
+.ds-save-ind.saving{color:var(--muted)}
+.ds-save-ind.saved{color:#2d6b1f}
+.ds-save-ind.error,.ds-save-ind.warn{color:#b87a10;font-weight:600}
 #ac-chip .ac-push{display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 #ac-chip .ac-target{flex:1;min-width:0;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg,#fff)}
 #ac-chip .ac-push .btn[disabled]{opacity:.45;cursor:default}
@@ -457,13 +461,14 @@ tr:hover .dbtn{opacity:1}
     <input id="pf-num" placeholder="Estimate #" oninput="syncFields('num',this.value)"/>
   </div>
   <div class="app-tabs">
-    <a class="app-tab" href="/" onclick="return navToApp('/')">Estimating</a>
+    <a class="app-tab" href="/" onclick="navToApp('/'); return false;">Estimating</a>
     <div class="app-tab active">Drawings</div>
   </div>
   <div class="topbar-right">
     <div class="proj-badge" id="proj-badge">No estimate linked</div>
     <button class="btn" onclick="newEstimateFromDrawings()">+ New Estimate</button>
     <button class="btn" onclick="showLinkModal()">Open Estimate</button>
+    <span class="ds-save-ind" id="ds-save-ind"></span>
     <button class="btn success" onclick="saveLinked()">Save</button>
   </div>
 </div>
@@ -1315,6 +1320,11 @@ let mousedownPos=null, mousedownScroll=null, intentDecided=false, isPanning=fals
 
 let linked=null;
 let _restoreComplete=false; // true once autoOpenEst restore (or new-estimate create) has populated in-memory state
+// Autosave: once a restore (or link / new estimate) has fully finished, the takeoff is saved
+// to the server a few seconds after any change, so work is never held only in the browser.
+let _dsAutosaveOn=false;    // set at the end of a restore; autosave never runs before that
+let _dsLastSaved=null;      // fingerprint of the drawingsState last confirmed saved
+let _dsSaving=false;
 let sheets=[{id:1,name:'Sheet 1',rows:[]}];
 let activeSheet=0, nextSid=2;
 
@@ -4963,6 +4973,10 @@ async function confirmLink(){
     }
     buildLinkedEstItems(linked);
     updatePushBtn();
+    // The linked estimate's state is now what's on screen: saves may include it. (This was
+    // missing, so after opening an estimate this way nothing you drew was ever saved.)
+    _restoreComplete=true;
+    _dsStartAutosave(true);
     closeMo('link-mo');
     toast('Linked: '+linked.name);
   }catch(e){toast('Could not load: '+e.message);}
@@ -5039,6 +5053,14 @@ async function confirmPush(){
 
   if(!sheetsToCreate.length){toast('No items to push');return;}
 
+  // Start from the server's current sheets, not the copy loaded when this page opened,
+  // so rows added in Estimating since then are kept.
+  try{
+    const fr=await fetch('/api/estimates/'+linked.id);
+    if(fr.ok){ const fresh=await fr.json(); if(Array.isArray(fresh.sheets)) linked.sheets=fresh.sheets; }
+  }catch(_){}
+  if(!Array.isArray(linked.sheets)) linked.sheets=[];
+
   // Add or update sheets in the linked estimate
   sheetsToCreate.forEach(({name, items:sheetItems})=>{
     let sheet=linked.sheets.find(s=>s.name===name);
@@ -5066,10 +5088,11 @@ async function confirmPush(){
   });
 
   try{
-    _attachDrawingsState(linked,'confirmPush'); // capture state before POST
-    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
+    const payload=_dsPayload({sheets:linked.sheets},'confirmPush'); // capture state before POST
+    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok) throw new Error('HTTP '+r.status);
     await r.json();
+    if(payload.drawingsState){ linked.drawingsState=payload.drawingsState; _dsLastSaved=_dsFingerprint(payload.drawingsState); _dsSetInd('saved','Saved '+_dsTime()); }
     sheets=JSON.parse(JSON.stringify(linked.sheets));
     // Land on the first pushed sheet so rows are visible immediately
     const firstPushedName=sheetsToCreate[0].name;
@@ -5127,6 +5150,7 @@ async function _doCreateEstimate(name, client, estimateNum){
     sheets=JSON.parse(JSON.stringify(linked.sheets));
     activeSheet=0;
     _restoreComplete = true; // freshly created estimate is a legitimate in-memory state
+    _dsStartAutosave(false); // any takeoff already on screen gets saved on the next tick
     const b=$('proj-badge');
     b.textContent=linked.name;
     b.className='proj-badge linked';
@@ -5195,6 +5219,60 @@ function _dsSummary(ds){
 // Only asserts drawingsState once a real restore/create has populated memory.
 // Before that, the field is omitted so the server-side merge preserves the
 // already-saved copy instead of an un-restored client overwriting it with empty.
+// Only the fields Drawings owns. Drawings used to POST the whole estimate object it loaded
+// at page open, including `sheets`; if the estimate had been edited in Estimating since,
+// that stale copy overwrote the newer rows. The server merges top-level keys, so sending
+// just these leaves everything else as it is.
+function _dsPayload(extra, tag){
+  const p={id:linked.id, ...(extra||{})};
+  _attachDrawingsState(p, tag||'save');
+  return p;
+}
+// Fingerprint for change detection; view-only fields (zoom/pan/page) don't trigger a save.
+function _dsFingerprint(ds){
+  const c={...ds}; delete c.zoom; delete c.panX; delete c.panY; delete c.curPage; delete c.totalPages;
+  return JSON.stringify(c);
+}
+function _dsSetInd(state, text){
+  const el=$('ds-save-ind'); if(!el) return;
+  el.className='ds-save-ind '+state; el.textContent=text;
+}
+function _dsTime(){ return new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+// Called at the end of every restore / link / create: from here on, saves are allowed and
+// the current state counts as saved (or, for a fresh estimate, as needing a first save).
+function _dsStartAutosave(alreadySaved){
+  _dsAutosaveOn=true;
+  _dsLastSaved=alreadySaved?_dsFingerprint(getDrawingsState()):'';
+  _dsSetInd('saved', alreadySaved?'All changes saved':'');
+}
+async function autoSaveDrawings(opts){
+  opts=opts||{};
+  if(!linked){ if(items.length) _dsSetInd('warn','No estimate linked, not saving'); return false; }
+  if(!_dsAutosaveOn||!_restoreComplete||_dsSaving) return false;
+  // never save mid-gesture (drag rule); the next tick picks it up
+  if(!opts.force&&(mousedownPos||_selectDragging||isDrawing)) return false;
+  const ds=getDrawingsState(); const fp=_dsFingerprint(ds);
+  if(!opts.force&&fp===_dsLastSaved) return true;
+  _dsSaving=true; _dsSetInd('saving','Saving...');
+  try{
+    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:linked.id, drawingsState:ds})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    linked.drawingsState=ds; _dsLastSaved=fp;
+    _dsSetInd('saved','Saved '+_dsTime());
+    return true;
+  }catch(e){
+    console.warn('[OnSite] autosave failed, will retry:', e);
+    _dsSetInd('error','Not saved, retrying...');
+    return false;
+  }finally{ _dsSaving=false; }
+}
+function _dsUnsaved(){
+  if(!linked||!_dsAutosaveOn||!_restoreComplete) return false;
+  try{ return _dsFingerprint(getDrawingsState())!==_dsLastSaved; }catch(_){ return false; }
+}
+setInterval(()=>{ autoSaveDrawings(); }, 4000);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') autoSaveDrawings(); });
 function _attachDrawingsState(obj, tag){
   if(_restoreComplete){
     obj.drawingsState = getDrawingsState();
@@ -5210,13 +5288,16 @@ async function saveLinked(){
   linked.name=$('pf-name').value||linked.name;
   linked.client=$('pf-client').value||linked.client;
   linked.estimateNum=$('pf-num').value||linked.estimateNum;
-  _attachDrawingsState(linked,'saveLinked');
+  const payload=_dsPayload({name:linked.name, client:linked.client, estimateNum:linked.estimateNum},'saveLinked');
   try{
-    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(linked)});
+    _dsSetInd('saving','Saving...');
+    const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok) throw new Error('HTTP '+r.status);
+    if(payload.drawingsState){ linked.drawingsState=payload.drawingsState; _dsLastSaved=_dsFingerprint(payload.drawingsState); }
+    _dsSetInd('saved','Saved '+_dsTime());
     savePdfToServer(linked.id);
     toast('Saved');
-  }catch(e){toast('Save failed: '+e.message);}
+  }catch(e){ _dsSetInd('error','Not saved'); toast('Save failed: '+e.message); }
 }
 
 // ─── Takeoff tab ───
@@ -5298,23 +5379,28 @@ document.addEventListener('click',e=>{
 });
 
 // ─── Toast ───
+// NOTE: navToApp is async, so its return value is a Promise, which is truthy. The link
+// used `onclick="return navToApp('/')"`, so the browser followed the link immediately and
+// the save below was cut off mid-request whenever the server was slow. The link now
+// returns false itself and this function navigates only after the save succeeds.
 async function navToApp(url){
   // If we have a linked estimate, do a real server save before navigating
   // so takeoffs and PDF cache are always persisted (beacon is unreliable on fast navigation)
-  if(linked){
-    _attachDrawingsState(linked,'navToApp');
+  if(linked&&_restoreComplete){
+    const payload=_dsPayload({}, 'navToApp');
+    let ok=false;
     try{
-      await fetch('/api/estimates',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(linked)
-      });
-      // Also keep PDF current on server
-      savePdfToServer(linked.id);
-    }catch(e){
-      // fetch failed — fall back to beacon as last resort
-      const blob=new Blob([JSON.stringify(linked)],{type:'application/json'});
-      navigator.sendBeacon('/api/estimates', blob);
+      _dsSetInd('saving','Saving...');
+      const r=await fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      ok=r.ok;
+      if(ok&&payload.drawingsState){ linked.drawingsState=payload.drawingsState; _dsLastSaved=_dsFingerprint(payload.drawingsState); }
+      savePdfToServer(linked.id); // keep PDF current on server
+    }catch(e){ ok=false; }
+    if(!ok){
+      // Don't leave with unsaved takeoffs: stay here and say so.
+      _dsSetInd('error','Not saved');
+      toast('Could not save your takeoff, so you are still on Drawings. Check your connection and try again.');
+      return false;
     }
   }
   window.location.href=url;
@@ -5428,6 +5514,7 @@ renderTO();
         await renderPage(pg, !!(ds&&ds.panX!=null));
         toast('Restored: '+linked.name);
       }catch(e){ toast('Restored: '+linked.name+' (PDF error)'); }
+      _dsStartAutosave(true);
     }
     // Primary restore path: IndexedDB (handles real-world PDF sizes)
     const pdfBytes = await PdfStore.load(linked.id, activeSetId).catch(()=>null);
@@ -5443,8 +5530,9 @@ renderTO();
           await restorePdfFromBytes(buf, {fileSize:buf.byteLength});
         } else {
           toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));
+          _dsStartAutosave(true);
         }
-      }catch(fe){ toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':''));}
+      }catch(fe){ toast('Restored: '+linked.name+(linked.drawingsState?' (re-upload PDF)':'')); _dsStartAutosave(true); }
     }
   }catch(e){ console.error('[OnSite] autoOpenEst failed:', e); }
 })();
@@ -5452,13 +5540,17 @@ renderTO();
 switchMain('drawings');
 
 // Auto-save drawings state when user navigates away or closes tab
-window.addEventListener('beforeunload', ()=>{
-  if(linked){
-    _attachDrawingsState(linked,'beforeunload');
-    // Use sendBeacon for reliability on unload
-    const blob = new Blob([JSON.stringify(linked)], {type:'application/json'});
-    navigator.sendBeacon('/api/estimates', blob);
+// Autosave normally means nothing is pending here. If something is (changed in the last
+// few seconds), send just the takeoff with a keepalive request. Browsers cap those (and
+// sendBeacon) at about 64 KB, which the old whole-estimate beacon often exceeded and was
+// silently dropped; if it is still too big, ask before leaving instead of losing it.
+window.addEventListener('beforeunload', (e)=>{
+  if(!_dsUnsaved()) return;
+  const body=JSON.stringify({id:linked.id, drawingsState:getDrawingsState()});
+  if(body.length<60000){
+    try{ fetch('/api/estimates',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}); return; }catch(_){}
   }
+  e.preventDefault(); e.returnValue='';
 });
 
 
