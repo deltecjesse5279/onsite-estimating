@@ -331,7 +331,7 @@ tr:hover .dbtn{opacity:1}
 .layer-row.active{background:var(--amber-bg);border-left:3px solid var(--amber);padding-left:5px}
 .lr-eye{background:none;border:none;cursor:pointer;font-size:13px;padding:0 1px;color:var(--muted);opacity:.55;flex-shrink:0;line-height:1}
 .lr-eye:hover{opacity:1}
-.lr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,.12);transition:transform .1s}
+.lr-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,.15);transition:transform .1s}
 .lr-dot:hover{transform:scale(1.25)}
 .lr-body{flex:1;min-width:0}
 .lr-row1{display:flex;align-items:center;gap:4px}
@@ -344,9 +344,10 @@ tr:hover .dbtn{opacity:1}
 .lr-measure{font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap;flex-shrink:0}
 .lr-kebab{background:none;border:none;cursor:pointer;font-size:15px;padding:0 2px;color:var(--muted);opacity:.45;flex-shrink:0;line-height:1;letter-spacing:1px}
 .lr-kebab:hover{opacity:1}
-.lr-select{background:none;border:none;cursor:pointer;font-size:13px;padding:0 1px;color:var(--muted);opacity:.45;flex-shrink:0;line-height:1}
-.lr-select:hover{opacity:1}
-.lr-select.checked{opacity:1;color:var(--blue)}
+.lr-select{width:16px;height:16px;flex-shrink:0;box-sizing:border-box;border:1.5px solid #9a988f;border-radius:3px;background:#fff;cursor:pointer;position:relative;transition:border-color .1s,background .1s}
+.lr-select:hover{border-color:var(--blue)}
+.lr-select.checked{background:var(--blue);border-color:var(--blue)}
+.lr-select.checked::after{content:'';position:absolute;left:4.5px;top:1.5px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 
 /* Kebab context menu */
 .layer-menu{position:fixed;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:500;min-width:140px;overflow:hidden}
@@ -2468,27 +2469,25 @@ function acDrawMatches(ctx){
       ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
       return;
     }
-    if(m.status==='accepted'){
-      const col='rgb(30,150,70)';
-      ctx.setLineDash([]); ctx.lineWidth=2.5; ctx.strokeStyle=col;
-      ctx.fillStyle='rgba(30,150,70,0.16)';
-      ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
-      const r=Math.max(5,Math.min(9,w*0.22)), cx=x+w, cy=y;   // check badge, top-right corner
-      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5,r*0.3); ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(cx-r*0.45,cy); ctx.lineTo(cx-r*0.1,cy+r*0.38); ctx.lineTo(cx+r*0.5,cy-r*0.35); ctx.stroke();
-      ctx.lineCap='butt';
-    } else if(m.status==='rejected'){
-      ctx.setLineDash([3,3]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(110,110,110,0.85)';
-      ctx.strokeRect(x,y,w,h);
-      ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w,y+h); ctx.moveTo(x+w,y); ctx.lineTo(x,y+h); ctx.stroke();
-    } else {
-      const col=acConfColor(m.confidence);
-      ctx.setLineDash([5,3]); ctx.lineWidth=2; ctx.strokeStyle=col;
-      ctx.fillStyle=col.replace('rgb(','rgba(').replace(')',',0.10)');
-      ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
-    }
+    // Every review state uses the same solid, filled box with a corner badge (what the
+    // accepted ones had), so undecided and rejected boxes are just as easy to spot:
+    //   accepted  green, check -> counts
+    //   undecided amber, "?"   -> needs a click (never counts until accepted)
+    //   rejected  red, cross   -> never counts
+    let col, fill, badge;
+    if(m.status==='accepted'){ col='rgb(30,150,70)'; fill='rgba(30,150,70,0.16)'; badge='check'; }
+    else if(m.status==='rejected'){ col='rgb(200,50,45)'; fill='rgba(200,50,45,0.16)'; badge='cross'; }
+    else { col='rgb(215,140,0)'; fill='rgba(215,140,0,0.20)'; badge='q'; }
+    ctx.setLineDash([]); ctx.lineWidth=2.5; ctx.strokeStyle=col; ctx.fillStyle=fill;
+    ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+    const r=Math.max(5,Math.min(9,w*0.22)), cx=x+w, cy=y;   // badge, top-right corner
+    ctx.fillStyle=col; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.fillStyle='#fff'; ctx.lineWidth=Math.max(1.5,r*0.3); ctx.lineCap='round';
+    ctx.beginPath();
+    if(badge==='check'){ ctx.moveTo(cx-r*0.45,cy); ctx.lineTo(cx-r*0.1,cy+r*0.38); ctx.lineTo(cx+r*0.5,cy-r*0.35); ctx.stroke(); }
+    else if(badge==='cross'){ const k=r*0.38; ctx.moveTo(cx-k,cy-k); ctx.lineTo(cx+k,cy+k); ctx.moveTo(cx+k,cy-k); ctx.lineTo(cx-k,cy+k); ctx.stroke(); }
+    else { ctx.font='bold '+Math.round(r*1.5)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('?',cx,cy+r*0.08); }
+    ctx.lineCap='butt';
   });
   ctx.setLineDash([]);
   ctx.restore();
@@ -2541,8 +2540,8 @@ function acShowMatches(){
     +(_acLastPush.skipped?' ('+_acLastPush.skipped+' were already counted, skipped)':'')+'. Save to keep them.</div>';
   html+='<div class="ac-feat">Last scan found '+ls.found+(ls.added<ls.found?' ('+ls.added+' new)':'')
     +'. On this page: <span style="color:rgb(30,150,70)">'+acc+' accepted</span>, '
-    +'<span style="color:rgb(200,140,20)">'+pend.length+' undecided</span>, '
-    +'<span style="color:var(--muted)">'+rej+' rejected</span>'
+    +'<span style="color:rgb(215,140,0)">'+pend.length+' undecided</span>, '
+    +'<span style="color:rgb(200,50,45)">'+rej+' rejected</span>'
     +(counted.length?', <span style="color:rgb(70,100,140)">'+counted.length+' already counted</span>':'')+'.</div>';
   if(counted.length) html+='<div class="ac-feat" style="margin-top:3px">Already counted on: '+cNames.map(_acEsc).join(', ')
     +'. These are left out unless you click one to include it.'+(_acHideCounted?' (Hidden: showing new only.)':'')+'</div>';
@@ -4445,7 +4444,7 @@ function renderItemCard(it, idx){
   const hasMks=allMarkups>0;
   return `<div class="tog${isActive?' active-item':''}" onclick="event.stopPropagation()">
     <div class="layer-row${isActive?' active':''}" onclick="clickItemHdr(${idx},event)" id="lrow-${it.id}">
-      <button class="lr-select${it.checked?' checked':''}" onclick="toggleItemSelect(${idx},event)" title="${it.checked?'Deselect':'Select'}">${it.checked?'&#9679;':'&#9675;'}</button>
+      <div class="lr-select${it.checked?' checked':''}" onclick="toggleItemSelect(${idx},event)" title="${it.checked?'Deselect':'Select'}" role="checkbox" aria-checked="${it.checked?'true':'false'}"></div>
       <span class="lr-dot" style="background:${it.color};opacity:${it.opacity!=null?it.opacity:0.5}" onclick="openColorPickerItem(${idx},event)" title="Change color"></span>
       <div class="lr-body">
         <div class="lr-row1">
